@@ -115,19 +115,18 @@ class ContractInvestigatorAgent(BaseLegalAgent):
             content=response,
             reasoning="合同前置调查：要素提取+法条匹配+风险区域标注",
             metadata=investigation,
-            actions=[
-                {"type": "investigation_complete", "data": investigation}
-            ],
+            actions=[{"type": "investigation_complete", "data": investigation}],
         )
 
     def _parse_investigation(self, response: str) -> dict[str, Any]:
         """解析调查结果"""
         import re
+
         try:
-            code_block = re.search(r'```json\s*([\s\S]*?)\s*```', response)
+            code_block = re.search(r"```json\s*([\s\S]*?)\s*```", response)
             if code_block:
                 return cast(dict[str, Any], json.loads(code_block.group(1)))
-            json_match = re.search(r'\{[\s\S]*\}', response)
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return cast(dict[str, Any], json.loads(json_match.group()))
         except json.JSONDecodeError:

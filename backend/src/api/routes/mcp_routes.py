@@ -2,7 +2,6 @@
 MCP Server Management Routes
 """
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -23,6 +22,7 @@ from src.services.mcp_client_service import (
 
 router = APIRouter()
 
+
 class McpConfigCreate(BaseModel):
     name: str
     description: str | None = None
@@ -32,6 +32,7 @@ class McpConfigCreate(BaseModel):
     env: dict[str, str] | None = {}
     url: str | None = None
     is_enabled: bool = True
+
 
 class McpConfigUpdate(BaseModel):
     name: str | None = None
@@ -43,8 +44,10 @@ class McpConfigUpdate(BaseModel):
     url: str | None = None
     is_enabled: bool | None = None
 
+
 class McpConfigResponse(BaseModel):
     """MCP 服务器响应 — 隐藏 env 中的敏感值"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: str
@@ -101,6 +104,7 @@ async def list_servers(
     result = await db.execute(select(McpServerConfig))
     return [McpConfigResponse.from_orm_masked(s) for s in result.scalars().all()]
 
+
 @router.post("/servers")
 async def create_server(
     config: McpConfigCreate,
@@ -131,6 +135,7 @@ async def create_server(
         extra_data={"source": "mcp"},
     )
     return McpConfigResponse.from_orm_masked(db_config)
+
 
 @router.put("/servers/{server_id}")
 async def update_server(
@@ -168,6 +173,7 @@ async def update_server(
     )
     return McpConfigResponse.from_orm_masked(db_config)
 
+
 @router.delete("/servers/{server_id}")
 async def delete_server(
     server_id: str,
@@ -193,6 +199,7 @@ async def delete_server(
         extra_data={"source": "mcp"},
     )
     return {"success": True}
+
 
 @router.post("/servers/{server_id}/connect")
 async def connect_server(
@@ -250,6 +257,7 @@ async def connect_server(
             extra_data={"source": "mcp"},
         )
         raise HTTPException(status_code=500, detail=f"Connection failed: {str(e)}") from e
+
 
 @router.get("/tools")
 async def list_available_tools(

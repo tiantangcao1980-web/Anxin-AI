@@ -29,10 +29,10 @@ if sys.platform == "win32":
 engine_args: dict[str, Any] = {
     "echo": settings.DEBUG,
     "pool_pre_ping": True,
-    "pool_size": settings.DATABASE_POOL_SIZE,       # 默认 10
+    "pool_size": settings.DATABASE_POOL_SIZE,  # 默认 10
     "max_overflow": settings.DATABASE_MAX_OVERFLOW,  # 默认 20
-    "pool_recycle": 3600,    # 每小时回收（防数据库端超时）
-    "pool_timeout": 30,      # 等待可用连接超时
+    "pool_recycle": 3600,  # 每小时回收（防数据库端超时）
+    "pool_timeout": 30,  # 等待可用连接超时
 }
 
 # 仅在 PostgreSQL 时添加 connect_args
@@ -40,8 +40,7 @@ if settings.DATABASE_URL.startswith("postgresql"):
     engine_args["connect_args"] = {"server_settings": {"jit": "off"}}
 
 engine = create_async_engine(
-    settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
-    **engine_args
+    settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"), **engine_args
 )
 
 # 创建会话工厂
@@ -186,15 +185,13 @@ async def init_db() -> None:
 
             # 1. 创建默认组织
             org_id = "00000000-0000-0000-0000-000000000001"
-            org_result = await session.execute(select(Organization).where(Organization.id == org_id))
+            org_result = await session.execute(
+                select(Organization).where(Organization.id == org_id)
+            )
             org = org_result.scalar_one_or_none()
 
             if not org:
-                org = Organization(
-                    id=org_id,
-                    name="安心智能助手",
-                    description="系统默认组织"
-                )
+                org = Organization(id=org_id, name="安心智能助手", description="系统默认组织")
                 session.add(org)
                 logger.info(f"创建默认组织: {org.name}")
 
@@ -210,6 +207,7 @@ async def init_db() -> None:
                 #          如果未设置，使用 secrets 模块生成随机强密码并输出到日志
                 #          管理员必须使用该密码首次登录后立即修改
                 import secrets as _secrets
+
                 initial_password = os.environ.get("ADMIN_INITIAL_PASSWORD")
                 if not initial_password:
                     initial_password = _secrets.token_urlsafe(16)
@@ -244,6 +242,7 @@ async def init_db() -> None:
         try:
             async with async_session_maker() as flag_session:
                 from src.services.feature_flag_service import FeatureFlagService
+
                 flag_svc = FeatureFlagService(flag_session)
                 await flag_svc.ensure_preset_flags()
                 await flag_session.commit()

@@ -31,17 +31,20 @@ class ConsensusAgent(BaseLegalAgent):
         description = task.get("description", "")
         agent_results = task.get("agent_results", [])
 
-        results_str = "\n\n".join([
-            f"--- Agent: {r.agent_name} ---\n{r.content}"
-            for r in agent_results if isinstance(r, AgentResponse)
-        ])
+        results_str = "\n\n".join(
+            [
+                f"--- Agent: {r.agent_name} ---\n{r.content}"
+                for r in agent_results
+                if isinstance(r, AgentResponse)
+            ]
+        )
 
         prompt = f"任务背景：{description}\n\n以下是各智能体的分析结果，请进行冲突审查并给出最终共识结论：\n\n{results_str}"
 
         response_text = await self.chat(prompt)
 
         # 解析 JSON
-        json_match = re.search(r'(\{.*\})', response_text, re.DOTALL)
+        json_match = re.search(r"(\{.*\})", response_text, re.DOTALL)
         metadata = {}
         content = response_text
 
@@ -52,8 +55,4 @@ class ConsensusAgent(BaseLegalAgent):
             except Exception:
                 pass
 
-        return AgentResponse(
-            agent_name=self.name,
-            content=content,
-            metadata=metadata
-        )
+        return AgentResponse(agent_name=self.name, content=content, metadata=metadata)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P7-B: MarketResearcherAgent 4 capability 单测。
 
 不依赖真 LLM / 真 fetch；用 mock callable 注入。
@@ -59,7 +58,11 @@ async def test_investigate_company_returns_report():
     fetch = _FakeFetchService()
     agent = MarketResearcherAgent(
         llm_callable=_stub_llm_returning(
-            {"summary": "公司 X 是一家做 LED 的公司", "rationale": "查到 3 个证据", "next_questions": []}
+            {
+                "summary": "公司 X 是一家做 LED 的公司",
+                "rationale": "查到 3 个证据",
+                "next_questions": [],
+            }
         ),
         fetch_service=fetch,
     )

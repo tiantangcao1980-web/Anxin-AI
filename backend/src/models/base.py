@@ -29,11 +29,12 @@ class GUID(TypeDecorator[str]):
     """Platform-independent GUID type.
     Uses PostgreSQL's UUID type, otherwise uses CHAR(36), storing as string.
     """
+
     impl = CHAR
     cache_ok = True
 
     def load_dialect_impl(self, dialect: Any) -> Any:
-        if dialect.name == 'postgresql':
+        if dialect.name == "postgresql":
             return dialect.type_descriptor(postgresql.UUID(as_uuid=False))
         else:
             return dialect.type_descriptor(CHAR(36))
@@ -41,7 +42,7 @@ class GUID(TypeDecorator[str]):
     def process_bind_param(self, value: Any, dialect: Any) -> str | None:
         if value is None:
             return value
-        elif dialect.name == 'postgresql':
+        elif dialect.name == "postgresql":
             return str(value)
         else:
             if not isinstance(value, uuid.UUID):

@@ -151,7 +151,9 @@ class AgentGovernanceService:
                 now=issued_at,
             )
             await self.db.flush()
-            return AgentRouteTokenIssue(False, denial, _reason_message(denial), route_id=route.id, audit_event_id=event.id)
+            return AgentRouteTokenIssue(
+                False, denial, _reason_message(denial), route_id=route.id, audit_event_id=event.id
+            )
 
         normalized_consumer = _required(consumer_id, "consumer_id")
         if not _consumer_allowed(normalized_consumer, route.allowed_consumers or []):
@@ -215,7 +217,10 @@ class AgentGovernanceService:
             reason_code="issued",
             actor_user_id=actor_user_id,
             actor_type=actor_type,
-            metadata={"consumer_id": normalized_consumer, "scope_count": str(len(normalized_scopes))},
+            metadata={
+                "consumer_id": normalized_consumer,
+                "scope_count": str(len(normalized_scopes)),
+            },
             now=issued_at,
         )
         await self.db.flush()
@@ -244,8 +249,14 @@ class AgentGovernanceService:
         if route_type:
             query = query.where(CapabilityRoute.route_type == route_type.strip().lower())
         rows = (
-            await self.db.execute(query.order_by(CapabilityRoute.route_type, CapabilityRoute.route_key))
-        ).scalars().all()
+            (
+                await self.db.execute(
+                    query.order_by(CapabilityRoute.route_type, CapabilityRoute.route_key)
+                )
+            )
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     async def update_capability_route_policy(
@@ -378,7 +389,9 @@ class AgentGovernanceService:
                 now=checked_at,
             )
             await self.db.flush()
-            return AgentCapabilityDecision(False, "missing_route_token", "缺少能力路由 token", audit_event_id=event.id)
+            return AgentCapabilityDecision(
+                False, "missing_route_token", "缺少能力路由 token", audit_event_id=event.id
+            )
 
         lease_route = await self._get_lease_and_route(org_id=org_id, raw_token=raw_token)
         if lease_route is None:
@@ -392,7 +405,9 @@ class AgentGovernanceService:
                 now=checked_at,
             )
             await self.db.flush()
-            return AgentCapabilityDecision(False, "unknown_route_token", "能力路由 token 无效", audit_event_id=event.id)
+            return AgentCapabilityDecision(
+                False, "unknown_route_token", "能力路由 token 无效", audit_event_id=event.id
+            )
 
         lease, route = lease_route
         denial = self._lease_denial(
@@ -479,20 +494,26 @@ class AgentGovernanceService:
                 now=revoked_at,
             )
             await self.db.flush()
-            return AgentRouteRevocation(False, "unknown_capability_route", "能力路由不存在", audit_event_id=event.id)
+            return AgentRouteRevocation(
+                False, "unknown_capability_route", "能力路由不存在", audit_event_id=event.id
+            )
 
         route.status = "disabled"
         route.revoked_at = revoked_at
         route.revoked_reason = reason
         leases = (
-            await self.db.execute(
-                select(CapabilityRouteTokenLease).where(
-                    CapabilityRouteTokenLease.org_id == org_id,
-                    CapabilityRouteTokenLease.route_id == route.id,
-                    CapabilityRouteTokenLease.revoked_at.is_(None),
+            (
+                await self.db.execute(
+                    select(CapabilityRouteTokenLease).where(
+                        CapabilityRouteTokenLease.org_id == org_id,
+                        CapabilityRouteTokenLease.route_id == route.id,
+                        CapabilityRouteTokenLease.revoked_at.is_(None),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for lease in leases:
             lease.revoked_at = revoked_at
             lease.revoked_reason = reason
@@ -525,14 +546,18 @@ class AgentGovernanceService:
         now: datetime,
     ) -> int:
         leases = (
-            await self.db.execute(
-                select(CapabilityRouteTokenLease).where(
-                    CapabilityRouteTokenLease.org_id == route.org_id,
-                    CapabilityRouteTokenLease.route_id == route.id,
-                    CapabilityRouteTokenLease.revoked_at.is_(None),
+            (
+                await self.db.execute(
+                    select(CapabilityRouteTokenLease).where(
+                        CapabilityRouteTokenLease.org_id == route.org_id,
+                        CapabilityRouteTokenLease.route_id == route.id,
+                        CapabilityRouteTokenLease.revoked_at.is_(None),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for lease in leases:
             lease.revoked_at = now
             lease.revoked_reason = reason

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 FetchService 数据模型 — Request / Response / Tier 枚举
 

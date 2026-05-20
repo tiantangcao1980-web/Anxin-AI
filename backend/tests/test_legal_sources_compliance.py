@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P6-C 法律数据源 — 合规底线测试。
 
 确保 wenshu.court.gov.cn / mp.weixin.qq.com 在任何调用路径上都被硬拒。

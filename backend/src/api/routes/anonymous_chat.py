@@ -49,6 +49,7 @@ router = APIRouter(prefix="/anonymous-chat", tags=["匿名聊天"])
 
 # ===== 内存存储（后续可迁移至 Redis） =====
 
+
 class ChatMessage(BaseModel):
     id: str
     sender: str  # "user" | "lawyer"
@@ -83,8 +84,10 @@ active_connections: dict[str, dict[str, WebSocket]] = {}
 
 # ===== 请求/响应模型 =====
 
+
 class CreateRoomRequest(BaseModel):
     """创建匿名聊天室"""
+
     consultation_id: str | None = Field(None, description="关联咨询 ID")
     user_name: str | None = Field(None, description="用户真实姓名（揭示后展示）")
     lawyer_name: str | None = Field(None, description="律师真实姓名（揭示后展示）")
@@ -94,6 +97,7 @@ class CreateRoomRequest(BaseModel):
 
 class CreateRoomResponse(BaseModel):
     """V2 安全修复：仅返回调用者（用户）自己的 token。律师走 lawyer-join 获取自己的 token。"""
+
     room_id: str
     user_token: str
     created_at: str
@@ -102,6 +106,7 @@ class CreateRoomResponse(BaseModel):
 
 class LawyerJoinResponse(BaseModel):
     """律师认领房间后返回 lawyer_token"""
+
     room_id: str
     lawyer_token: str
     message: str
@@ -109,6 +114,7 @@ class LawyerJoinResponse(BaseModel):
 
 class MyTokenResponse(BaseModel):
     """各方重新获取自己的 token（用于客户端丢失场景）"""
+
     room_id: str
     role: str  # "user" | "lawyer"
     token: str
@@ -129,6 +135,7 @@ class RoomInfoResponse(BaseModel):
 
 
 # ===== 辅助函数 =====
+
 
 def _get_room(room_id: str) -> ChatRoom:
     room = rooms.get(room_id)
@@ -170,7 +177,10 @@ async def _broadcast_to_room(room_id: str, message: dict[str, Any]) -> None:
 
 # ===== REST API =====
 
-async def _get_consultation_or_403(db: AsyncSession, consultation_id: str, user: User) -> "Consultation":
+
+async def _get_consultation_or_403(
+    db: AsyncSession, consultation_id: str, user: User
+) -> "Consultation":
     """读取 consultation 并校验调用者是否为参与方（user 或 matched_lawyer）"""
     from src.models.lawyer_matching import Consultation
 
@@ -220,11 +230,15 @@ async def create_room(
     )
 
     # 添加系统欢迎消息
-    welcome = _create_system_message("匿名咨询室已开启，双方身份信息已隐藏。您可以安全地沟通法律问题。")
+    welcome = _create_system_message(
+        "匿名咨询室已开启，双方身份信息已隐藏。您可以安全地沟通法律问题。"
+    )
     room.messages.append(welcome)
 
     rooms[room_id] = room
-    logger.info(f"匿名聊天室创建: room={room_id}, 创建人 user={user.id}, 关联咨询={req.consultation_id}")
+    logger.info(
+        f"匿名聊天室创建: room={room_id}, 创建人 user={user.id}, 关联咨询={req.consultation_id}"
+    )
 
     return CreateRoomResponse(
         room_id=room_id,
@@ -291,7 +305,9 @@ async def get_my_token(
 
 
 @router.get("/rooms/{room_id}", response_model=RoomInfoResponse)
-async def get_room_info(room_id: str, token: str = Query(..., description="临时 token")) -> RoomInfoResponse:
+async def get_room_info(
+    room_id: str, token: str = Query(..., description="临时 token")
+) -> RoomInfoResponse:
     """获取聊天室信息（需要提供有效 token）"""
     room = _get_room(room_id)
     role = _get_role_by_token(room, token)
@@ -318,7 +334,9 @@ async def get_room_info(room_id: str, token: str = Query(..., description="临�
 
 
 @router.post("/rooms/{room_id}/reveal")
-async def reveal_identity(room_id: str, token: str = Query(..., description="临时 token")) -> dict[str, Any]:
+async def reveal_identity(
+    room_id: str, token: str = Query(..., description="临时 token")
+) -> dict[str, Any]:
     """确认揭示身份 — 双方都确认后身份信息解除匿名"""
     room = _get_room(room_id)
     role = _get_role_by_token(room, token)
@@ -341,14 +359,17 @@ async def reveal_identity(room_id: str, token: str = Query(..., description="临
         room.messages.append(sys_msg)
 
         # 广播揭示消息
-        await _broadcast_to_room(room_id, {
-            "type": "reveal",
-            "message": sys_msg.model_dump(),
-            "user_name": room.user_name,
-            "lawyer_name": room.lawyer_name,
-            "user_contact": room.user_contact,
-            "lawyer_contact": room.lawyer_contact,
-        })
+        await _broadcast_to_room(
+            room_id,
+            {
+                "type": "reveal",
+                "message": sys_msg.model_dump(),
+                "user_name": room.user_name,
+                "lawyer_name": room.lawyer_name,
+                "user_contact": room.user_contact,
+                "lawyer_contact": room.lawyer_contact,
+            },
+        )
 
         logger.info(f"聊天室 {room_id} 双方身份已揭示")
         return {
@@ -362,17 +383,23 @@ async def reveal_identity(room_id: str, token: str = Query(..., description="临
 
     # 只有一方确认
     waiting_for = "律师" if role == "user" else "用户"
-    notify_msg = _create_system_message(f"{'用户' if role == 'user' else '律师'}已同意揭示身份，等待{waiting_for}确认")
+    notify_msg = _create_system_message(
+        f"{'用户' if role == 'user' else '律师'}已同意揭示身份，等待{waiting_for}确认"
+    )
     room.messages.append(notify_msg)
-    await _broadcast_to_room(room_id, {
-        "type": "system",
-        "message": notify_msg.model_dump(),
-    })
+    await _broadcast_to_room(
+        room_id,
+        {
+            "type": "system",
+            "message": notify_msg.model_dump(),
+        },
+    )
 
     return {"message": f"已确认，等待{waiting_for}同意", "revealed": False}
 
 
 # ===== WebSocket 端点 =====
+
 
 @router.websocket("/ws/{room_id}")
 async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(...)) -> None:
@@ -403,20 +430,25 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
     logger.info(f"WebSocket 连接: {role_label} 进入聊天室 {room_id}")
 
     # 发送历史消息
-    await websocket.send_json({
-        "type": "history",
-        "messages": [m.model_dump() for m in room.messages],
-        "role": role,
-        "revealed": room.revealed,
-    })
+    await websocket.send_json(
+        {
+            "type": "history",
+            "messages": [m.model_dump() for m in room.messages],
+            "role": role,
+            "revealed": room.revealed,
+        }
+    )
 
     # 通知对方上线
     join_msg = _create_system_message(f"{role_label}已加入聊天")
     room.messages.append(join_msg)
-    await _broadcast_to_room(room_id, {
-        "type": "system",
-        "message": join_msg.model_dump(),
-    })
+    await _broadcast_to_room(
+        room_id,
+        {
+            "type": "system",
+            "message": join_msg.model_dump(),
+        },
+    )
 
     max_message_length = 4096  # 单条消息最大长度
     max_messages_per_minute = 30  # 每分钟最大消息数
@@ -431,10 +463,12 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
 
             # 消息长度限制
             if len(content) > max_message_length:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"消息长度不能超过 {max_message_length} 字符",
-                })
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": f"消息长度不能超过 {max_message_length} 字符",
+                    }
+                )
                 continue
 
             # 简易频率限制
@@ -442,14 +476,17 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
             _msg_timestamps.append(now)
             _msg_timestamps[:] = [t for t in _msg_timestamps if (now - t).total_seconds() < 60]
             if len(_msg_timestamps) > max_messages_per_minute:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "发送过于频繁，请稍后再试",
-                })
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": "发送过于频繁，请稍后再试",
+                    }
+                )
                 continue
 
             # XSS 过滤：转义 HTML 特殊字符
             import html as html_mod
+
             content = html_mod.escape(content)
 
             # 创建消息
@@ -463,13 +500,17 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
             room.messages.append(msg)
 
             # 广播给房间内所有人
-            await _broadcast_to_room(room_id, {
-                "type": "message",
-                "message": msg.model_dump(),
-            })
+            await _broadcast_to_room(
+                room_id,
+                {
+                    "type": "message",
+                    "message": msg.model_dump(),
+                },
+            )
 
             # AI 旁听钩子
             from src.services.meeting_assistant_service import meeting_assistant
+
             asyncio.create_task(
                 meeting_assistant.on_message(
                     conversation_id=room_id,
@@ -490,10 +531,13 @@ async def websocket_chat(websocket: WebSocket, room_id: str, token: str = Query(
         # 通知对方离线
         leave_msg = _create_system_message(f"{role_label}已离开聊天")
         room.messages.append(leave_msg)
-        await _broadcast_to_room(room_id, {
-            "type": "system",
-            "message": leave_msg.model_dump(),
-        })
+        await _broadcast_to_room(
+            room_id,
+            {
+                "type": "system",
+                "message": leave_msg.model_dump(),
+            },
+        )
     except Exception as e:
         logger.error(f"WebSocket 错误: {room_id} - {e}")
         conns = active_connections.get(room_id, {})

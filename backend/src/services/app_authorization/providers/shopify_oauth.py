@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shopify OAuth 2.0 Provider（P4-E）。
 
 参考文档：
@@ -35,13 +34,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Base 类导入：优先用 P4-A 框架，缺失时本地 fallback
@@ -60,9 +58,9 @@ except ImportError:  # pragma: no cover - 测试 / 框架未合入时使用 fall
         """
 
         access_token: str
-        refresh_token: Optional[str] = None
-        expires_at: Optional[datetime] = None
-        scope: Optional[str] = None
+        refresh_token: str | None = None
+        expires_at: datetime | None = None
+        scope: str | None = None
         token_type: str = "Bearer"
         raw: dict[str, Any] = field(default_factory=dict)
 
@@ -85,7 +83,7 @@ except ImportError:  # pragma: no cover - 测试 / 框架未合入时使用 fall
             client_id: str,
             client_secret: str,
             redirect_uri: str,
-            http_client: Optional[httpx.AsyncClient] = None,
+            http_client: httpx.AsyncClient | None = None,
         ) -> None:
             self.client_id = client_id
             self.client_secret = client_secret
@@ -144,12 +142,8 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
     # ---- Shopify OAuth / Admin 端点模板（{shop} 占位） ----
     AUTHORIZE_URL_TEMPLATE = "https://{shop}/admin/oauth/authorize"
     TOKEN_URL_TEMPLATE = "https://{shop}/admin/oauth/access_token"
-    REVOKE_URL_TEMPLATE = (
-        "https://{shop}/admin/api/{api_version}/oauth/revoke.json"
-    )
-    SHOP_INFO_URL_TEMPLATE = (
-        "https://{shop}/admin/api/{api_version}/shop.json"
-    )
+    REVOKE_URL_TEMPLATE = "https://{shop}/admin/api/{api_version}/oauth/revoke.json"
+    SHOP_INFO_URL_TEMPLATE = "https://{shop}/admin/api/{api_version}/shop.json"
 
     # 默认 API 版本（Shopify 季度发布制；可被构造参数覆盖）
     DEFAULT_API_VERSION = "2024-10"
@@ -157,11 +151,11 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
     def __init__(
         self,
         *,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        redirect_uri: Optional[str] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
-        redis_client: Optional[Any] = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        redirect_uri: str | None = None,
+        http_client: httpx.AsyncClient | None = None,
+        redis_client: Any | None = None,
         api_version: str = DEFAULT_API_VERSION,
         **kwargs: Any,
     ) -> None:
@@ -188,12 +182,8 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
             from src.core.config import settings as _settings
 
             settings_client_id = getattr(_settings, "SHOPIFY_API_KEY", "") or ""
-            settings_client_secret = (
-                getattr(_settings, "SHOPIFY_API_SECRET", "") or ""
-            )
-            settings_redirect = (
-                getattr(_settings, "SHOPIFY_OAUTH_REDIRECT_URI", "") or ""
-            )
+            settings_client_secret = getattr(_settings, "SHOPIFY_API_SECRET", "") or ""
+            settings_redirect = getattr(_settings, "SHOPIFY_OAUTH_REDIRECT_URI", "") or ""
         except Exception:
             pass
 
@@ -216,9 +206,9 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         self,
         state: str,
         *,
-        scopes: Optional[list[str]] = None,
-        extra_params: Optional[dict[str, str]] = None,
-        shop: Optional[str] = None,
+        scopes: list[str] | None = None,
+        extra_params: dict[str, str] | None = None,
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> str:
         """生成 Shopify 授权页 URL。
@@ -253,8 +243,8 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         self,
         code: str,
         *,
-        state: Optional[str] = None,  # noqa: ARG002 — 兼容签名
-        shop: Optional[str] = None,
+        state: str | None = None,  # noqa: ARG002 — 兼容签名
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> OAuthTokenBundle:
         """用授权码换 access_token。
@@ -285,16 +275,14 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         若 online-mode token 过期或被商家在后台撤销，唯一办法是引导用户
         重新走授权流程（re-auth），不能用 refresh_token 续期。
         """
-        raise NotImplementedError(
-            "Shopify offline tokens never expire; use re-auth"
-        )
+        raise NotImplementedError("Shopify offline tokens never expire; use re-auth")
 
     # ============== 4. 撤销 ==============
     async def revoke(
         self,
         access_token: str,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> None:
         """撤销 Shopify access_token。
@@ -307,9 +295,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
             raise ValueError("shop required for Shopify")
 
         normalized_shop = self._normalize_shop(shop)
-        url = self.REVOKE_URL_TEMPLATE.format(
-            shop=normalized_shop, api_version=self.api_version
-        )
+        url = self.REVOKE_URL_TEMPLATE.format(shop=normalized_shop, api_version=self.api_version)
         headers = {"X-Shopify-Access-Token": access_token}
         client = self._client()
         owns_client = self._http is None
@@ -326,7 +312,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         self,
         access_token: str,
         *,
-        shop: Optional[str] = None,
+        shop: str | None = None,
         **_kwargs: Any,
     ) -> dict[str, Any]:
         """拉取当前店铺元数据（name / email / country / timezone / currency）。
@@ -338,9 +324,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
             raise ValueError("shop required for Shopify")
 
         normalized_shop = self._normalize_shop(shop)
-        url = self.SHOP_INFO_URL_TEMPLATE.format(
-            shop=normalized_shop, api_version=self.api_version
-        )
+        url = self.SHOP_INFO_URL_TEMPLATE.format(shop=normalized_shop, api_version=self.api_version)
         headers = {"X-Shopify-Access-Token": access_token}
         client = self._client()
         owns_client = self._http is None
@@ -379,7 +363,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
 
         # ----- 抽出受保护的 hmac 值，并归一化 dict（list -> str） -----
         normalized: dict[str, str] = {}
-        provided_hmac: Optional[str] = None
+        provided_hmac: str | None = None
         for key, value in query_dict.items():
             v = value[0] if isinstance(value, (list, tuple)) else value
             if v is None:
@@ -397,9 +381,7 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
             return False
 
         # ----- 构造待签名字符串：字典序 + key=value& 拼接 -----
-        message = "&".join(
-            f"{k}={normalized[k]}" for k in sorted(normalized.keys())
-        )
+        message = "&".join(f"{k}={normalized[k]}" for k in sorted(normalized.keys()))
         digest = hmac.new(
             secret.encode("utf-8"),
             message.encode("utf-8"),
@@ -422,9 +404,9 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
         """
         s = shop.strip()
         if s.startswith("https://"):
-            s = s[len("https://"):]
+            s = s[len("https://") :]
         elif s.startswith("http://"):
-            s = s[len("http://"):]
+            s = s[len("http://") :]
         return s.rstrip("/")
 
     def _client(self) -> httpx.AsyncClient:
@@ -481,9 +463,9 @@ class ShopifyOAuthProvider(BaseOAuthProvider):
             raise ValueError(f"Shopify 返回缺少 access_token 字段: {data}")
 
         expire_in = data.get("expires_in")
-        expires_at: Optional[datetime] = None
+        expires_at: datetime | None = None
         if isinstance(expire_in, (int, float)):
-            expires_at = datetime.now(timezone.utc) + timedelta(
+            expires_at = datetime.now(UTC) + timedelta(
                 seconds=int(expire_in) - 60  # 提前 60s 视为过期
             )
 

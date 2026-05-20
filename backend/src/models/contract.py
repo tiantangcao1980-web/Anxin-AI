@@ -4,8 +4,6 @@
 
 """
 
-
-
 import enum
 from datetime import date
 from typing import Any
@@ -18,7 +16,6 @@ from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 
 class ContractStatus(str, enum.Enum):
-
     """合同状态"""
 
     DRAFT = "draft"  # 草稿
@@ -40,11 +37,7 @@ class ContractStatus(str, enum.Enum):
     TERMINATED = "terminated"  # 已终止
 
 
-
-
-
 class RiskLevel(str, enum.Enum):
-
     """风险等级"""
 
     LOW = "low"
@@ -56,18 +49,10 @@ class RiskLevel(str, enum.Enum):
     CRITICAL = "critical"
 
 
-
-
-
 class Contract(Base, TimestampMixin):
-
     """合同模型"""
 
-
-
     __tablename__ = "contracts"
-
-
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -76,13 +61,9 @@ class Contract(Base, TimestampMixin):
     contract_type: Mapped[str] = mapped_column(String(100), nullable=False)
 
     status: Mapped[ContractStatus] = mapped_column(
-
         ValueEnum(ContractStatus), default=ContractStatus.DRAFT
-
     )
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-
-
 
     # 当事人信息
 
@@ -92,15 +73,11 @@ class Contract(Base, TimestampMixin):
 
     other_parties: Mapped[list[Any] | None] = mapped_column(JSONB)  # 其他方
 
-
-
     # 合同金额
 
     amount: Mapped[float | None] = mapped_column(Float)
 
     currency: Mapped[str] = mapped_column(String(10), default="CNY")
-
-
 
     # 关键日期
 
@@ -109,8 +86,6 @@ class Contract(Base, TimestampMixin):
     effective_date: Mapped[date | None] = mapped_column(Date)
 
     expiry_date: Mapped[date | None] = mapped_column(Date)
-
-
 
     # AI审核结果
 
@@ -130,62 +105,40 @@ class Contract(Base, TimestampMixin):
     esign_flow_id: Mapped[str | None] = mapped_column(String(128), unique=True)
     esign_provider: Mapped[str | None] = mapped_column(String(50))
 
-
-
     # 外键
 
     document_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("documents.id", ondelete="SET NULL")
-
     )
 
     org_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
-
     )
 
     reviewed_by: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
-
-
 
     # 关系
 
     clauses: Mapped[list["ContractClause"]] = relationship(
-
         "ContractClause", back_populates="contract", cascade="all, delete-orphan"
-
     )
 
     risks: Mapped[list["ContractRisk"]] = relationship(
-
         "ContractRisk", back_populates="contract", cascade="all, delete-orphan"
-
     )
 
     versions: Mapped[list["ContractVersion"]] = relationship(
-
         "ContractVersion", back_populates="contract", cascade="all, delete-orphan"
-
     )
 
     attachments: Mapped[list["ContractAttachment"]] = relationship(
-
         "ContractAttachment", back_populates="contract", cascade="all, delete-orphan"
-
     )
 
 
-
-
-
 class ContractVersion(Base, TimestampMixin):
-
     """合同版本快照"""
 
     __tablename__ = "contract_versions"
@@ -194,9 +147,7 @@ class ContractVersion(Base, TimestampMixin):
     )
 
     contract_id: Mapped[str] = mapped_column(
-
         GUID(), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False
-
     )
 
     version: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -208,30 +159,23 @@ class ContractVersion(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(String(255))
 
     created_by: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
 
     contract: Mapped["Contract"] = relationship("Contract", back_populates="versions")
 
 
 class ContractAttachment(Base, TimestampMixin):
-
     """合同附件对象存储记录"""
 
     __tablename__ = "contract_attachments"
 
     contract_id: Mapped[str] = mapped_column(
-
         GUID(), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False
-
     )
 
     org_id: Mapped[str] = mapped_column(
-
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
-
     )
 
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -247,26 +191,16 @@ class ContractAttachment(Base, TimestampMixin):
     file_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
     uploaded_by: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
 
     contract: Mapped["Contract"] = relationship("Contract", back_populates="attachments")
 
 
-
-
-
 class ContractClause(Base, TimestampMixin):
-
     """合同条款"""
 
-
-
     __tablename__ = "contract_clauses"
-
-
 
     clause_number: Mapped[str] = mapped_column(String(50), nullable=False)
 
@@ -275,8 +209,6 @@ class ContractClause(Base, TimestampMixin):
     title: Mapped[str | None] = mapped_column(String(255))
 
     content: Mapped[str] = mapped_column(Text, nullable=False)
-
-
 
     # AI分析
 
@@ -288,49 +220,29 @@ class ContractClause(Base, TimestampMixin):
 
     suggestions: Mapped[list[Any] | None] = mapped_column(JSONB)
 
-
-
     # 外键
 
     contract_id: Mapped[str] = mapped_column(
-
         GUID(), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False
-
     )
-
-
 
     # 关系
 
     contract: Mapped["Contract"] = relationship("Contract", back_populates="clauses")
 
 
-
-
-
 class ContractRisk(Base, TimestampMixin):
-
     """合同风险点"""
-
-
 
     __tablename__ = "contract_risks"
 
-
-
     risk_type: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    risk_level: Mapped[RiskLevel] = mapped_column(
-
-        ValueEnum(RiskLevel), default=RiskLevel.MEDIUM
-
-    )
+    risk_level: Mapped[RiskLevel] = mapped_column(ValueEnum(RiskLevel), default=RiskLevel.MEDIUM)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
 
     description: Mapped[str] = mapped_column(Text, nullable=False)
-
-
 
     # 关联条款
 
@@ -338,15 +250,11 @@ class ContractRisk(Base, TimestampMixin):
 
     original_text: Mapped[str | None] = mapped_column(Text)  # 原文
 
-
-
     # 建议
 
     suggestion: Mapped[str | None] = mapped_column(Text)
 
     suggested_text: Mapped[str | None] = mapped_column(Text)  # 建议修改后的文本
-
-
 
     # 处理状态
 
@@ -354,17 +262,11 @@ class ContractRisk(Base, TimestampMixin):
 
     resolution_note: Mapped[str | None] = mapped_column(Text)
 
-
-
     # 外键
 
     contract_id: Mapped[str] = mapped_column(
-
         GUID(), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False
-
     )
-
-
 
     # 关系
 

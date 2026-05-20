@@ -14,12 +14,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { usePullDownRefresh, useDidShow } from '@tarojs/taro'
 
-import { Screen } from '../../../components/Layout'
-import EmptyState from '../../../components/EmptyState'
-import TaskListItem from '../components/TaskListItem'
-import { tasksApi } from '../_lib/tasksApi'
-import { TAB_BUCKETS, type TaskTab } from '../_lib/statusMap'
-import type { AgentTask } from '../../../types/agentTask'
+import { Screen } from '../../components/Layout'
+import EmptyState from '../../components/EmptyState'
+import TaskListItem from '../../subpackages/tasks/components/TaskListItem'
+import { tasksApi } from '../../subpackages/tasks/_lib/tasksApi'
+import { TAB_BUCKETS, type TaskTab } from '../../subpackages/tasks/_lib/statusMap'
+import type { AgentTask } from '../../types/agentTask'
 import './index.scss'
 
 const POLL_MS = 5_000

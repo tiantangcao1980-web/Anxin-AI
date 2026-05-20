@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 IM 适配器注册表
 
@@ -14,7 +13,7 @@ IM 适配器注册表
 
 from __future__ import annotations
 
-from typing import Any, Type
+from typing import Any
 
 from src.services.im_gateway.base import BaseIMAdapter
 from src.services.im_gateway.models import IMChannelType
@@ -26,26 +25,24 @@ class IMAdapterRegistry:
     单实例 / 全局缺省可通过 ``IMAdapterRegistry.default()`` 获取。
     """
 
-    _default: "IMAdapterRegistry | None" = None
+    _default: IMAdapterRegistry | None = None
 
     def __init__(self) -> None:
-        self._adapters: dict[str, Type[BaseIMAdapter]] = {}
+        self._adapters: dict[str, type[BaseIMAdapter]] = {}
 
     # ------------------------------------------------------------------
     # 注册 / 路由
     # ------------------------------------------------------------------
-    def register(self, adapter_cls: Type[BaseIMAdapter]) -> None:
+    def register(self, adapter_cls: type[BaseIMAdapter]) -> None:
         """注册一个 adapter 类。
 
         要求 ``adapter_cls.channel_type`` 非空。
         """
         if not adapter_cls.channel_type:
-            raise ValueError(
-                f"{adapter_cls.__name__} 缺少 channel_type 类属性"
-            )
+            raise ValueError(f"{adapter_cls.__name__} 缺少 channel_type 类属性")
         self._adapters[adapter_cls.channel_type] = adapter_cls
 
-    def get(self, channel_type: str) -> Type[BaseIMAdapter]:
+    def get(self, channel_type: str) -> type[BaseIMAdapter]:
         """按 ``channel_type`` 取出 adapter 类。"""
         if channel_type not in self._adapters:
             raise KeyError(f"未注册的 IM 通道类型: {channel_type}")
@@ -67,7 +64,7 @@ class IMAdapterRegistry:
     # 默认注册表（含 5 个内置 adapter）
     # ------------------------------------------------------------------
     @classmethod
-    def default(cls) -> "IMAdapterRegistry":
+    def default(cls) -> IMAdapterRegistry:
         """返回（懒初始化的）默认注册表。"""
         if cls._default is None:
             # 延迟导入，避免循环引用

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """跨境电商助手 persona（P7-E）。
 
 定位：制造业出海全链路智能体 —— 从「想做出海」到「第一笔订单回款」之间的
@@ -29,7 +28,6 @@ from src.agents.personas.ecommerce_models import (
     SupplierVerification,
     VATGuidance,
 )
-
 
 # ---------------------------------------------------------------------------
 # 议价策略常量（暴露在模块级，方便测试 import 调阈值）
@@ -235,9 +233,7 @@ class EcommerceAssistantAgent(BasePersonaAgent):
             raise ValueError(f"非法 mood: {mood}")
 
         round_num = len(history) + 1
-        last_their_price = (
-            history[-1].get("their_price") if history else None
-        )
+        last_their_price = history[-1].get("their_price") if history else None
 
         # ---- walk_away：对方报价 > target * (1 + 15%) ----
         if last_their_price is not None and last_their_price > target_price * (
@@ -267,7 +263,9 @@ class EcommerceAssistantAgent(BasePersonaAgent):
             "moderate": CONCEDE_STEP_MODERATE,
             "friendly": CONCEDE_STEP_FRIENDLY,
         }[mood]
-        last_our_price = history[-1].get("our_price", target_price * (1 - ANCHOR_DISCOUNT_PCT / 100))
+        last_our_price = history[-1].get(
+            "our_price", target_price * (1 - ANCHOR_DISCOUNT_PCT / 100)
+        )
         our_price = last_our_price + target_price * (step_pct / 100)
         # 不超过 target，否则没法继续谈
         our_price = min(our_price, target_price * 0.98)
@@ -367,7 +365,9 @@ class EcommerceAssistantAgent(BasePersonaAgent):
             bottom_line_distance_pct=round((target - final_price) / target * 100, 2),
         )
 
-    def _build_walk_away(self, target: float, their_price: float, distance_pct: float) -> NegotiationMove:
+    def _build_walk_away(
+        self, target: float, their_price: float, distance_pct: float
+    ) -> NegotiationMove:
         zh = (
             f"非常感谢您的报价，但 ${their_price:.2f}/件超出我们预算太多（高于目标"
             f" {distance_pct:.0f}%）。我们再观察一下市场，后续如果方案有调整再联系您。"
@@ -459,7 +459,11 @@ class EcommerceAssistantAgent(BasePersonaAgent):
         results: list[dict] = []
         for platform in platforms:
             for lang in languages:
-                title = product.title.get(lang) or product.title.get("en") or product.title.get("zh", product.sku)
+                title = (
+                    product.title.get(lang)
+                    or product.title.get("en")
+                    or product.title.get("zh", product.sku)
+                )
                 results.append(
                     {
                         "platform": platform,
@@ -474,9 +478,9 @@ class EcommerceAssistantAgent(BasePersonaAgent):
             "sku": product.sku,
             "total": len(results),
             "results": results,
-            "delegated_to": ["content_director_persona"]  # 多语言文案让内容总监
-            if len(languages) > 1
-            else [],
+            "delegated_to": (
+                ["content_director_persona"] if len(languages) > 1 else []  # 多语言文案让内容总监
+            ),
         }
 
     # ------------------------------------------------------------------
@@ -505,7 +509,9 @@ class EcommerceAssistantAgent(BasePersonaAgent):
             "US": (0.0, 0.0, "quarterly", "各州不一，主要看 sales tax nexus"),
             "美国": (0.0, 0.0, "quarterly", "各州不一，主要看 sales tax nexus"),
         }
-        rate, threshold, freq, deadline = kb.get(country_norm, (20.0, 10000.0, "quarterly", "请咨询当地税务师"))
+        rate, threshold, freq, deadline = kb.get(
+            country_norm, (20.0, 10000.0, "quarterly", "请咨询当地税务师")
+        )
         is_us = country_norm in {"US", "USA", "美国"}
 
         steps: list[str]

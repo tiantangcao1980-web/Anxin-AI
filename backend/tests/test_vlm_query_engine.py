@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P13-C: VLMQueryEngine 单元测试。
 
 mock LLMService（chat_with_vision），覆盖：
@@ -24,7 +23,6 @@ from src.services.rag.query.base import (
 )
 from src.services.rag.query.multimodal_retriever import MultimodalRetriever
 from src.services.rag.query.vlm_query_engine import VLMQueryEngine
-
 
 # ---------- mocks ----------
 
@@ -130,9 +128,7 @@ async def test_enable_vlm_false_falls_back_to_text() -> None:
     segs = [_seg("t1", Modality.TEXT, 0.9, content="法条 X")]
     vlm = StubVLMClient()
     engine = _mk_engine(segs, vlm)
-    resp = await engine.query(
-        MultimodalQueryRequest(query="法条", top_k=3, enable_vlm=False)
-    )
+    resp = await engine.query(MultimodalQueryRequest(query="法条", top_k=3, enable_vlm=False))
     assert resp.vlm_used is False
     assert "VLM 未启用" in resp.answer or "降级" in resp.answer
     assert vlm.last_call is None  # 没调 VLM

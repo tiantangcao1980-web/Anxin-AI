@@ -91,14 +91,21 @@ AGENT_REGISTRY: dict[str, type] = {
 EventPayload = dict[str, Any]
 TaskInfo = dict[str, Any]
 WsCallback = Callable[[str, EventPayload], Coroutine[Any, Any, None]]
-RUNTIME_ARTIFACT_SENSITIVE_FRAGMENTS = ("token", "secret", "password", "credential", "api_key", "private_key")
+RUNTIME_ARTIFACT_SENSITIVE_FRAGMENTS = (
+    "token",
+    "secret",
+    "password",
+    "credential",
+    "api_key",
+    "private_key",
+)
 RUNTIME_ARTIFACT_SECRET_PATTERNS = (
     re.compile(r"(?i)(api[_-]?key|token|secret|password|private[_-]?key)\s*[:=]\s*[^,\s;]+"),
     re.compile(r"sk-[A-Za-z0-9._-]+"),
 )
 
-MAX_PARALLEL_AGENTS = settings.AGENT_MAX_PARALLEL       # 同一 DAG 层级最多并行执行的 Agent 数（默认 30）
-TASK_TIMEOUT_SECONDS = settings.AGENT_TASK_TIMEOUT      # 单个 Agent 任务超时时间（秒）
+MAX_PARALLEL_AGENTS = settings.AGENT_MAX_PARALLEL  # 同一 DAG 层级最多并行执行的 Agent 数（默认 30）
+TASK_TIMEOUT_SECONDS = settings.AGENT_TASK_TIMEOUT  # 单个 Agent 任务超时时间（秒）
 
 
 def _text_preview(value: Any, limit: int = 500) -> str:
@@ -148,7 +155,11 @@ def build_runtime_workspace_artifact(
     agent_summaries: list[dict[str, Any]] = []
     for result in agent_results:
         metadata = result.metadata if isinstance(result.metadata, dict) else {}
-        status = "failed" if metadata.get("error") else "degraded" if metadata.get("degraded") else "completed"
+        status = (
+            "failed"
+            if metadata.get("error")
+            else "degraded" if metadata.get("degraded") else "completed"
+        )
         agent_summaries.append(
             {
                 "agent": result.agent_name,
@@ -203,15 +214,15 @@ def build_runtime_workspace_artifact(
 class LegalWorkforce:
     """
     法务智能体团队 (v4 弹性并行版)
-    
+
     协调多个专业智能体协作完成复杂法务任务。
-    
+
     并行能力（从 config.py 读取，支持环境变量覆盖）：
     - AGENT_MAX_PARALLEL: 同层最大并行数（默认 30，可扩至 200）
     - AGENT_LLM_CONCURRENCY: LLM 并发请求数（默认 15）
     - AGENT_TASK_TIMEOUT: 单任务超时（默认 120s）
     - AGENT_GLOBAL_TIMEOUT: 全局超时（默认 600s）
-    
+
     架构优化：
     - Semaphore 控制并行 Agent 数，防止 LLM API 过载
     - 通过 task context 传递 LLM 配置，消除竞态条件
@@ -239,6 +250,7 @@ class LegalWorkforce:
         # 加载技能库
         try:
             from src.services.skill_service import skill_service
+
             skill_service.load_skills()
         except Exception as e:
             logger.warning(f"技能库加载失败: {e}")
@@ -265,7 +277,7 @@ class LegalWorkforce:
     ) -> dict[str, Any]:
         """
         处理法务任务 (v4: DAG执行流 + 条件共识 + 并发控制 + 流式Agent结果推送)
-        
+
         Args:
             progress_callback: 进度回调 (event_type, data_dict)
             ws_callback: WebSocket 回调，用于推送 agent_result/thinking_content 等事件
@@ -297,10 +309,13 @@ class LegalWorkforce:
 
         # 0. 并行预处理：情景记忆 + 技能匹配 + 意图分析同时启动
         # 优化：原来串行执行 3 步（记忆→技能→分析），现在并行，节省 1-3 秒
-        await _notify("agent_thinking", {
-            "agent": "协调调度Agent",
-            "message": "正在分析任务意图...",
-        })
+        await _notify(
+            "agent_thinking",
+            {
+                "agent": "协调调度Agent",
+                "message": "正在分析任务意图...",
+            },
+        )
 
         async def _fetch_memory() -> list[Any]:
             try:
@@ -315,6 +330,7 @@ class LegalWorkforce:
         async def _match_skills() -> list[Any]:
             try:
                 from src.services.skill_service import skill_service
+
                 skills = skill_service.match_skills(task_description)
                 if skills:
                     logger.info(f"匹配到相关技能: {[s.name for s in skills]}")
@@ -324,11 +340,13 @@ class LegalWorkforce:
                 return []
 
         async def _analyze_task(ctx: dict[str, Any]) -> dict[str, Any]:
-            return await self.coordinator.analyze_task({
-                "description": task_description,
-                "type": task_type,
-                "context": ctx,
-            })
+            return await self.coordinator.analyze_task(
+                {
+                    "description": task_description,
+                    "type": task_type,
+                    "context": ctx,
+                }
+            )
 
         # 并行执行记忆检索和技能匹配（不阻塞意图分析）
         memory_task = asyncio.create_task(_fetch_memory())
@@ -356,19 +374,38 @@ class LegalWorkforce:
             default_agents: list[TaskInfo] = []
             desc_lower = task_description.lower()
 
-            if any(kw in desc_lower for kw in ['合同', '协议', '起草', '草拟', '文书', '方案']):
-                default_agents.append({"id": "task_1", "agent": "document_drafter", "depends_on": []})
-                default_agents.append({"id": "task_2", "agent": "legal_advisor", "instruction_suffix": "审查并完善上述文书的法律合规性。", "depends_on": ["task_1"]})
-            elif any(kw in desc_lower for kw in ['审查', '审核', '合规']):
+            if any(kw in desc_lower for kw in ["合同", "协议", "起草", "草拟", "文书", "方案"]):
+                default_agents.append(
+                    {"id": "task_1", "agent": "document_drafter", "depends_on": []}
+                )
+                default_agents.append(
+                    {
+                        "id": "task_2",
+                        "agent": "legal_advisor",
+                        "instruction_suffix": "审查并完善上述文书的法律合规性。",
+                        "depends_on": ["task_1"],
+                    }
+                )
+            elif any(kw in desc_lower for kw in ["审查", "审核", "合规"]):
                 # 双循环审查管线：调查→审查→验证
-                default_agents.append({"id": "task_1", "agent": "contract_investigator", "depends_on": []})
-                default_agents.append({"id": "task_2", "agent": "contract_reviewer", "depends_on": ["task_1"]})
-                default_agents.append({"id": "task_3", "agent": "review_checker", "depends_on": ["task_2"]})
-            elif any(kw in desc_lower for kw in ['风险', '评估', '分析']):
+                default_agents.append(
+                    {"id": "task_1", "agent": "contract_investigator", "depends_on": []}
+                )
+                default_agents.append(
+                    {"id": "task_2", "agent": "contract_reviewer", "depends_on": ["task_1"]}
+                )
+                default_agents.append(
+                    {"id": "task_3", "agent": "review_checker", "depends_on": ["task_2"]}
+                )
+            elif any(kw in desc_lower for kw in ["风险", "评估", "分析"]):
                 default_agents.append({"id": "task_1", "agent": "risk_assessor", "depends_on": []})
-            elif any(kw in desc_lower for kw in ['诉讼', '仲裁', '纠纷']):
-                default_agents.append({"id": "task_1", "agent": "legal_researcher", "depends_on": []})
-                default_agents.append({"id": "task_2", "agent": "litigation_strategist", "depends_on": ["task_1"]})
+            elif any(kw in desc_lower for kw in ["诉讼", "仲裁", "纠纷"]):
+                default_agents.append(
+                    {"id": "task_1", "agent": "legal_researcher", "depends_on": []}
+                )
+                default_agents.append(
+                    {"id": "task_2", "agent": "litigation_strategist", "depends_on": ["task_1"]}
+                )
             else:
                 # 兜底：法律顾问
                 default_agents.append({"id": "task_1", "agent": "legal_advisor", "depends_on": []})
@@ -385,11 +422,14 @@ class LegalWorkforce:
         logger.info(f"任务分析完成，执行计划包含 {total_steps} 个步骤")
 
         # 通知前端计划已生成
-        await _notify("agent_thinking", {
-            "agent": "协调调度Agent",
-            "message": f"任务拆解完成，共 {total_steps} 个执行步骤",
-            "total_steps": total_steps,
-        })
+        await _notify(
+            "agent_thinking",
+            {
+                "agent": "协调调度Agent",
+                "message": f"任务拆解完成，共 {total_steps} 个执行步骤",
+                "total_steps": total_steps,
+            },
+        )
 
         # Agent 名称映射（显示友好名称）— 放在使用之前定义
         agent_display_names = {
@@ -436,32 +476,40 @@ class LegalWorkforce:
             "COMPLEX_TASK": "复合任务",
         }
         intent_label = _intent_labels.get(intent, intent)
-        await _notify("thinking_content", {
-            "agent": "协调调度Agent",
-            "content": f"**意图识别**: {intent_label}\n\n**规划理由**: {reasoning}",
-            "phase": "planning",
-            "plan_steps": [
-                {"agent": agent_display_names.get(t.get("agent", ""), t.get("agent", "")),
-                 "instruction": t.get("instruction", "")[:100]}
-                for t in plan
-            ],
-        })
+        await _notify(
+            "thinking_content",
+            {
+                "agent": "协调调度Agent",
+                "content": f"**意图识别**: {intent_label}\n\n**规划理由**: {reasoning}",
+                "phase": "planning",
+                "plan_steps": [
+                    {
+                        "agent": agent_display_names.get(t.get("agent", ""), t.get("agent", "")),
+                        "instruction": t.get("instruction", "")[:100],
+                    }
+                    for t in plan
+                ],
+            },
+        )
 
         # 2. 推送任务看板到前端（agent_tasks_batch — 一次性展示所有并列任务卡片）
-        await _notify("agent_tasks_batch", {
-            "tasks": [
-                {
-                    "task_id": t["id"],
-                    "agent": agent_display_names.get(t.get("agent", ""), t.get("agent", "")),
-                    "agent_key": t.get("agent", ""),
-                    "description": (t.get("instruction", "") or task_description)[:120],
-                    "status": "queued",
-                    "progress": 0,
-                    "dependencies": t.get("depends_on", []),
-                }
-                for t in plan
-            ],
-        })
+        await _notify(
+            "agent_tasks_batch",
+            {
+                "tasks": [
+                    {
+                        "task_id": t["id"],
+                        "agent": agent_display_names.get(t.get("agent", ""), t.get("agent", "")),
+                        "agent_key": t.get("agent", ""),
+                        "description": (t.get("instruction", "") or task_description)[:120],
+                        "status": "queued",
+                        "progress": 0,
+                        "dependencies": t.get("depends_on", []),
+                    }
+                    for t in plan
+                ],
+            },
+        )
 
         # === 初始化多 Agent 协作基础设施 ===
         task_id = str(uuid.uuid4())[:12]
@@ -482,11 +530,14 @@ class LegalWorkforce:
             # 全局超时保护
             if time.time() - global_start > GLOBAL_TASK_TIMEOUT:
                 logger.warning(f"全局任务超时 ({GLOBAL_TASK_TIMEOUT}s)，强制终止")
-                await _notify("task_force_complete", {
-                    "reason": "global_timeout",
-                    "completed_tasks": list(executed_tasks.keys()),
-                    "pending_tasks": pending_task_ids,
-                })
+                await _notify(
+                    "task_force_complete",
+                    {
+                        "reason": "global_timeout",
+                        "completed_tasks": list(executed_tasks.keys()),
+                        "pending_tasks": pending_task_ids,
+                    },
+                )
                 break
 
             # DAG 轮次保护
@@ -547,48 +598,62 @@ class LegalWorkforce:
                     for skill in matched_skills:
                         instr = t_info.get("instruction", "").lower()
                         if skill.name in instr or any(trig in instr for trig in skill.triggers):
-                            skill_guidance += f"\n\n【参考技能：{skill.name}】\n{skill.content[:2000]}\n"
+                            skill_guidance += (
+                                f"\n\n【参考技能：{skill.name}】\n{skill.content[:2000]}\n"
+                            )
                     if skill_guidance:
                         t_info["instruction"] = t_info.get("instruction", "") + skill_guidance
 
                 # 通知前端
-                await _notify("agent_task_start", {
-                    "task_id": t_id,
-                    "agent": display_name,
-                    "agent_key": a_name,
-                    "description": (t_info.get("instruction", "") or task_description)[:120],
-                })
-                await _notify("agent_working", {
-                    "agent": display_name,
-                    "message": f"{display_name} 正在处理...",
-                    "step": step_number,
-                    "total_steps": total_steps,
-                })
+                await _notify(
+                    "agent_task_start",
+                    {
+                        "task_id": t_id,
+                        "agent": display_name,
+                        "agent_key": a_name,
+                        "description": (t_info.get("instruction", "") or task_description)[:120],
+                    },
+                )
+                await _notify(
+                    "agent_working",
+                    {
+                        "agent": display_name,
+                        "message": f"{display_name} 正在处理...",
+                        "step": step_number,
+                        "total_steps": total_steps,
+                    },
+                )
 
                 async with self._dag_semaphore:
-                    await _notify("agent_task_progress", {
-                        "task_id": t_id,
-                        "progress": 30,
-                        "elapsed": round(time.time() - agent_start_time, 1),
-                    })
+                    await _notify(
+                        "agent_task_progress",
+                        {
+                            "task_id": t_id,
+                            "progress": 30,
+                            "elapsed": round(time.time() - agent_start_time, 1),
+                        },
+                    )
 
                     # 使用生命周期管理器执行（自动重试、替换、降级）
                     result = cast(
                         AgentResponse,
                         await lifecycle_manager.execute_with_lifecycle(
-                        agent_name=a_name,
-                        task_info=t_info,
-                        agent_context=agent_ctx,
-                        message_pool=message_pool,
-                        context=context,
+                            agent_name=a_name,
+                            task_info=t_info,
+                            agent_context=agent_ctx,
+                            message_pool=message_pool,
+                            context=context,
                         ),
                     )
 
-                    await _notify("agent_task_progress", {
-                        "task_id": t_id,
-                        "progress": 80,
-                        "elapsed": round(time.time() - agent_start_time, 1),
-                    })
+                    await _notify(
+                        "agent_task_progress",
+                        {
+                            "task_id": t_id,
+                            "progress": 80,
+                            "elapsed": round(time.time() - agent_start_time, 1),
+                        },
+                    )
 
                 # 保存 Agent 上下文到工作记忆
                 await memory_integration.save_agent_context(agent_ctx)
@@ -605,42 +670,59 @@ class LegalWorkforce:
                     is_error = result.metadata.get("error", False)
                     is_degraded = result.metadata.get("degraded", False)
                     if not is_error:
-                        summary = result.content[:200] + ("..." if len(result.content) > 200 else "")
+                        summary = result.content[:200] + (
+                            "..." if len(result.content) > 200 else ""
+                        )
 
                 if is_error and not is_degraded:
-                    await _notify("agent_task_failed", {
-                        "task_id": t_id,
-                        "error": full_content[:200],
-                    })
+                    await _notify(
+                        "agent_task_failed",
+                        {
+                            "task_id": t_id,
+                            "error": full_content[:200],
+                        },
+                    )
                 elif is_degraded:
-                    await _notify("task_degraded", {
-                        "task_id": t_id,
-                        "agent": display_name,
-                        "message": full_content[:200],
-                    })
+                    await _notify(
+                        "task_degraded",
+                        {
+                            "task_id": t_id,
+                            "agent": display_name,
+                            "message": full_content[:200],
+                        },
+                    )
                 else:
-                    await _notify("agent_task_complete", {
-                        "task_id": t_id,
-                        "result": summary,
-                        "elapsed": elapsed,
-                    })
+                    await _notify(
+                        "agent_task_complete",
+                        {
+                            "task_id": t_id,
+                            "result": summary,
+                            "elapsed": elapsed,
+                        },
+                    )
 
                 # 旧版事件兼容
-                await _notify("agent_complete", {
-                    "agent": display_name,
-                    "message": f"{display_name} 已完成",
-                    "summary": summary,
-                    "step": step_number,
-                    "total_steps": total_steps,
-                })
-                await _notify("agent_result", {
-                    "agent": display_name,
-                    "agent_key": a_name,
-                    "content": full_content,
-                    "step": step_number,
-                    "total_steps": total_steps,
-                    "elapsed": elapsed,
-                })
+                await _notify(
+                    "agent_complete",
+                    {
+                        "agent": display_name,
+                        "message": f"{display_name} 已完成",
+                        "summary": summary,
+                        "step": step_number,
+                        "total_steps": total_steps,
+                    },
+                )
+                await _notify(
+                    "agent_result",
+                    {
+                        "agent": display_name,
+                        "agent_key": a_name,
+                        "content": full_content,
+                        "step": step_number,
+                        "total_steps": total_steps,
+                        "elapsed": elapsed,
+                    },
+                )
 
                 return result
 
@@ -653,12 +735,15 @@ class LegalWorkforce:
                     executed_tasks[t_info["id"]] = AgentResponse(
                         agent_name=t_info.get("agent", "unknown"),
                         content=f"执行异常: {str(res)}",
-                        metadata={"error": True}
+                        metadata={"error": True},
                     )
-                    await _notify("agent_task_failed", {
-                        "task_id": t_info["id"],
-                        "error": str(res)[:200],
-                    })
+                    await _notify(
+                        "agent_task_failed",
+                        {
+                            "task_id": t_info["id"],
+                            "error": str(res)[:200],
+                        },
+                    )
                 else:
                     executed_tasks[t_info["id"]] = res
                 pending_task_ids.remove(t_info["id"])
@@ -675,18 +760,19 @@ class LegalWorkforce:
         # 当 2+ Agent 参与且涉及高风险场景时，通过 AgentForum 检测矛盾
         forum_alignment = None
         valid_agent_results = [
-            r for r in results_list
-            if isinstance(r, AgentResponse) and not r.metadata.get("error")
+            r for r in results_list if isinstance(r, AgentResponse) and not r.metadata.get("error")
         ]
         if len(valid_agent_results) >= 2:
             try:
                 # 收集各 Agent 的核心结论用于一致性检查
                 agent_summaries = []
                 for r in valid_agent_results:
-                    agent_summaries.append({
-                        "agent": r.agent_name,
-                        "conclusion": r.content[:500] if r.content else "",
-                    })
+                    agent_summaries.append(
+                        {
+                            "agent": r.agent_name,
+                            "conclusion": r.content[:500] if r.content else "",
+                        }
+                    )
                 # 使用 forum 的冲突检测能力（轻量调用，不走完整辩论流程）
                 logger.info(f"[Harness] {len(valid_agent_results)} 个Agent结果，启动一致性对齐检查")
                 forum_alignment = {"checked": True, "agent_count": len(valid_agent_results)}
@@ -716,8 +802,7 @@ class LegalWorkforce:
             "task": task_description,
             "analysis": analysis,
             "agent_results": [
-                r.model_dump() if isinstance(r, AgentResponse) else str(r)
-                for r in results_list
+                r.model_dump() if isinstance(r, AgentResponse) else str(r) for r in results_list
             ],
             "consensus": consensus_res.model_dump() if consensus_res else None,
             "final_result": final_result,
@@ -735,7 +820,7 @@ class LegalWorkforce:
     ) -> AgentResponse:
         """
         执行单个 Agent 任务（带超时控制）
-        
+
         优化：
         - 通过 contextvars 自动传递 llm_config，所有子 Agent 的 chat() 调用自动获取
         - 不修改共享 Agent 实例，线程安全
@@ -745,7 +830,11 @@ class LegalWorkforce:
 
         # 防护：instruction 为空时使用原始任务描述
         if not instruction.strip():
-            instruction = context.get("original_message", "") or context.get("task_description", "") or "请根据上下文提供专业分析。"
+            instruction = (
+                context.get("original_message", "")
+                or context.get("task_description", "")
+                or "请根据上下文提供专业分析。"
+            )
             logger.warning(f"Agent {agent_name}: instruction 为空，回退使用原始消息")
 
         # 注入依赖任务的结果作为上下文
@@ -756,7 +845,9 @@ class LegalWorkforce:
         skill_guidance = ""
         if matched_skills:
             for skill in matched_skills:
-                if skill.name in instruction.lower() or any(trig in instruction.lower() for trig in skill.triggers):
+                if skill.name in instruction.lower() or any(
+                    trig in instruction.lower() for trig in skill.triggers
+                ):
                     skill_guidance += f"\n\n【参考技能：{skill.name}】\n{skill.content[:2000]}\n"
 
         final_instruction = instruction + skill_guidance
@@ -765,7 +856,7 @@ class LegalWorkforce:
             return AgentResponse(
                 agent_name="unknown",
                 content=f"未找到智能体: {agent_name}",
-                metadata={"error": True}
+                metadata={"error": True},
             )
 
         try:
@@ -780,6 +871,7 @@ class LegalWorkforce:
                 _task_llm_route_context_var,
                 _task_mcp_route_context_var,
             )
+
             token_cfg = _task_llm_config_var.set(llm_config)
             token_hist = _task_history_var.set(history)
             token_llm = _task_llm_route_context_var.set(context.get("llm_route_context"))
@@ -788,12 +880,14 @@ class LegalWorkforce:
             try:
                 # process() 本身是协程，直接交给 wait_for 做超时包装，
                 # 不要提前 await，否则会得到 AgentResponse 并被 wait_for 当成非 awaitable。
-                agent_task = self.agents[agent_name].process({
-                    "description": final_instruction,
-                    "context": context,
-                    "dependent_results": dep_results,
-                    "llm_config": llm_config,
-                })
+                agent_task = self.agents[agent_name].process(
+                    {
+                        "description": final_instruction,
+                        "context": context,
+                        "dependent_results": dep_results,
+                        "llm_config": llm_config,
+                    }
+                )
                 result = cast(
                     AgentResponse,
                     await asyncio.wait_for(agent_task, timeout=TASK_TIMEOUT_SECONDS),
@@ -811,14 +905,12 @@ class LegalWorkforce:
             return AgentResponse(
                 agent_name=agent_name,
                 content=f"执行超时（{TASK_TIMEOUT_SECONDS}秒），请简化任务或稍后重试。",
-                metadata={"error": True, "timeout": True}
+                metadata={"error": True, "timeout": True},
             )
         except Exception as e:
             logger.error(f"智能体 {agent_name} 执行失败: {e}")
             return AgentResponse(
-                agent_name=agent_name,
-                content=f"执行失败: {str(e)}",
-                metadata={"error": True}
+                agent_name=agent_name, content=f"执行失败: {str(e)}", metadata={"error": True}
             )
 
     async def _maybe_run_consensus(
@@ -828,14 +920,13 @@ class LegalWorkforce:
     ) -> AgentResponse | None:
         """
         条件触发共识机制
-        
+
         优化：仅当 2 个以上 Agent 参与且均无错误时才触发共识，
               单 Agent 任务直接跳过，节省一次 LLM 调用。
         """
         # 过滤出有效结果（非错误）
         valid_results = [
-            r for r in results_list
-            if isinstance(r, AgentResponse) and not r.metadata.get("error")
+            r for r in results_list if isinstance(r, AgentResponse) and not r.metadata.get("error")
         ]
 
         if len(valid_results) < 2:
@@ -844,10 +935,12 @@ class LegalWorkforce:
 
         logger.info(f"{len(valid_results)} 个Agent结果，触发共识机制...")
         try:
-            consensus_task = cast(Any, self.agents["consensus_manager"]).process({
-                "description": task_description,
-                "agent_results": valid_results,
-            })
+            consensus_task = cast(Any, self.agents["consensus_manager"]).process(
+                {
+                    "description": task_description,
+                    "agent_results": valid_results,
+                }
+            )
             consensus_res: AgentResponse = await asyncio.wait_for(
                 consensus_task,
                 timeout=TASK_TIMEOUT_SECONDS,
@@ -904,6 +997,7 @@ class LegalWorkforce:
         matched_skills: list[Any] = []
         try:
             from src.services.skill_service import skill_service
+
             matched_skills = skill_service.match_skills(task_description)
             if matched_skills:
                 context["matched_skills"] = [s.to_dict() for s in matched_skills]
@@ -911,32 +1005,49 @@ class LegalWorkforce:
             pass
 
         # 1. Coordinator 分析
-        analysis = await self.coordinator.analyze_task({
-            "description": task_description,
-            "type": None,
-            "context": context,
-        })
+        analysis = await self.coordinator.analyze_task(
+            {
+                "description": task_description,
+                "type": None,
+                "context": context,
+            }
+        )
         plan = analysis.get("plan", [])
 
         # 空计划回退
         if not plan:
-            plan = [{"id": "task_1", "agent": "legal_advisor", "depends_on": [],
-                      "instruction": task_description}]
+            plan = [
+                {
+                    "id": "task_1",
+                    "agent": "legal_advisor",
+                    "depends_on": [],
+                    "instruction": task_description,
+                }
+            ]
             analysis["plan"] = plan
 
         yield {"type": "dag_plan", "plan": plan, "analysis": analysis}
 
         # Agent 名称映射
         _display = {
-            "legal_advisor": "法律顾问Agent", "contract_reviewer": "合同审查Agent",
-            "contract_investigator": "合同调查Agent", "review_checker": "审查验证Agent",
-            "due_diligence": "尽职调查Agent", "legal_researcher": "法律研究Agent",
-            "document_drafter": "文书起草Agent", "compliance_officer": "合规审查Agent",
-            "risk_assessor": "风险评估Agent", "litigation_strategist": "诉讼策略Agent",
-            "ip_specialist": "知识产权Agent", "regulatory_monitor": "监管监测Agent",
-            "tax_compliance": "税务合规Agent", "labor_compliance": "劳动合规Agent",
-            "evidence_analyst": "证据分析Agent", "contract_steward": "合同管家Agent",
-            "legal_calculator": "法务分析Agent", "template_librarian": "模板库Agent",
+            "legal_advisor": "法律顾问Agent",
+            "contract_reviewer": "合同审查Agent",
+            "contract_investigator": "合同调查Agent",
+            "review_checker": "审查验证Agent",
+            "due_diligence": "尽职调查Agent",
+            "legal_researcher": "法律研究Agent",
+            "document_drafter": "文书起草Agent",
+            "compliance_officer": "合规审查Agent",
+            "risk_assessor": "风险评估Agent",
+            "litigation_strategist": "诉讼策略Agent",
+            "ip_specialist": "知识产权Agent",
+            "regulatory_monitor": "监管监测Agent",
+            "tax_compliance": "税务合规Agent",
+            "labor_compliance": "劳动合规Agent",
+            "evidence_analyst": "证据分析Agent",
+            "contract_steward": "合同管家Agent",
+            "legal_calculator": "法务分析Agent",
+            "template_librarian": "模板库Agent",
         }
 
         # 2. 基础设施初始化
@@ -965,7 +1076,8 @@ class LegalWorkforce:
                 break
 
             executable = [
-                plan_index[t_id] for t_id in pending_task_ids
+                plan_index[t_id]
+                for t_id in pending_task_ids
                 if all(dep in executed_tasks for dep in plan_index[t_id].get("depends_on", []))
             ]
             if not executable:
@@ -977,7 +1089,9 @@ class LegalWorkforce:
                 other_tasks = executable[1:]
                 primary_name = primary_task.get("agent", "legal_advisor")
                 primary_agent = self.agents.get(primary_name)
-                primary_instruction = primary_task.get("instruction", "").strip() or task_description
+                primary_instruction = (
+                    primary_task.get("instruction", "").strip() or task_description
+                )
 
                 yield {
                     "type": "agent_start",
@@ -990,25 +1104,43 @@ class LegalWorkforce:
                 if matched_skills:
                     for skill in matched_skills:
                         if skill.name in primary_instruction.lower():
-                            primary_instruction += f"\n\n【参考技能：{skill.name}】\n{skill.content[:2000]}\n"
+                            primary_instruction += (
+                                f"\n\n【参考技能：{skill.name}】\n{skill.content[:2000]}\n"
+                            )
 
                 # 并行启动其余 Agent
                 async def _run_other(t_info: TaskInfo) -> tuple[str, str, AgentResponse]:
                     a_name = t_info.get("agent", "unknown")
-                    t_info["instruction"] = t_info.get("instruction", "").strip() or task_description
+                    t_info["instruction"] = (
+                        t_info.get("instruction", "").strip() or task_description
+                    )
                     deps = t_info.get("depends_on", [])
-                    t_info["dependent_results"] = {d: executed_tasks[d] for d in deps if d in executed_tasks}
-                    ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"])
-                    result = cast(AgentResponse, await lifecycle_manager.execute_with_lifecycle(
-                        agent_name=a_name, task_info=t_info,
-                        agent_context=ctx, message_pool=message_pool, context=context,
-                    ))
+                    t_info["dependent_results"] = {
+                        d: executed_tasks[d] for d in deps if d in executed_tasks
+                    }
+                    ctx = AgentContext(
+                        agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"]
+                    )
+                    result = cast(
+                        AgentResponse,
+                        await lifecycle_manager.execute_with_lifecycle(
+                            agent_name=a_name,
+                            task_info=t_info,
+                            agent_context=ctx,
+                            message_pool=message_pool,
+                            context=context,
+                        ),
+                    )
                     return t_info["id"], a_name, result
 
-                other_futures = asyncio.gather(
-                    *[_run_other(t) for t in other_tasks],
-                    return_exceptions=True,
-                ) if other_tasks else None
+                other_futures = (
+                    asyncio.gather(
+                        *[_run_other(t) for t in other_tasks],
+                        return_exceptions=True,
+                    )
+                    if other_tasks
+                    else None
+                )
 
                 # 主 Agent 真流式
                 primary_text = ""
@@ -1019,7 +1151,9 @@ class LegalWorkforce:
                         history = context.get("history")
                         token_cfg = _task_llm_config_var.set(llm_config)
                         token_hist = _task_history_var.set(history)
-                        token_llm = _task_llm_route_context_var.set(context.get("llm_route_context"))
+                        token_llm = _task_llm_route_context_var.set(
+                            context.get("llm_route_context")
+                        )
                         try:
                             queue = await primary_agent.stream_chat(
                                 primary_instruction,
@@ -1033,24 +1167,37 @@ class LegalWorkforce:
                                 if token.startswith("[Error]"):
                                     raise Exception(token)
                                 primary_text += token
-                                yield {"type": "stream_token", "token": token, "agent": primary_name}
+                                yield {
+                                    "type": "stream_token",
+                                    "token": token,
+                                    "agent": primary_name,
+                                }
                             stream_success = True
                         finally:
                             _task_llm_config_var.reset(token_cfg)
                             _task_history_var.reset(token_hist)
                             _task_llm_route_context_var.reset(token_llm)
                     except Exception as se:
-                        logger.warning(f"[streaming] 主 Agent {primary_name} 流式失败，降级到同步: {se}")
+                        logger.warning(
+                            f"[streaming] 主 Agent {primary_name} 流式失败，降级到同步: {se}"
+                        )
 
                 # 流式失败降级
                 if not stream_success:
                     try:
                         primary_task["instruction"] = primary_instruction
                         primary_task["dependent_results"] = {}
-                        p_ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=primary_name, task_id=primary_task["id"])
+                        p_ctx = AgentContext(
+                            agent_id=str(uuid.uuid4())[:8],
+                            agent_name=primary_name,
+                            task_id=primary_task["id"],
+                        )
                         p_result = await lifecycle_manager.execute_with_lifecycle(
-                            agent_name=primary_name, task_info=primary_task,
-                            agent_context=p_ctx, message_pool=message_pool, context=context,
+                            agent_name=primary_name,
+                            task_info=primary_task,
+                            agent_context=p_ctx,
+                            message_pool=message_pool,
+                            context=context,
                         )
                         if isinstance(p_result, AgentResponse):
                             primary_text = p_result.content
@@ -1107,14 +1254,26 @@ class LegalWorkforce:
                 # === 后续层级：正常并行执行 ===
                 async def _run_later(t_info: TaskInfo) -> tuple[str, str, AgentResponse]:
                     a_name = t_info.get("agent", "unknown")
-                    t_info["instruction"] = t_info.get("instruction", "").strip() or task_description
+                    t_info["instruction"] = (
+                        t_info.get("instruction", "").strip() or task_description
+                    )
                     deps = t_info.get("depends_on", [])
-                    t_info["dependent_results"] = {d: executed_tasks[d] for d in deps if d in executed_tasks}
-                    ctx = AgentContext(agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"])
-                    result = cast(AgentResponse, await lifecycle_manager.execute_with_lifecycle(
-                        agent_name=a_name, task_info=t_info,
-                        agent_context=ctx, message_pool=message_pool, context=context,
-                    ))
+                    t_info["dependent_results"] = {
+                        d: executed_tasks[d] for d in deps if d in executed_tasks
+                    }
+                    ctx = AgentContext(
+                        agent_id=str(uuid.uuid4())[:8], agent_name=a_name, task_id=t_info["id"]
+                    )
+                    result = cast(
+                        AgentResponse,
+                        await lifecycle_manager.execute_with_lifecycle(
+                            agent_name=a_name,
+                            task_info=t_info,
+                            agent_context=ctx,
+                            message_pool=message_pool,
+                            context=context,
+                        ),
+                    )
                     return t_info["id"], a_name, result
 
                 later_results = await asyncio.gather(
@@ -1149,8 +1308,10 @@ class LegalWorkforce:
         # 5. 存储情景记忆
         try:
             await memory_integration.commit_task_memory(
-                task_desc=task_description, plan=plan,
-                result=final_result, agent_contexts={},
+                task_desc=task_description,
+                plan=plan,
+                result=final_result,
+                agent_contexts={},
             )
         except Exception:
             pass
@@ -1177,8 +1338,7 @@ class LegalWorkforce:
             "type": "final_result",
             "data": final_result,
             "agent_results": [
-                r.model_dump() if isinstance(r, AgentResponse) else str(r)
-                for r in all_results
+                r.model_dump() if isinstance(r, AgentResponse) else str(r) for r in all_results
             ],
             "consensus": consensus_res.model_dump() if consensus_res else None,
             "elapsed_seconds": round(elapsed, 2),
@@ -1186,19 +1346,16 @@ class LegalWorkforce:
         }
 
     async def chat(
-        self,
-        message: str,
-        agent_name: str | None = None,
-        context: dict[str, Any] | None = None
+        self, message: str, agent_name: str | None = None, context: dict[str, Any] | None = None
     ) -> str:
         """
         对话接口
-        
+
         Args:
             message: 用户消息
             agent_name: 指定智能体（可选）
             context: 上下文信息（可选，包含 llm_config）
-            
+
         Returns:
             回复内容
         """
@@ -1216,22 +1373,25 @@ class LegalWorkforce:
             chat_kwargs["llm_route_context"] = llm_route_context
 
         if agent_name and agent_name in self.agents:
-            return cast(str, await self.agents[agent_name].chat(
-                message,
-                **chat_kwargs,
-            ))
+            return cast(
+                str,
+                await self.agents[agent_name].chat(
+                    message,
+                    **chat_kwargs,
+                ),
+            )
         else:
-            return cast(str, await self.agents["legal_advisor"].chat(
-                message,
-                **chat_kwargs,
-            ))
+            return cast(
+                str,
+                await self.agents["legal_advisor"].chat(
+                    message,
+                    **chat_kwargs,
+                ),
+            )
 
     def get_agents_info(self) -> list[dict[str, Any]]:
         """获取所有智能体信息"""
-        return [
-            cast(dict[str, Any], agent.get_info())
-            for agent in self.agents.values()
-        ]
+        return [cast(dict[str, Any], agent.get_info()) for agent in self.agents.values()]
 
 
 # 全局单例

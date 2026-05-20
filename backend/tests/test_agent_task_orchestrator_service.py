@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TaskOrchestratorService 集成测试
 
@@ -8,11 +7,7 @@ TaskOrchestratorService 集成测试
 
 from __future__ import annotations
 
-from typing import Any
-from uuid import uuid4
-
 import pytest
-import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # 触发 ORM 注册到 Base.metadata（务必在 conftest setup_test_db 之前 import）
@@ -22,7 +17,6 @@ from src.services.task_orchestrator.state_machine import (
     InvalidTransitionError,
     TaskStateMachine,
 )
-
 
 # ---------------------------------------------------------------------------
 # 全局 mock：屏蔽 Redis Streams + Celery，让所有测试都本地跑通
@@ -52,6 +46,7 @@ def _disable_celery_enqueue(monkeypatch):
 
     我们 patch 整个 enqueue 方法，让它直接返回。
     """
+
     async def _noop_enqueue(self, task):
         return None
 
@@ -97,21 +92,15 @@ async def test_create_task_persists(db_session: AsyncSession, test_user) -> None
 
 
 @pytest.mark.asyncio
-async def test_list_tasks_filtered_by_status(
-    db_session: AsyncSession, test_user
-) -> None:
+async def test_list_tasks_filtered_by_status(db_session: AsyncSession, test_user) -> None:
     service = _make_service(db_session)
     t1 = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     t2 = await service.create_task(user_id=str(test_user.id), agent_persona="pro_legal")
     # 把 t2 推到 RUNNING
     await service.start(t2.id)
 
-    queued = await service.list_tasks_for_user(
-        str(test_user.id), status=TaskStatus.QUEUED
-    )
-    running = await service.list_tasks_for_user(
-        str(test_user.id), status=TaskStatus.RUNNING
-    )
+    queued = await service.list_tasks_for_user(str(test_user.id), status=TaskStatus.QUEUED)
+    running = await service.list_tasks_for_user(str(test_user.id), status=TaskStatus.RUNNING)
     assert any(t.id == t1.id for t in queued)
     assert any(t.id == t2.id for t in running)
 
@@ -122,14 +111,10 @@ async def test_list_tasks_filtered_by_status(
 
 
 @pytest.mark.asyncio
-async def test_complete_full_lifecycle(
-    db_session: AsyncSession, test_user
-) -> None:
+async def test_complete_full_lifecycle(db_session: AsyncSession, test_user) -> None:
     """queued → running → reporting → done 全流程。"""
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.start(task.id)
     refetch = await service.get_task(task.id)
     assert refetch.status == TaskStatus.RUNNING
@@ -153,13 +138,9 @@ async def test_complete_full_lifecycle(
 
 
 @pytest.mark.asyncio
-async def test_request_approval_pauses(
-    db_session: AsyncSession, test_user
-) -> None:
+async def test_request_approval_pauses(db_session: AsyncSession, test_user) -> None:
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.start(task.id)
     await service.request_approval(task.id, reason="风险阈值超限")
     refetch = await service.get_task(task.id)
@@ -167,13 +148,9 @@ async def test_request_approval_pauses(
 
 
 @pytest.mark.asyncio
-async def test_approve_resumes_running(
-    db_session: AsyncSession, test_user
-) -> None:
+async def test_approve_resumes_running(db_session: AsyncSession, test_user) -> None:
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.start(task.id)
     await service.request_approval(task.id, reason="check")
     await service.approve(task.id, approver_id=str(test_user.id))
@@ -184,9 +161,7 @@ async def test_approve_resumes_running(
 @pytest.mark.asyncio
 async def test_reject_cancels(db_session: AsyncSession, test_user) -> None:
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.start(task.id)
     await service.request_approval(task.id, reason="check")
     await service.reject(task.id, approver_id=str(test_user.id), reason="不通过")
@@ -204,9 +179,7 @@ async def test_reject_cancels(db_session: AsyncSession, test_user) -> None:
 @pytest.mark.asyncio
 async def test_cancel_from_queued(db_session: AsyncSession, test_user) -> None:
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.cancel(task.id)
     refetch = await service.get_task(task.id)
     assert refetch.status == TaskStatus.CANCELLED
@@ -215,9 +188,7 @@ async def test_cancel_from_queued(db_session: AsyncSession, test_user) -> None:
 @pytest.mark.asyncio
 async def test_cancel_from_running(db_session: AsyncSession, test_user) -> None:
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.start(task.id)
     await service.cancel(task.id)
     refetch = await service.get_task(task.id)
@@ -225,14 +196,10 @@ async def test_cancel_from_running(db_session: AsyncSession, test_user) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cancel_from_terminal_blocked(
-    db_session: AsyncSession, test_user
-) -> None:
+async def test_cancel_from_terminal_blocked(db_session: AsyncSession, test_user) -> None:
     """完成后再取消应抛 InvalidTransitionError。"""
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.start(task.id)
     await service.complete(task.id, {"ok": True})
     with pytest.raises(InvalidTransitionError):
@@ -242,9 +209,7 @@ async def test_cancel_from_terminal_blocked(
 @pytest.mark.asyncio
 async def test_fail_writes_error(db_session: AsyncSession, test_user) -> None:
     service = _make_service(db_session)
-    task = await service.create_task(
-        user_id=str(test_user.id), agent_persona="free_legal"
-    )
+    task = await service.create_task(user_id=str(test_user.id), agent_persona="free_legal")
     await service.start(task.id)
     await service.fail(task.id, {"code": "TIMEOUT", "message": "超时"})
     refetch = await service.get_task(task.id)

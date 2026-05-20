@@ -33,7 +33,7 @@ def _extract_conversation_id(room_name: str) -> str | None:
     if not room_name.startswith(prefix):
         return None
     try:
-        conversation_id, _ = room_name[len(prefix):].rsplit("_", 1)
+        conversation_id, _ = room_name[len(prefix) :].rsplit("_", 1)
     except ValueError:
         return None
     return conversation_id or None
@@ -80,6 +80,7 @@ async def create_room(
         raise HTTPException(status_code=500, detail="生成通话 Token 失败")
 
     from src.core.config import settings
+
     return UnifiedResponse.success(
         data={
             "room_name": room_name,
@@ -115,6 +116,7 @@ async def get_room_token(
         raise HTTPException(status_code=500, detail="生成 Token 失败")
 
     from src.core.config import settings
+
     return UnifiedResponse.success(
         data={
             "room_name": room_name,

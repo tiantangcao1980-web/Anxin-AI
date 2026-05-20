@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Prometheus 业务指标注册中心（P19-A）
 
@@ -20,15 +19,15 @@ P19-C Prometheus / Grafana 直接 scrape `/metrics` 端点。
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 from prometheus_client import (
     CollectorRegistry,
     Counter,
     Histogram,
-    ProcessCollector,
     PlatformCollector,
+    ProcessCollector,
 )
 
 # 独立 registry，避免与第三方库冲突 + 便于测试 reset
@@ -76,7 +75,7 @@ OAUTH_CALLBACK_TOTAL = Counter(
     "anxin_oauth_callback_total",
     "OAuth 回调总数",
     labelnames=("provider", "result"),  # provider: wechat/alipay/notion/dingtalk/shopify
-    registry=REGISTRY,                  # result: success / state_mismatch / token_error / network_error
+    registry=REGISTRY,  # result: success / state_mismatch / token_error / network_error
 )
 
 # ===== Webhook =====
@@ -84,7 +83,7 @@ WEBHOOK_RECEIVED_TOTAL = Counter(
     "anxin_webhook_received_total",
     "Webhook 接收总数",
     labelnames=("source", "result"),  # source: wechat_pay/alipay/esign/feishu/...
-    registry=REGISTRY,                # result: ok / signature_invalid / parse_error
+    registry=REGISTRY,  # result: ok / signature_invalid / parse_error
 )
 
 # ===== Fetch（统一抓取栈 — L1 静态/L2 crawl4ai/L3 HeadlessX/L4 SearXNG） =====
@@ -92,7 +91,7 @@ FETCH_REQUESTS_TOTAL = Counter(
     "anxin_fetch_requests_total",
     "外部抓取请求总数",
     labelnames=("tier", "result"),  # tier: l1_static/l2_crawl4ai/l3_headlessx/l4_searxng
-    registry=REGISTRY,              # result: success / timeout / blocked / error
+    registry=REGISTRY,  # result: success / timeout / blocked / error
 )
 
 # ===== DB =====
@@ -130,7 +129,9 @@ def normalize_endpoint(path: str) -> str:
 def record_http_request(method: str, endpoint: str, status: int, duration_seconds: float) -> None:
     ep = normalize_endpoint(endpoint)
     HTTP_REQUESTS_TOTAL.labels(method=method.upper(), endpoint=ep, status=str(status)).inc()
-    HTTP_REQUEST_DURATION_SECONDS.labels(method=method.upper(), endpoint=ep).observe(duration_seconds)
+    HTTP_REQUEST_DURATION_SECONDS.labels(method=method.upper(), endpoint=ep).observe(
+        duration_seconds
+    )
 
 
 def record_agent_task(persona: str, status: str, duration_seconds: float) -> None:
@@ -172,6 +173,7 @@ def time_db_query(operation: str) -> Iterator[None]:
 def render_exposition() -> bytes:
     """Render prometheus exposition text。供 /metrics 端点直接返回。"""
     from prometheus_client import generate_latest
+
     return generate_latest(REGISTRY)
 
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 L2 crawl4ai 抓取 — 包装现有 ``src.services.crawl4ai_service.crawl4ai_service``。
 
@@ -31,6 +30,7 @@ class L2Crawl4AITier(BaseTier):
         # 延迟 import — 单测可注入 mock 而不触发真实 crawl4ai
         if service is None:
             from src.services.crawl4ai_service import crawl4ai_service  # noqa: WPS433
+
             service = crawl4ai_service
         self._service = service
 

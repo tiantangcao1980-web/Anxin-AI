@@ -121,6 +121,52 @@ export async function getTaskResult(id: string): Promise<Record<string, any> | n
 }
 
 /**
+ * 增量拉取任务事件流（轮询替代 SSE）。
+ *
+ * 后端 `GET /agent-tasks/{id}/events?after_ts=` 支持按时间戳分页，
+ * 这里以 2s 轮询模拟订阅：仅把"新增"事件推给 `onEvent`。
+ * 返回值：取消订阅函数。
+ */
+export function subscribeTaskEvents(
+  id: string,
+  onEvent: (event: TaskEvent) => void,
+  options: { intervalMs?: number } = {},
+): () => void {
+  const interval = options.intervalMs ?? 2000
+  let stopped = false
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let afterTs: string | null = null
+
+  const tick = async () => {
+    if (stopped) return
+    try {
+      const client = getApiClient()
+      const res = await client.get<TaskEvent[]>(
+        `/agent-tasks/${encodeURIComponent(id)}/events`,
+        { params: afterTs ? { after_ts: afterTs } : {} },
+      )
+      const events = res.data ?? []
+      for (const ev of events) {
+        onEvent(ev)
+        afterTs = ev.timestamp
+      }
+    } catch {
+      // 静默重试
+    }
+    if (!stopped) {
+      timer = setTimeout(tick, interval)
+    }
+  }
+
+  tick()
+
+  return () => {
+    stopped = true
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/**
  * 移动端临时事件订阅：固定间隔轮询任务状态。
  * P17-B 接入任务详情时可替换为 RN-EventSource polyfill 或 WebSocket。
  */
@@ -167,4 +213,5 @@ export const agentTasksApi = {
   rejectTask,
   getTaskResult,
   pollTaskUntilDone,
+  subscribeTaskEvents,
 }

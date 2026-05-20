@@ -14,6 +14,7 @@ from src.models.base import GUID, Base, TimestampMixin, ValueEnum
 
 class KnowledgeType(str, enum.Enum):
     """知识类型"""
+
     LAW = "law"  # 法律法规
     REGULATION = "regulation"  # 部门规章
     CASE = "case"  # 司法判例
@@ -50,9 +51,7 @@ class KnowledgeBase(Base, TimestampMixin):
 
     # 向量存储信息
     vector_collection: Mapped[str | None] = mapped_column(String(100))
-    embedding_model: Mapped[str] = mapped_column(
-        String(100), default="text-embedding-3-large"
-    )
+    embedding_model: Mapped[str] = mapped_column(String(100), default="text-embedding-3-large")
     embedding_dimensions: Mapped[int] = mapped_column(Integer, default=3072)
 
     # 配置
@@ -105,9 +104,7 @@ class KnowledgeDocument(Base, TimestampMixin):
     )  # 外部稳定ID，用于幂等导入
     content_hash: Mapped[str | None] = mapped_column(String(64))  # SHA256 内容哈希
     version: Mapped[int] = mapped_column(Integer, default=1)  # 文档版本号
-    status: Mapped[str] = mapped_column(
-        String(20), default="active"
-    )  # active / superseded
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active / superseded
 
     # 外键
     knowledge_base_id: Mapped[str] = mapped_column(

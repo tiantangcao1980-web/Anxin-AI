@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OAuth providers 子包
 
@@ -24,7 +23,7 @@ def _autoload_providers() -> None:
     被 ``OAuthProviderRegistry.default()`` 在首次实例化时调用。
     """
     package_dir = Path(__file__).parent
-    for finder, mod_name, is_pkg in pkgutil.iter_modules([str(package_dir)]):
+    for _finder, mod_name, is_pkg in pkgutil.iter_modules([str(package_dir)]):
         # 只加载 *_oauth.py，跳过私有模块 / 子包
         if is_pkg or not mod_name.endswith("_oauth") or mod_name.startswith("_"):
             continue

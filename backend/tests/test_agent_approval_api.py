@@ -87,12 +87,16 @@ async def test_agent_approval_api_create_approve_validate_round_trip(
         },
     )
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert validated.status_code == 200
     assert validated.json()["code"] == 200
@@ -105,7 +109,11 @@ async def test_agent_approval_api_create_approve_validate_round_trip(
     audit_body = audit_response.json()
     assert audit_body["code"] == 200
     assert audit_body["data"]["total"] == 3
-    assert [item["reason_code"] for item in audit_body["data"]["items"]] == ["allowed", "approved", "requested"]
+    assert [item["reason_code"] for item in audit_body["data"]["items"]] == [
+        "allowed",
+        "approved",
+        "requested",
+    ]
     assert {item["resource_id"] for item in audit_body["data"]["items"]} == {approval_id}
     assert "should-never-leak" not in str(audit_body)
 
@@ -163,7 +171,9 @@ async def test_agent_approval_api_revocation_blocks_later_validation(
         json={"action_type": "skill.enable_high_risk", "risk_level": "l3"},
     )
     approval_id = create.json()["data"]["approval_id"]
-    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+    await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"}
+    )
 
     revoked = await admin_auth_client.post(
         f"/api/v1/agent-approvals/{approval_id}/revoke",
@@ -196,7 +206,9 @@ async def test_agent_approval_workspace_control_fails_closed_and_writes_audit(
         json={"action_type": "browser.remote_control", "risk_level": "l4"},
     )
     approval_id = create.json()["data"]["approval_id"]
-    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+    await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"}
+    )
 
     controlled = await admin_auth_client.post(
         f"/api/v1/agent-approvals/{approval_id}/workspace-control",
@@ -207,12 +219,16 @@ async def test_agent_approval_workspace_control_fails_closed_and_writes_audit(
         await db_session.execute(select(AgentApproval).where(AgentApproval.id == approval_id))
     ).scalar_one()
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert controlled.status_code == 200
     assert controlled.json()["code"] == 409
@@ -244,7 +260,9 @@ async def test_agent_approval_workspace_control_accepts_local_runtime_rehearsal(
         },
     )
     approval_id = create.json()["data"]["approval_id"]
-    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+    await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"}
+    )
 
     controlled = await admin_auth_client.post(
         f"/api/v1/agent-approvals/{approval_id}/workspace-control",
@@ -252,12 +270,16 @@ async def test_agent_approval_workspace_control_accepts_local_runtime_rehearsal(
     )
 
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     payload = controlled.json()["data"]
 
     assert controlled.status_code == 200
@@ -266,7 +288,9 @@ async def test_agent_approval_workspace_control_accepts_local_runtime_rehearsal(
     assert payload["reason_code"] == "takeover_accepted"
     assert payload["workspace_snapshot"]["runtime_control"]["mode"] == "local_rehearsal"
     assert payload["workspace_snapshot"]["runtime_control"]["external_side_effects"] is False
-    assert payload["workspace_snapshot"]["runtime_controls"]["takeover"] == "available_local_rehearsal"
+    assert (
+        payload["workspace_snapshot"]["runtime_controls"]["takeover"] == "available_local_rehearsal"
+    )
     assert audits[-1].action == "agent_workspace.takeover"
     assert audits[-1].status == "success"
     assert audits[-1].reason_code == "takeover_accepted"
@@ -286,7 +310,9 @@ async def test_agent_approval_workspace_observe_returns_snapshot_and_writes_audi
         json={"action_type": "browser.remote_control", "risk_level": "l4"},
     )
     approval_id = create.json()["data"]["approval_id"]
-    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+    await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"}
+    )
     await admin_auth_client.post(
         f"/api/v1/agent-approvals/{approval_id}/artifacts",
         json={
@@ -306,12 +332,16 @@ async def test_agent_approval_workspace_observe_returns_snapshot_and_writes_audi
     )
 
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     payload = observed.json()["data"]
 
     assert observed.status_code == 200
@@ -351,7 +381,9 @@ async def test_agent_workspace_artifact_api_redacts_and_exports(
             "content": {"finding": "pending"},
         },
     )
-    await admin_auth_client.post(f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"})
+    await admin_auth_client.post(
+        f"/api/v1/agent-approvals/{approval_id}/approve", json={"note": "ok"}
+    )
     employee_artifact = await auth_client.post(
         f"/api/v1/agent-approvals/{approval_id}/artifacts",
         json={
@@ -391,14 +423,20 @@ async def test_agent_workspace_artifact_api_redacts_and_exports(
         json={"title": "missing"},
     )
     listed = await admin_auth_client.get(f"/api/v1/agent-approvals/{approval_id}/artifacts")
-    exported = await admin_auth_client.get(f"/api/v1/agent-approvals/{approval_id}/artifacts/export")
+    exported = await admin_auth_client.get(
+        f"/api/v1/agent-approvals/{approval_id}/artifacts/export"
+    )
     audits = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert pending_artifact.status_code == 200
     assert pending_artifact.json()["code"] == 400
@@ -429,9 +467,18 @@ async def test_agent_workspace_artifact_api_redacts_and_exports(
     assert exported.status_code == 200
     assert exported.json()["data"]["schema_version"] == "agent_workspace_artifacts_export.v1"
     assert exported.json()["data"]["total"] == 1
-    assert exported.json()["data"]["artifacts"][0]["content"]["finding"] == "reviewed safe probe only"
-    assert any(event.action == "agent_workspace.artifact.add" and event.reason_code == "artifact_recorded" for event in audits)
-    assert any(event.action == "agent_workspace.artifact.update" and event.reason_code == "artifact_updated" for event in audits)
+    assert (
+        exported.json()["data"]["artifacts"][0]["content"]["finding"] == "reviewed safe probe only"
+    )
+    assert any(
+        event.action == "agent_workspace.artifact.add" and event.reason_code == "artifact_recorded"
+        for event in audits
+    )
+    assert any(
+        event.action == "agent_workspace.artifact.update"
+        and event.reason_code == "artifact_updated"
+        for event in audits
+    )
     assert "should-never-leak" not in str(created.json())
     assert "also-secret" not in str(exported.json())
     assert "never-store" not in str(audits)

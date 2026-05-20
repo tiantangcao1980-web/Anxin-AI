@@ -13,7 +13,9 @@ from src.services.webhook_idempotency_service import webhook_processing_lock
 
 
 @pytest.mark.asyncio
-async def test_email_service_returns_false_when_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_email_service_returns_false_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from src.core.config import settings
 
     monkeypatch.setattr(settings, "ALIYUN_ACCESS_KEY_ID", "", raising=False)

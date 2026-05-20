@@ -36,10 +36,7 @@ class BaseMemoryService(ABC):
 
     @abstractmethod
     async def search(
-        self,
-        query: str,
-        top_k: int = 5,
-        filters: dict[str, Any] | None = None
+        self, query: str, top_k: int = 5, filters: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """搜索记忆"""
         pass
@@ -59,7 +56,7 @@ class BaseMemoryService(ABC):
         return {
             "service": self.__class__.__name__,
             "initialized": self._initialized,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     def _log_debug(self, message: str, **kwargs: Any) -> None:

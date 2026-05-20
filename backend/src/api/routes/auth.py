@@ -38,6 +38,7 @@ security = HTTPBearer(auto_error=False)
 
 class LoginRequest(BaseModel):
     """登录请求"""
+
     email: EmailStr
     password: str
     captcha_token: str | None = None
@@ -45,6 +46,7 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     """注册请求"""
+
     email: EmailStr
     password: str
     name: str
@@ -55,23 +57,27 @@ class RegisterRequest(BaseModel):
 
 class VerifyEmailRequest(BaseModel):
     """邮箱验证请求"""
+
     email: EmailStr
     code: str
 
 
 class ResendVerificationRequest(BaseModel):
     """重发验证码请求"""
+
     email: EmailStr
     captcha_token: str | None = None
 
 
 class RefreshTokenRequest(BaseModel):
     """Token刷新请求"""
+
     refresh_token: str | None = None
 
 
 class TokenResponse(BaseModel):
     """Token响应"""
+
     access_token: str
     refresh_token: str
     token_type: str
@@ -80,6 +86,7 @@ class TokenResponse(BaseModel):
 
 class TokenPairResponse(BaseModel):
     """Token对响应"""
+
     access_token: str
     refresh_token: str
     access_expires_in: int
@@ -89,6 +96,7 @@ class TokenPairResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """用户信息响应"""
+
     id: str
     email: str
     name: str
@@ -102,12 +110,14 @@ class UserResponse(BaseModel):
 
 class UserUpdate(BaseModel):
     """用户更新请求"""
+
     name: str | None = None
     avatar_url: str | None = None
 
 
 class LogoutRequest(BaseModel):
     """登出请求（可选）"""
+
     all_devices: bool = False  # 是否登出所有设备
 
 
@@ -161,22 +171,19 @@ def validate_password(password: str) -> None:
     if len(password) < settings.PASSWORD_MIN_LENGTH:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"密码长度至少 {settings.PASSWORD_MIN_LENGTH} 位"
+            detail=f"密码长度至少 {settings.PASSWORD_MIN_LENGTH} 位",
         )
     if settings.PASSWORD_REQUIRE_UPPERCASE and not any(c.isupper() for c in password):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码必须包含至少一个大写字母"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="密码必须包含至少一个大写字母"
         )
     if settings.PASSWORD_REQUIRE_LOWERCASE and not any(c.islower() for c in password):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码必须包含至少一个小写字母"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="密码必须包含至少一个小写字母"
         )
     if settings.PASSWORD_REQUIRE_DIGIT and not any(c.isdigit() for c in password):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="密码必须包含至少一个数字"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="密码必须包含至少一个数字"
         )
 
 
@@ -190,7 +197,11 @@ async def _require_captcha(request: Request, captcha_token: str | None) -> None:
         )
 
     forwarded = request.headers.get("X-Forwarded-For")
-    remote_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else None)
+    remote_ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else None)
+    )
     if not await captcha_service.verify_token(captcha_token, remote_ip=remote_ip):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -208,7 +219,7 @@ async def login(
 ) -> dict[str, Any]:
     """
     用户登录
-    
+
     限流：10次/分钟
     """
     await _require_captcha(request, login_request.captcha_token)
@@ -222,11 +233,11 @@ async def login(
         if (
             existing_user.login_attempts >= ACCOUNT_LOCKOUT_THRESHOLD
             and existing_user.last_login_at
-            and existing_user.last_login_at > datetime.now(UTC) - timedelta(minutes=ACCOUNT_LOCKOUT_MINUTES)
+            and existing_user.last_login_at
+            > datetime.now(UTC) - timedelta(minutes=ACCOUNT_LOCKOUT_MINUTES)
         ):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="账号已被锁定，请 30 分钟后重试"
+                status_code=status.HTTP_403_FORBIDDEN, detail="账号已被锁定，请 30 分钟后重试"
             )
 
     service = UserService(db)
@@ -252,10 +263,7 @@ async def login(
         )
         await db.commit()
 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="邮箱或密码错误"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码错误")
 
     # 检查邮箱是否已验证（仅在开关启用时）
     if settings.EMAIL_VERIFY_ENABLED and existing_user and not existing_user.email_verified:
@@ -357,6 +365,7 @@ async def register(
 
             # 发送邮箱验证码
             from src.services.email_service import email_service
+
             await email_service.send_verification_code(user.email, verify_code)
         else:
             # 邮箱验证未启用时，自动标记为已验证
@@ -383,9 +392,13 @@ async def register(
             "name": user.name,
             "role": user.role,
             "user_type": user_type,
-            "primary_client": getattr(user, 'primary_client', 'needer') or 'needer',
+            "primary_client": getattr(user, "primary_client", "needer") or "needer",
             "email_verified": user.email_verified,
-            "message": "注册成功" if not settings.EMAIL_VERIFY_ENABLED else "注册成功，请查收邮箱验证码完成验证",
+            "message": (
+                "注册成功"
+                if not settings.EMAIL_VERIFY_ENABLED
+                else "注册成功，请查收邮箱验证码完成验证"
+            ),
             # 开发模式返回验证码，方便调试
             **({"debug_verify_code": debug_code} if settings.DEV_MODE and debug_code else {}),
         }
@@ -401,10 +414,7 @@ async def register(
         )
         await db.commit()
 
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        ) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.get("/me", response_model=UserResponse)
@@ -415,8 +425,8 @@ async def get_current_user_info(user: User = Depends(get_current_user_required))
         email=user.email,
         name=user.name,
         role=user.role,
-        user_type=getattr(user, 'user_type', 'individual') or 'individual',
-        primary_client=getattr(user, 'primary_client', 'needer') or 'needer',
+        user_type=getattr(user, "user_type", "individual") or "individual",
+        primary_client=getattr(user, "primary_client", "needer") or "needer",
         avatar_url=user.avatar_url,
         email_verified=user.email_verified,
     )
@@ -431,16 +441,11 @@ async def update_current_user(
     """更新当前用户信息"""
     service = UserService(db)
     updated_user = await service.update_user(
-        user_id=user.id,
-        name=update.name,
-        avatar_url=update.avatar_url
+        user_id=user.id, name=update.name, avatar_url=update.avatar_url
     )
 
     if not updated_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
     return UserResponse(
         id=updated_user.id,
@@ -462,9 +467,9 @@ async def logout(
 ) -> dict[str, str]:
     """
     用户登出
-    
+
     将当前Token加入黑名单，使其立即失效
-    
+
     可选参数：
     - all_devices: 是否登出所有设备（撤销所有Token）
     """
@@ -491,7 +496,7 @@ async def logout(
             user=user,
             extra_data={
                 "all_devices": logout_request.all_devices if logout_request else False,
-            }
+            },
         )
         await db.commit()
 
@@ -510,11 +515,11 @@ async def refresh_token_endpoint(
 ) -> TokenPairResponse:
     """
     刷新访问Token
-    
+
     优先从 HttpOnly Cookie 获取 refresh_token。
     请求体 refresh_token 仅在 AUTH_REFRESH_BODY_COMPAT_ENABLED=true 时作为迁移兼容路径启用。
     旧的refresh_token会被加入黑名单，只能使用一次。
-    
+
     限流：30次/分钟
     """
     cookie_token = request.cookies.get("refresh_token")
@@ -586,14 +591,11 @@ async def revoke_token_endpoint(
 ) -> dict[str, str]:
     """
     撤销Token
-    
+
     主动撤销当前Token，使其立即失效
     """
     if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="未提供Token"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="未提供Token")
 
     token = credentials.credentials
     success = await revoke_token(token, reason="user_revoke")
@@ -614,10 +616,7 @@ async def revoke_token_endpoint(
 
         return {"message": "Token已撤销"}
 
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Token撤销失败"
-    )
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Token撤销失败")
 
 
 # ============ 邮箱验证 ============
@@ -628,28 +627,23 @@ async def verify_email(
     req: VerifyEmailRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=10, window=300, endpoint="verify_email", by_user=False, fail_closed=True)),
+    _: None = Depends(
+        rate_limit(limit=10, window=300, endpoint="verify_email", by_user=False, fail_closed=True)
+    ),
 ) -> dict[str, Any]:
     """使用验证码完成邮箱验证"""
     token_data = _email_verify_tokens.get(req.code)
     if not token_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="验证码无效或已过期"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码无效或已过期")
 
     if datetime.now(UTC) > token_data["expires_at"]:
         del _email_verify_tokens[req.code]
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="验证码已过期，请重新获取"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="验证码已过期，请重新获取"
         )
 
     if token_data["email"] != req.email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="验证码与邮箱不匹配"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码与邮箱不匹配")
 
     # 更新用户邮箱验证状态
     result = await db.execute(select(User).where(User.id == token_data["user_id"]))
@@ -724,6 +718,7 @@ async def resend_verification(
         debug_code = verify_code
         # 发送邮箱验证码
         from src.services.email_service import email_service
+
         await email_service.send_verification_code(user.email, verify_code)
 
     # 无论邮箱是否存在都返回成功（防止枚举攻击）
@@ -752,14 +747,17 @@ async def get_auth_features() -> dict[str, Any]:
 
 # ============ OAuth 第三方登录 ============
 
+
 class OAuthCallbackRequest(BaseModel):
     """OAuth 回调请求"""
+
     code: str
     state: str | None = None
 
 
 class WeChatCode2SessionRequest(BaseModel):
     """微信小程序登录请求"""
+
     code: str
 
 
@@ -995,21 +993,26 @@ async def alipay_oauth_callback(
 
 # ==================== 忘记密码 ====================
 
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
     captcha_token: str | None = None
+
 
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
     captcha_token: str | None = None
 
+
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
 
-_email_verify_tokens: dict[str, EmailVerifyTokenData] = {}  # key=验证码, value={user_id, email, expires_at}
+_email_verify_tokens: dict[str, EmailVerifyTokenData] = (
+    {}
+)  # key=验证码, value={user_id, email, expires_at}
 _oauth_state_tokens: dict[str, OAuthStateTokenData] = {}
 
 
@@ -1044,7 +1047,9 @@ async def forgot_password(
     request: Request,
     req: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=5, window=300, endpoint="forgot_password", by_user=False, fail_closed=True)),
+    _: None = Depends(
+        rate_limit(limit=5, window=300, endpoint="forgot_password", by_user=False, fail_closed=True)
+    ),
 ) -> dict[str, Any]:
     """
     发送密码重置链接到用户邮箱。
@@ -1070,20 +1075,23 @@ async def forgot_password(
             )
             .values(consumed_at=now)
         )
-        db.add(PasswordResetToken(
-            token_hash=_hash_reset_token(token),
-            user_id=str(user.id),
-            email=user.email,
-            bound_email=req.email,  # 绑定请求邮箱，防止 token 被用于其他邮箱
-            ip_hash=reset_context["ip_hash"],
-            ua_hash=reset_context["ua_hash"],
-            channel="email",
-            expires_at=now + timedelta(minutes=15),
-        ))
+        db.add(
+            PasswordResetToken(
+                token_hash=_hash_reset_token(token),
+                user_id=str(user.id),
+                email=user.email,
+                bound_email=req.email,  # 绑定请求邮箱，防止 token 被用于其他邮箱
+                ip_hash=reset_context["ip_hash"],
+                ua_hash=reset_context["ua_hash"],
+                channel="email",
+                expires_at=now + timedelta(minutes=15),
+            )
+        )
         logger.info(f"密码重置令牌已生成 (用户: {user.email})")
 
         # 发送密码重置令牌
         from src.services.email_service import email_service
+
         await email_service.send_reset_code(user.email, token)
         await db.commit()
 
@@ -1101,7 +1109,9 @@ async def reset_password(
     request: Request,
     req: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
-    _: None = Depends(rate_limit(limit=5, window=300, endpoint="reset_password", by_user=False, fail_closed=True)),
+    _: None = Depends(
+        rate_limit(limit=5, window=300, endpoint="reset_password", by_user=False, fail_closed=True)
+    ),
 ) -> dict[str, str]:
     """使用高熵重置令牌重置密码"""
     await _require_captcha(request, req.captcha_token)
@@ -1112,18 +1122,14 @@ async def reset_password(
     )
     token_record: PasswordResetToken | None = token_result.scalar_one_or_none()
     if not token_record or token_record.consumed_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="验证码无效或已过期"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码无效或已过期")
 
     now = datetime.now(UTC)
     if now > _ensure_aware(token_record.expires_at):
         token_record.consumed_at = now
         await db.commit()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="验证码已过期，请重新获取"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="验证码已过期，请重新获取"
         )
 
     reset_context = _hash_reset_context(request)
@@ -1178,17 +1184,13 @@ async def change_password(
     from src.core.security import verify_password
 
     if not verify_password(req.old_password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="当前密码不正确"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前密码不正确")
 
     validate_password(req.new_password)
 
     if req.old_password == req.new_password:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="新密码不能与旧密码相同"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="新密码不能与旧密码相同"
         )
 
     user.hashed_password = get_password_hash(req.new_password)

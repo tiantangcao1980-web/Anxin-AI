@@ -13,7 +13,9 @@ def test_document_object_storage_migration_backfills_and_downgrades(monkeypatch)
         / "versions"
         / "029_add_document_object_storage_fields.py"
     )
-    spec = importlib.util.spec_from_file_location("migration_029_document_object_storage", migration_path)
+    spec = importlib.util.spec_from_file_location(
+        "migration_029_document_object_storage", migration_path
+    )
     assert spec and spec.loader
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
@@ -63,7 +65,9 @@ def test_document_object_storage_migration_backfills_and_downgrades(monkeypatch)
         migration.downgrade()
 
         document_columns = {column["name"] for column in sa.inspect(conn).get_columns("documents")}
-        version_columns = {column["name"] for column in sa.inspect(conn).get_columns("document_versions")}
+        version_columns = {
+            column["name"] for column in sa.inspect(conn).get_columns("document_versions")
+        }
         assert "storage_backend" not in document_columns
         assert "object_key" not in document_columns
         assert "storage_backend" not in version_columns

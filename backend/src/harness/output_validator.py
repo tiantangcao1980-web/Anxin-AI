@@ -19,15 +19,17 @@ from loguru import logger
 
 class ValidationLevel(str, Enum):
     """校验结果级别"""
+
     PASS = "pass"
-    WARNING = "warning"      # 警告但仍返回
-    FAIL = "fail"            # 需要修正
-    CRITICAL = "critical"    # 阻断返回
+    WARNING = "warning"  # 警告但仍返回
+    FAIL = "fail"  # 需要修正
+    CRITICAL = "critical"  # 阻断返回
 
 
 @dataclass
 class ValidationIssue:
     """单个校验问题"""
+
     check_name: str
     level: ValidationLevel
     message: str
@@ -37,6 +39,7 @@ class ValidationIssue:
 @dataclass
 class ValidationResult:
     """校验结果"""
+
     passed: bool
     issues: list[ValidationIssue] = field(default_factory=list)
     score: float = 1.0  # 0.0-1.0 质量分
@@ -66,15 +69,21 @@ class ValidationResult:
 
 
 # ===== 法律引用模式 =====
-_LAW_CITATION_RE = re.compile(r'《([^》]+)》')
-_ARTICLE_RE = re.compile(r'第[一二三四五六七八九十百千\d]+条')
-_CASE_NUMBER_RE = re.compile(r'[（(]\d{4}[）)][^，。\n]{2,20}号')
+_LAW_CITATION_RE = re.compile(r"《([^》]+)》")
+_ARTICLE_RE = re.compile(r"第[一二三四五六七八九十百千\d]+条")
+_CASE_NUMBER_RE = re.compile(r"[（(]\d{4}[）)][^，。\n]{2,20}号")
 
 # ===== 高风险短语 =====
 _HIGH_RISK_PHRASES = [
-    "本律师认为", "法律意见如下", "正式法律意见",
-    "保证胜诉", "一定能赢", "百分之百",
-    "建议立即转账", "请提供银行卡", "请提供身份证号",
+    "本律师认为",
+    "法律意见如下",
+    "正式法律意见",
+    "保证胜诉",
+    "一定能赢",
+    "百分之百",
+    "建议立即转账",
+    "请提供银行卡",
+    "请提供身份证号",
 ]
 
 
@@ -88,33 +97,42 @@ class OutputValidator:
         issues: list[ValidationIssue] = []
 
         if not text or not text.strip():
-            issues.append(ValidationIssue(
-                check_name="structure.empty",
-                level=ValidationLevel.CRITICAL,
-                message="响应内容为空",
-            ))
+            issues.append(
+                ValidationIssue(
+                    check_name="structure.empty",
+                    level=ValidationLevel.CRITICAL,
+                    message="响应内容为空",
+                )
+            )
             return issues
 
         if len(text.strip()) < 10:
-            issues.append(ValidationIssue(
-                check_name="structure.too_short",
-                level=ValidationLevel.WARNING,
-                message=f"响应过短（{len(text.strip())}字）",
-            ))
+            issues.append(
+                ValidationIssue(
+                    check_name="structure.too_short",
+                    level=ValidationLevel.WARNING,
+                    message=f"响应过短（{len(text.strip())}字）",
+                )
+            )
 
         # 检测明显的模型拒绝/错误
         refusal_patterns = [
-            "I cannot", "I'm sorry, I can't", "作为AI，我无法",
-            "我没有能力", "超出了我的能力范围",
+            "I cannot",
+            "I'm sorry, I can't",
+            "作为AI，我无法",
+            "我没有能力",
+            "超出了我的能力范围",
         ]
         for pattern in refusal_patterns:
             if pattern.lower() in text.lower():
-                issues.append(ValidationIssue(
-                    check_name="structure.refusal",
-                    level=ValidationLevel.WARNING,
-                    message="响应包含拒绝/能力限制声明",
-                    detail=pattern,
-                ))
+                issues.append(
+                    ValidationIssue(
+                        check_name="structure.refusal",
+                        level=ValidationLevel.WARNING,
+                        message="响应包含拒绝/能力限制声明",
+                        detail=pattern,
+                    )
+                )
                 break
 
         return issues
@@ -130,11 +148,13 @@ class OutputValidator:
             # 法律回复没有引用不一定是错误，但值得关注
             return issues
         if not article_refs:
-            issues.append(ValidationIssue(
-                check_name="citation.missing_article",
-                level=ValidationLevel.WARNING,
-                message="检测到法律名称引用，但未检测到具体条文编号",
-            ))
+            issues.append(
+                ValidationIssue(
+                    check_name="citation.missing_article",
+                    level=ValidationLevel.WARNING,
+                    message="检测到法律名称引用，但未检测到具体条文编号",
+                )
+            )
 
         # 基础校验：引用的法律名称是否看起来合理
         suspicious_laws = []
@@ -142,36 +162,42 @@ class OutputValidator:
             # 检测明显虚构的法律名称（过长、包含特殊字符等）
             if len(law_name) > 30:
                 suspicious_laws.append(law_name)
-            elif re.search(r'[a-zA-Z\d]{5,}', law_name):
+            elif re.search(r"[a-zA-Z\d]{5,}", law_name):
                 suspicious_laws.append(law_name)
 
         if suspicious_laws:
-            issues.append(ValidationIssue(
-                check_name="citation.suspicious_law",
-                level=ValidationLevel.WARNING,
-                message=f"疑似虚构法律名称: {suspicious_laws[:3]}",
-                detail=str(suspicious_laws),
-            ))
+            issues.append(
+                ValidationIssue(
+                    check_name="citation.suspicious_law",
+                    level=ValidationLevel.WARNING,
+                    message=f"疑似虚构法律名称: {suspicious_laws[:3]}",
+                    detail=str(suspicious_laws),
+                )
+            )
 
         # 深度校验层 1：通过 citation_tracker 提取并验证
         try:
             from src.services.citation_tracker import citation_tracker
+
             if citation_tracker and law_refs:
                 citations = citation_tracker.extract_citations(text)
                 if citations:
                     unverified = [c for c in citations if not c.verified]
                     if unverified and len(unverified) > len(citations) * 0.5:
-                        issues.append(ValidationIssue(
-                            check_name="citation.unverified",
-                            level=ValidationLevel.WARNING,
-                            message=f"{len(unverified)}/{len(citations)} 条引用未验证",
-                        ))
+                        issues.append(
+                            ValidationIssue(
+                                check_name="citation.unverified",
+                                level=ValidationLevel.WARNING,
+                                message=f"{len(unverified)}/{len(citations)} 条引用未验证",
+                            )
+                        )
         except Exception as e:
             logger.debug(f"引用 citation_tracker 校验跳过: {e}")
 
         # 深度校验层 2：通过向量库检索验证法律名称是否存在
         try:
             from src.services.vector_store import VectorStoreService
+
             vs = VectorStoreService()
             if not await vs.get_collection_info("legal_knowledge"):
                 return issues
@@ -183,12 +209,14 @@ class OutputValidator:
                     score_threshold=0.85,
                 )
                 if not results:
-                    issues.append(ValidationIssue(
-                        check_name="citation.not_found_in_kb",
-                        level=ValidationLevel.WARNING,
-                        message=f"法律《{law_name}》未在知识库中找到匹配",
-                        detail="建议确认该法律名称是否准确",
-                    ))
+                    issues.append(
+                        ValidationIssue(
+                            check_name="citation.not_found_in_kb",
+                            level=ValidationLevel.WARNING,
+                            message=f"法律《{law_name}》未在知识库中找到匹配",
+                            detail="建议确认该法律名称是否准确",
+                        )
+                    )
         except Exception as e:
             logger.debug(f"引用向量库校验跳过: {e}")
 
@@ -200,12 +228,39 @@ class OutputValidator:
 
         # 简单关键词覆盖检测
         # 提取用户问题中的关键名词（去掉常用虚词）
-        stop_words = {"的", "了", "吗", "呢", "啊", "是", "在", "我", "你", "他",
-                      "她", "有", "这", "那", "和", "与", "到", "对", "请", "帮",
-                      "能", "可以", "怎么", "如何", "什么", "哪些", "为什么", "多少"}
+        stop_words = {
+            "的",
+            "了",
+            "吗",
+            "呢",
+            "啊",
+            "是",
+            "在",
+            "我",
+            "你",
+            "他",
+            "她",
+            "有",
+            "这",
+            "那",
+            "和",
+            "与",
+            "到",
+            "对",
+            "请",
+            "帮",
+            "能",
+            "可以",
+            "怎么",
+            "如何",
+            "什么",
+            "哪些",
+            "为什么",
+            "多少",
+        }
 
         query_keywords = set()
-        for char_group in re.findall(r'[\u4e00-\u9fff]{2,}', query):
+        for char_group in re.findall(r"[\u4e00-\u9fff]{2,}", query):
             if char_group not in stop_words:
                 query_keywords.add(char_group)
 
@@ -214,12 +269,14 @@ class OutputValidator:
             coverage_ratio = covered / len(query_keywords) if query_keywords else 1.0
 
             if coverage_ratio < 0.15 and len(query_keywords) >= 3:
-                issues.append(ValidationIssue(
-                    check_name="relevance.low_coverage",
-                    level=ValidationLevel.WARNING,
-                    message=f"回答可能偏题（关键词覆盖率 {coverage_ratio:.0%}）",
-                    detail=f"用户关键词: {list(query_keywords)[:5]}",
-                ))
+                issues.append(
+                    ValidationIssue(
+                        check_name="relevance.low_coverage",
+                        level=ValidationLevel.WARNING,
+                        message=f"回答可能偏题（关键词覆盖率 {coverage_ratio:.0%}）",
+                        detail=f"用户关键词: {list(query_keywords)[:5]}",
+                    )
+                )
 
         return issues
 
@@ -231,25 +288,31 @@ class OutputValidator:
             if phrase in text:
                 # 正式法律意见需要审批
                 if phrase in ("本律师认为", "法律意见如下", "正式法律意见"):
-                    issues.append(ValidationIssue(
-                        check_name="risk.formal_opinion",
-                        level=ValidationLevel.WARNING,
-                        message=f"包含正式法律意见措辞: '{phrase}'（建议加免责声明）",
-                    ))
+                    issues.append(
+                        ValidationIssue(
+                            check_name="risk.formal_opinion",
+                            level=ValidationLevel.WARNING,
+                            message=f"包含正式法律意见措辞: '{phrase}'（建议加免责声明）",
+                        )
+                    )
                 # 保证性承诺
                 elif phrase in ("保证胜诉", "一定能赢", "百分之百"):
-                    issues.append(ValidationIssue(
-                        check_name="risk.guarantee",
-                        level=ValidationLevel.FAIL,
-                        message=f"包含不当保证性承诺: '{phrase}'",
-                    ))
+                    issues.append(
+                        ValidationIssue(
+                            check_name="risk.guarantee",
+                            level=ValidationLevel.FAIL,
+                            message=f"包含不当保证性承诺: '{phrase}'",
+                        )
+                    )
                 # 敏感信息索取
                 elif phrase in ("建议立即转账", "请提供银行卡", "请提供身份证号"):
-                    issues.append(ValidationIssue(
-                        check_name="risk.sensitive_request",
-                        level=ValidationLevel.CRITICAL,
-                        message=f"包含敏感信息索取: '{phrase}'",
-                    ))
+                    issues.append(
+                        ValidationIssue(
+                            check_name="risk.sensitive_request",
+                            level=ValidationLevel.CRITICAL,
+                            message=f"包含敏感信息索取: '{phrase}'",
+                        )
+                    )
 
         return issues
 
@@ -273,12 +336,14 @@ class OutputValidator:
                 missing.append(element_name)
 
         if missing:
-            issues.append(ValidationIssue(
-                check_name="document.incomplete",
-                level=ValidationLevel.WARNING,
-                message=f"文书可能缺少以下要素: {', '.join(missing)}",
-                detail=f"建议补充: {missing}",
-            ))
+            issues.append(
+                ValidationIssue(
+                    check_name="document.incomplete",
+                    level=ValidationLevel.WARNING,
+                    message=f"文书可能缺少以下要素: {', '.join(missing)}",
+                    detail=f"建议补充: {missing}",
+                )
+            )
 
         return issues
 
@@ -287,8 +352,13 @@ class OutputValidator:
         issues: list[ValidationIssue] = []
         # 对分析类路由生效
         analysis_routes = (
-            "general", "LABOR_HR", "DEBT_COLLECTION", "LITIGATION_STRATEGY",
-            "FAMILY_LAW", "CRIMINAL", "REAL_ESTATE",
+            "general",
+            "LABOR_HR",
+            "DEBT_COLLECTION",
+            "LITIGATION_STRATEGY",
+            "FAMILY_LAW",
+            "CRIMINAL",
+            "REAL_ESTATE",
         )
         if route not in analysis_routes:
             return issues
@@ -310,12 +380,14 @@ class OutputValidator:
                 missing.append(indicator_name)
 
         if len(missing) >= 2:
-            issues.append(ValidationIssue(
-                check_name="analysis.low_quality",
-                level=ValidationLevel.WARNING,
-                message=f"分析报告质量不足，缺少: {', '.join(missing)}",
-                detail="高质量的法律分析应包含法律依据引用、风险评估和行动建议",
-            ))
+            issues.append(
+                ValidationIssue(
+                    check_name="analysis.low_quality",
+                    level=ValidationLevel.WARNING,
+                    message=f"分析报告质量不足，缺少: {', '.join(missing)}",
+                    detail="高质量的法律分析应包含法律依据引用、风险评估和行动建议",
+                )
+            )
 
         return issues
 
@@ -363,8 +435,7 @@ class OutputValidator:
         score = max(0.0, score)
 
         passed = not any(
-            i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL)
-            for i in issues
+            i.level in (ValidationLevel.FAIL, ValidationLevel.CRITICAL) for i in issues
         )
 
         result = ValidationResult(passed=passed, issues=issues, score=score)

@@ -2,8 +2,6 @@
 用户与组织模型
 """
 
-
-
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -20,18 +18,10 @@ if TYPE_CHECKING:
     from src.models.sentiment import SentimentAlert, SentimentMonitor, SentimentRecord
 
 
-
-
-
 class Organization(Base, TimestampMixin):
-
     """组织/律所模型"""
 
-
-
     __tablename__ = "organizations"
-
-
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -40,8 +30,6 @@ class Organization(Base, TimestampMixin):
     logo_url: Mapped[str | None] = mapped_column(String(500))
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
 
     # 关系
 
@@ -52,36 +40,22 @@ class Organization(Base, TimestampMixin):
     # 舆情关系
 
     sentiment_records: Mapped[list["SentimentRecord"]] = relationship(
-
         "SentimentRecord", back_populates="organization"
-
     )
 
     sentiment_alerts: Mapped[list["SentimentAlert"]] = relationship(
-
         "SentimentAlert", back_populates="organization"
-
     )
 
     sentiment_monitors: Mapped[list["SentimentMonitor"]] = relationship(
-
         "SentimentMonitor", back_populates="organization"
-
     )
 
 
-
-
-
 class User(Base, TimestampMixin):
-
     """用户模型"""
 
-
-
     __tablename__ = "users"
-
-
 
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
@@ -97,12 +71,16 @@ class User(Base, TimestampMixin):
     department: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # 用户类型标识
-    user_type: Mapped[str] = mapped_column(String(30), default="internal")  # internal / platform_lawyer / enterprise / individual / institution
+    user_type: Mapped[str] = mapped_column(
+        String(30), default="internal"
+    )  # internal / platform_lawyer / enterprise / individual / institution
 
     # V2 架构：主客户端偏好（决定默认进入哪个端的界面）
     # needer  = 需求方端（个人/企业用户主入口 /app/*）
     # provider = 服务方端（律师/律所主入口 /pro/*）
-    primary_client: Mapped[str] = mapped_column(String(20), default="needer", server_default="needer")
+    primary_client: Mapped[str] = mapped_column(
+        String(20), default="needer", server_default="needer"
+    )
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -110,12 +88,20 @@ class User(Base, TimestampMixin):
     # 安全字段
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     login_attempts: Mapped[int] = mapped_column(Integer, default=0)
-    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # OAuth 第三方登录绑定
-    wechat_openid: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
-    wechat_unionid: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
-    alipay_user_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
+    wechat_openid: Mapped[str | None] = mapped_column(
+        String(100), unique=True, nullable=True, index=True
+    )
+    wechat_unionid: Mapped[str | None] = mapped_column(
+        String(100), unique=True, nullable=True, index=True
+    )
+    alipay_user_id: Mapped[str | None] = mapped_column(
+        String(100), unique=True, nullable=True, index=True
+    )
     login_type: Mapped[str] = mapped_column(String(20), default="email")  # email / wechat / alipay
 
     # AI 用户画像（法律专业度、常用场景、追问耐心度、默认上下文等）
@@ -124,37 +110,24 @@ class User(Base, TimestampMixin):
     # 外键
 
     org_id: Mapped[str | None] = mapped_column(
-        GUID(),
-        ForeignKey("organizations.id", ondelete="SET NULL")
+        GUID(), ForeignKey("organizations.id", ondelete="SET NULL")
     )
-
-
 
     # 关系
 
     organization: Mapped[Optional["Organization"]] = relationship(
-
         "Organization", back_populates="users"
-
     )
 
     created_cases: Mapped[list["Case"]] = relationship(
-
         "Case", back_populates="creator", foreign_keys="Case.created_by"
-
     )
 
     assigned_cases: Mapped[list["Case"]] = relationship(
-
         "Case", back_populates="assignee", foreign_keys="Case.assignee_id"
-
     )
 
-    documents: Mapped[list["Document"]] = relationship(
-
-        "Document", back_populates="created_by_user"
-
-    )
+    documents: Mapped[list["Document"]] = relationship("Document", back_populates="created_by_user")
 
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
         "PasswordResetToken",

@@ -39,9 +39,15 @@ class EvidenceAnalystAgent(BaseLegalAgent):
 
             extracted_text = ""
             if file_type in ["image", "scan", "pdf_image"]:
-                extracted_text = f"【模拟OCR结果 - {name}】\n(此处通过OCR提取了图片中的文字...)\n" + (content if isinstance(content, str) else "内容摘要...")
+                extracted_text = (
+                    f"【模拟OCR结果 - {name}】\n(此处通过OCR提取了图片中的文字...)\n"
+                    + (content if isinstance(content, str) else "内容摘要...")
+                )
             elif file_type in ["audio", "video"]:
-                extracted_text = f"【模拟ASR转录 - {name}】\n(此处通过ASR提取了音视频中的对话...)\n" + (content if isinstance(content, str) else "对话摘要...")
+                extracted_text = (
+                    f"【模拟ASR转录 - {name}】\n(此处通过ASR提取了音视频中的对话...)\n"
+                    + (content if isinstance(content, str) else "对话摘要...")
+                )
             else:
                 extracted_text = f"【文本证据 - {name}】\n{content}"
 
@@ -72,7 +78,5 @@ class EvidenceAnalystAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning="基于证据规则与逻辑推理",
-            actions=[
-                {"type": "evidence_processing", "description": "多模态证据处理与分析完成"}
-            ]
+            actions=[{"type": "evidence_processing", "description": "多模态证据处理与分析完成"}],
         )

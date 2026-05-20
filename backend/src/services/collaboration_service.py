@@ -25,9 +25,11 @@ from src.models.document import Document
 
 # ==================== 数据模型 ====================
 
+
 @dataclass
 class CollaborativeUser:
     """协作用户信息"""
+
     id: str
     name: str
     color: str
@@ -38,6 +40,7 @@ class CollaborativeUser:
 @dataclass
 class DocumentOperation:
     """文档操作（CRDT 风格）"""
+
     id: str
     document_id: str
     user_id: str
@@ -53,6 +56,7 @@ class DocumentOperation:
 @dataclass
 class DocumentComment:
     """文档评论/批注"""
+
     id: str
     document_id: str
     user_id: str
@@ -71,6 +75,7 @@ def _operation_to_dict(op: DocumentOperation) -> dict[str, Any]:
 
 
 # ==================== 协作会话管理 ====================
+
 
 class CollaborationSession:
     """内存中的协作会话"""
@@ -109,12 +114,20 @@ class CollaborationSession:
                 op = self._transform_operation(op)
 
                 if op.operation_type == "insert":
-                    self.content = self.content[:op.position] + op.content + self.content[op.position:]
+                    self.content = (
+                        self.content[: op.position] + op.content + self.content[op.position :]
+                    )
                 elif op.operation_type == "delete":
-                    self.content = self.content[:op.position] + self.content[op.position + op.length:]
+                    self.content = (
+                        self.content[: op.position] + self.content[op.position + op.length :]
+                    )
                 elif op.operation_type == "replace":
                     replace_length = op.length or len(op.content)
-                    self.content = self.content[:op.position] + op.content + self.content[op.position + replace_length:]
+                    self.content = (
+                        self.content[: op.position]
+                        + op.content
+                        + self.content[op.position + replace_length :]
+                    )
 
                 self.operations.append(op)
                 self.version += 1
@@ -136,7 +149,7 @@ class CollaborationSession:
         if op.base_version > self.version:
             raise ValueError("操作基线版本超前，无法合并")
 
-        pending_ops = self.operations[op.base_version - history_start_version:]
+        pending_ops = self.operations[op.base_version - history_start_version :]
         position = op.position
         length = max(0, op.length)
 
@@ -164,7 +177,9 @@ class CollaborationSession:
         shift_on_equal: bool,
     ) -> int:
         if applied.operation_type == "insert":
-            should_shift = applied.position < position or (shift_on_equal and applied.position == position)
+            should_shift = applied.position < position or (
+                shift_on_equal and applied.position == position
+            )
             if should_shift:
                 return position + len(applied.content)
             return position
@@ -207,7 +222,7 @@ class CollaborationSession:
 class CollaborationManager:
     """协作管理器 - 单例"""
 
-    _instance: Optional['CollaborationManager'] = None
+    _instance: Optional["CollaborationManager"] = None
     _lock = asyncio.Lock()
 
     def __new__(cls) -> "CollaborationManager":
@@ -216,12 +231,16 @@ class CollaborationManager:
         return cls._instance
 
     def __init__(self) -> None:
-        if not hasattr(self, '_initialized'):
+        if not hasattr(self, "_initialized"):
             self.sessions: dict[str, CollaborationSession] = {}
-            self.websocket_connections: dict[str, Any] = {}  # session_id -> {websocket, user_id, document_id}
+            self.websocket_connections: dict[str, Any] = (
+                {}
+            )  # session_id -> {websocket, user_id, document_id}
             self._initialized = True
 
-    def get_or_create_session(self, document_id: str, initial_content: str = "") -> CollaborationSession:
+    def get_or_create_session(
+        self, document_id: str, initial_content: str = ""
+    ) -> CollaborationSession:
         """获取或创建会话"""
         if document_id not in self.sessions:
             self.sessions[document_id] = CollaborationSession(document_id, initial_content)
@@ -232,7 +251,9 @@ class CollaborationManager:
         if document_id in self.sessions:
             del self.sessions[document_id]
 
-    async def register_connection(self, session_id: str, websocket: Any, user_id: str, document_id: str) -> None:
+    async def register_connection(
+        self, session_id: str, websocket: Any, user_id: str, document_id: str
+    ) -> None:
         """注册 WebSocket"""
         self.websocket_connections[session_id] = {
             "websocket": websocket,
@@ -255,7 +276,9 @@ class CollaborationManager:
         """获取会话"""
         return self.sessions.get(document_id)
 
-    async def broadcast_to_document(self, document_id: str, message: dict[str, Any], exclude_session: str | None = None) -> None:
+    async def broadcast_to_document(
+        self, document_id: str, message: dict[str, Any], exclude_session: str | None = None
+    ) -> None:
         """广播消息到文档的所有协作者"""
         for session_id, conn in list(self.websocket_connections.items()):
             if conn["document_id"] == document_id and session_id != exclude_session:
@@ -281,6 +304,7 @@ collaboration_manager = CollaborationManager()
 
 # ==================== 协作服务 ====================
 
+
 class CollaborationService:
     """协作编辑与版本管理服务"""
 
@@ -295,7 +319,7 @@ class CollaborationService:
         user_name: str,
         session_id: str,
         websocket: Any,
-        initial_content: str = ""
+        initial_content: str = "",
     ) -> dict[str, Any]:
         """加入文档协作"""
 
@@ -309,22 +333,22 @@ class CollaborationService:
         session = self.manager.get_or_create_session(document_id, initial_content)
 
         # 创建用户
-        user = CollaborativeUser(
-            id=user_id,
-            name=user_name,
-            color=self._get_user_color(user_name)
-        )
+        user = CollaborativeUser(id=user_id, name=user_name, color=self._get_user_color(user_name))
         await session.add_user(user)
 
         # 注册连接
         await self.manager.register_connection(session_id, websocket, user_id, document_id)
 
         # 通知其他用户
-        await self.manager.broadcast_to_document(document_id, {
-            "type": "user_joined",
-            "user": asdict(user),
-            "timestamp": datetime.utcnow().isoformat()
-        }, exclude_session=session_id)
+        await self.manager.broadcast_to_document(
+            document_id,
+            {
+                "type": "user_joined",
+                "user": asdict(user),
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+            exclude_session=session_id,
+        )
 
         return session.to_dict()
 
@@ -333,17 +357,13 @@ class CollaborationService:
         await self.manager.unregister_connection(session_id)
 
         # 通知其他用户
-        await self.manager.broadcast_to_document(document_id, {
-            "type": "user_left",
-            "user_id": user_id,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        await self.manager.broadcast_to_document(
+            document_id,
+            {"type": "user_left", "user_id": user_id, "timestamp": datetime.utcnow().isoformat()},
+        )
 
     async def handle_operation(
-        self,
-        document_id: str,
-        user_id: str,
-        operation: dict[str, Any]
+        self, document_id: str, user_id: str, operation: dict[str, Any]
     ) -> dict[str, Any]:
         """处理文档操作"""
         session = self.manager.get_session(document_id)
@@ -359,29 +379,31 @@ class CollaborationService:
             length=operation.get("length", 0),
             content=operation.get("content", ""),
             attributes=operation.get("attributes", {}),
-            base_version=operation.get("base_version", operation.get("baseVersion", session.version)),
+            base_version=operation.get(
+                "base_version", operation.get("baseVersion", session.version)
+            ),
         )
 
         success = await session.apply_operation(op)
 
         if success:
             # 广播操作
-            await self.manager.broadcast_to_document(document_id, {
-                "type": "operation",
-                "operation": _operation_to_dict(op),
-                "version": session.version
-            }, exclude_session=operation.get("session_id"))
+            await self.manager.broadcast_to_document(
+                document_id,
+                {
+                    "type": "operation",
+                    "operation": _operation_to_dict(op),
+                    "version": session.version,
+                },
+                exclude_session=operation.get("session_id"),
+            )
 
             return {"success": True, "version": session.version, "content": session.content}
 
         return {"success": False, "error": "操作失败"}
 
     async def update_cursor(
-        self,
-        document_id: str,
-        user_id: str,
-        position: int,
-        selection: dict[str, int] | None = None
+        self, document_id: str, user_id: str, position: int, selection: dict[str, int] | None = None
     ) -> None:
         """更新光标位置"""
         session = self.manager.get_session(document_id)
@@ -391,20 +413,18 @@ class CollaborationService:
                 session.users[user_id].selection = selection
 
             # 广播光标更新
-            await self.manager.broadcast_to_document(document_id, {
-                "type": "cursor_update",
-                "user_id": user_id,
-                "position": position,
-                "selection": selection
-            })
+            await self.manager.broadcast_to_document(
+                document_id,
+                {
+                    "type": "cursor_update",
+                    "user_id": user_id,
+                    "position": position,
+                    "selection": selection,
+                },
+            )
 
     async def add_comment(
-        self,
-        document_id: str,
-        user_id: str,
-        user_name: str,
-        content: str,
-        position: dict[str, int]
+        self, document_id: str, user_id: str, user_name: str, content: str, position: dict[str, int]
     ) -> dict[str, Any]:
         """添加评论"""
         session = self.manager.get_session(document_id)
@@ -417,16 +437,15 @@ class CollaborationService:
             user_id=user_id,
             user_name=user_name,
             content=content,
-            position=position
+            position=position,
         )
 
         await session.add_comment(comment)
 
         # 广播评论
-        await self.manager.broadcast_to_document(document_id, {
-            "type": "comment_added",
-            "comment": asdict(comment)
-        })
+        await self.manager.broadcast_to_document(
+            document_id, {"type": "comment_added", "comment": asdict(comment)}
+        )
 
         return {"success": True, "comment_id": comment.id}
 
@@ -439,10 +458,9 @@ class CollaborationService:
         await session.resolve_comment(comment_id)
 
         # 广播
-        await self.manager.broadcast_to_document(document_id, {
-            "type": "comment_resolved",
-            "comment_id": comment_id
-        })
+        await self.manager.broadcast_to_document(
+            document_id, {"type": "comment_resolved", "comment_id": comment_id}
+        )
 
         return {"success": True}
 
@@ -471,7 +489,9 @@ class CollaborationService:
 
     # ==================== 原有方法 ====================
 
-    async def create_version_snapshot(self, session_id: str, creator_id: str, message: str) -> dict[str, Any]:
+    async def create_version_snapshot(
+        self, session_id: str, creator_id: str, message: str
+    ) -> dict[str, Any]:
         """创建文档版本快照 (Git-like commit)"""
         result = await self.db.execute(
             select(DocumentSession).where(DocumentSession.id == session_id)
@@ -483,12 +503,14 @@ class CollaborationService:
         base_content = session.base_content or ""
         current_content = session.current_content or ""
 
-        diff = list(difflib.unified_diff(
-            base_content.splitlines(keepends=True),
-            current_content.splitlines(keepends=True),
-            fromfile='v_base',
-            tofile=f'v_{session.current_version}'
-        ))
+        diff = list(
+            difflib.unified_diff(
+                base_content.splitlines(keepends=True),
+                current_content.splitlines(keepends=True),
+                fromfile="v_base",
+                tofile=f"v_{session.current_version}",
+            )
+        )
 
         diff_text = "".join(diff)
 
@@ -511,7 +533,7 @@ class CollaborationService:
                 "success": True,
                 "version": document.version,
                 "diff": diff_text,
-                "message": message
+                "message": message,
             }
 
         return {"success": False, "error": "关联文档不存在"}
@@ -524,7 +546,7 @@ class CollaborationService:
             "enabled": hasattr(settings, "DOCMOST_URL") and settings.DOCMOST_URL is not None,
             "url": getattr(settings, "DOCMOST_URL", ""),
             "editor_type": "tiptap",  # 使用 TipTap 而非 Docmost
-            "features": ["realtime", "rich_text", "collaboration", "comments", "cursors"]
+            "features": ["realtime", "rich_text", "collaboration", "comments", "cursors"],
         }
 
     async def compare_versions(self, doc_id: str, v1: int, v2: int) -> str:
@@ -540,9 +562,18 @@ class CollaborationService:
     def _get_user_color(self, name: str) -> str:
         """根据用户名生成颜色"""
         colors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
-            '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
-            '#F8B500', '#FF6F61', '#6B5B95', '#88B04B'
+            "#FF6B6B",
+            "#4ECDC4",
+            "#45B7D1",
+            "#FFA07A",
+            "#98D8C8",
+            "#F7DC6F",
+            "#BB8FCE",
+            "#85C1E2",
+            "#F8B500",
+            "#FF6F61",
+            "#6B5B95",
+            "#88B04B",
         ]
         hash_val = 0
         for char in name:
@@ -580,7 +611,9 @@ class CollaborationService:
             self.db.add(snapshot)
             await self.db.flush()
 
-            logger.info(f"创建快照: session={session_id}, version={session.current_version}, type={snapshot_type}")
+            logger.info(
+                f"创建快照: session={session_id}, version={session.current_version}, type={snapshot_type}"
+            )
 
             return {
                 "success": True,
@@ -619,7 +652,9 @@ class CollaborationService:
             for s in snapshots
         ]
 
-    async def restore_snapshot(self, session_id: str, snapshot_id: str, user_id: str) -> dict[str, Any]:
+    async def restore_snapshot(
+        self, session_id: str, snapshot_id: str, user_id: str
+    ) -> dict[str, Any]:
         """回滚到某版本"""
         try:
             # 读取目标快照
@@ -664,13 +699,16 @@ class CollaborationService:
             logger.info(f"回滚快照: session={session_id}, 恢复至版本 {target_snapshot.version}")
 
             # 广播给所有协作者
-            await self.manager.broadcast_to_document(session.document_id, {
-                "type": "snapshot_restored",
-                "version": session.current_version,
-                "content": target_snapshot.content,
-                "restored_from_version": target_snapshot.version,
-                "user_id": user_id,
-            })
+            await self.manager.broadcast_to_document(
+                session.document_id,
+                {
+                    "type": "snapshot_restored",
+                    "version": session.current_version,
+                    "content": target_snapshot.content,
+                    "restored_from_version": target_snapshot.version,
+                    "user_id": user_id,
+                },
+            )
 
             return {
                 "success": True,
@@ -703,46 +741,58 @@ class CollaborationService:
 
             diff_lines = []
             line_num = 0
-            for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, lines_a, lines_b).get_opcodes():
+            for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+                None, lines_a, lines_b
+            ).get_opcodes():
                 if tag == "equal":
                     for idx in range(i1, i2):
                         line_num += 1
-                        diff_lines.append({
-                            "type": "equal",
-                            "content": lines_a[idx].rstrip("\n"),
-                            "line_number": line_num,
-                        })
+                        diff_lines.append(
+                            {
+                                "type": "equal",
+                                "content": lines_a[idx].rstrip("\n"),
+                                "line_number": line_num,
+                            }
+                        )
                 elif tag == "delete":
                     for idx in range(i1, i2):
                         line_num += 1
-                        diff_lines.append({
-                            "type": "delete",
-                            "content": lines_a[idx].rstrip("\n"),
-                            "line_number": line_num,
-                        })
+                        diff_lines.append(
+                            {
+                                "type": "delete",
+                                "content": lines_a[idx].rstrip("\n"),
+                                "line_number": line_num,
+                            }
+                        )
                 elif tag == "insert":
                     for idx in range(j1, j2):
                         line_num += 1
-                        diff_lines.append({
-                            "type": "add",
-                            "content": lines_b[idx].rstrip("\n"),
-                            "line_number": line_num,
-                        })
+                        diff_lines.append(
+                            {
+                                "type": "add",
+                                "content": lines_b[idx].rstrip("\n"),
+                                "line_number": line_num,
+                            }
+                        )
                 elif tag == "replace":
                     for idx in range(i1, i2):
                         line_num += 1
-                        diff_lines.append({
-                            "type": "delete",
-                            "content": lines_a[idx].rstrip("\n"),
-                            "line_number": line_num,
-                        })
+                        diff_lines.append(
+                            {
+                                "type": "delete",
+                                "content": lines_a[idx].rstrip("\n"),
+                                "line_number": line_num,
+                            }
+                        )
                     for idx in range(j1, j2):
                         line_num += 1
-                        diff_lines.append({
-                            "type": "add",
-                            "content": lines_b[idx].rstrip("\n"),
-                            "line_number": line_num,
-                        })
+                        diff_lines.append(
+                            {
+                                "type": "add",
+                                "content": lines_b[idx].rstrip("\n"),
+                                "line_number": line_num,
+                            }
+                        )
 
             return {
                 "success": True,

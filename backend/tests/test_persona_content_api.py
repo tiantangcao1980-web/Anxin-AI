@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ContentDirector persona —— 7 个 endpoint 的集成测试。
 
 通过 FastAPI dependency_overrides 注入一个"假 agent"，
@@ -20,7 +19,6 @@ from src.agents.personas.content_models import (
     VideoScene,
     VideoScript,
 )
-
 
 # ---------------------------------------------------------------------------
 # 假 agent —— 不调 LLM，直接给规整的 dataclass
@@ -52,7 +50,9 @@ class _FakeAgent(ContentDirectorAgent):
         return VideoScript(
             platform=platform_norm,
             total_duration_sec=duration_sec,
-            scenes=[VideoScene(scene_no=1, duration_sec=duration_sec, visual=topic, voiceover=topic)],
+            scenes=[
+                VideoScene(scene_no=1, duration_sec=duration_sec, visual=topic, voiceover=topic)
+            ],
             hook="hook",
             cta="cta",
             hashtags=["#h"],
@@ -80,7 +80,12 @@ class _FakeAgent(ContentDirectorAgent):
             return ConsistencyReport(
                 overall_score=0.0,
                 issues=[
-                    {"field": "forbidden_words", "expected": "", "actual": "命中", "severity": "block"}
+                    {
+                        "field": "forbidden_words",
+                        "expected": "",
+                        "actual": "命中",
+                        "severity": "block",
+                    }
                 ],
                 suggestions=["删除违禁词"],
             )
@@ -160,7 +165,9 @@ async def test_post_video_script_ok(auth_client: AsyncClient, _override_agent):
 
 
 @pytest.mark.asyncio
-async def test_post_video_script_unknown_platform_returns_400(auth_client: AsyncClient, _override_agent):
+async def test_post_video_script_unknown_platform_returns_400(
+    auth_client: AsyncClient, _override_agent
+):
     resp = await auth_client.post(
         "/api/v1/personas/content/video-script",
         json={"topic": "x", "platform": "vimeo", "duration_sec": 30},
@@ -210,7 +217,9 @@ async def test_post_brand_check_clean(auth_client: AsyncClient, _override_agent)
 
 
 @pytest.mark.asyncio
-async def test_post_brand_check_blocking_requires_human_review(auth_client: AsyncClient, _override_agent):
+async def test_post_brand_check_blocking_requires_human_review(
+    auth_client: AsyncClient, _override_agent
+):
     _override_agent["agent"] = _FakeAgent(fake_block=True)
     resp = await auth_client.post(
         "/api/v1/personas/content/brand-check",

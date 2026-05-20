@@ -90,7 +90,9 @@ api_router.include_router(knowledge.router, prefix="/knowledge", tags=["知识�
 api_router.include_router(llm.router, prefix="/llm", tags=["LLM配置"])
 api_router.include_router(sentiment.router, prefix="/sentiment", tags=["舆情监控"])
 api_router.include_router(collaboration.router, prefix="/collaboration", tags=["协作编辑"])
-api_router.include_router(collaboration_ws.router, prefix="/collaboration", tags=["协作编辑-WebSocket"])
+api_router.include_router(
+    collaboration_ws.router, prefix="/collaboration", tags=["协作编辑-WebSocket"]
+)
 api_router.include_router(lic.router, prefix="/lic", tags=["LIC抓取"])
 api_router.include_router(assets.router, prefix="/assets", tags=["资产管理"])
 api_router.include_router(mcp_routes.router, prefix="/mcp", tags=["MCP服务"])
@@ -131,14 +133,20 @@ api_router.include_router(cli.router, tags=["CLI命令"])
 api_router.include_router(case_market.router, tags=["案源市场"])
 api_router.include_router(agent_tasks.router, prefix="/agent-tasks", tags=["异步任务"])
 api_router.include_router(im_pairing.router, prefix="/im/pairing", tags=["IM配对授权"])
-api_router.include_router(app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"])
+api_router.include_router(
+    app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"]
+)
 api_router.include_router(skills.router, prefix="/skills", tags=["技能注册表"])
 api_router.include_router(fetch.router, prefix="/fetch", tags=["信息获取栈"])
 api_router.include_router(personas.router, prefix="/personas", tags=["V3 Personas"])
 api_router.include_router(persona_market.router, prefix="/personas/market", tags=["市场研究员"])
 api_router.include_router(persona_sales.router, prefix="/personas/sales", tags=["获客猎手"])
-api_router.include_router(persona_content.router, prefix="/personas/content", tags=["内容总监 persona"])
-api_router.include_router(persona_ecommerce.router, prefix="/personas/ecommerce", tags=["跨境电商助手"])
+api_router.include_router(
+    persona_content.router, prefix="/personas/content", tags=["内容总监 persona"]
+)
+api_router.include_router(
+    persona_ecommerce.router, prefix="/personas/ecommerce", tags=["跨境电商助手"]
+)
 api_router.include_router(persona_anxin.router, prefix="/personas/anxin", tags=["安心助理 persona"])
 api_router.include_router(persona_legal.router, prefix="/personas/legal", tags=["法律顾问 persona"])
 api_router.include_router(persona_contract.router, prefix="/personas/contract", tags=["合同管家"])

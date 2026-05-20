@@ -38,7 +38,9 @@ def _write_minimal_inputs(tmp_path: Path, *, smoke: bool) -> tuple[Path, Path]:
     return golden, corpus
 
 
-def _run_full50(repo_root: Path, golden: Path, corpus: Path, *extra: str) -> subprocess.CompletedProcess[str]:
+def _run_full50(
+    repo_root: Path, golden: Path, corpus: Path, *extra: str
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             sys.executable,

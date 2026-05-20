@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 FetchService 统一门面 — 信息获取栈对外的唯一入口。
 
@@ -17,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -283,7 +282,7 @@ class FetchService:
 
     async def _audit_record(self, response: FetchResponse) -> None:
         record = AuditRecord(
-            request_ts=datetime.now(timezone.utc),
+            request_ts=datetime.now(UTC),
             user_id=response.request.user_id,
             url=response.request.url,
             tier_used=response.tier_used,

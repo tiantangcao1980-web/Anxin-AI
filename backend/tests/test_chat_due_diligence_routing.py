@@ -120,10 +120,12 @@ async def test_stream_chat_routes_company_investigation_to_due_diligence(
     service._load_llm_config = AsyncMock(return_value=None)
     service._workforce = MagicMock()
     service.create_conversation = AsyncMock(return_value=SimpleNamespace(id="conv-stream"))
-    service.add_message = AsyncMock(side_effect=[
-        SimpleNamespace(id="user-msg", citations=None, actions=None),
-        SimpleNamespace(id="assistant-msg", citations=None, actions=None),
-    ])
+    service.add_message = AsyncMock(
+        side_effect=[
+            SimpleNamespace(id="user-msg", citations=None, actions=None),
+            SimpleNamespace(id="assistant-msg", citations=None, actions=None),
+        ]
+    )
 
     mock_get_company_info.return_value = {
         "basic_info": {
@@ -154,9 +156,7 @@ async def test_stream_chat_routes_company_investigation_to_due_diligence(
 
     assert any(event.get("agent") == "尽职调查Agent" for event in events)
     assert any(
-        "尽调摘要" in event.get("text", "")
-        for event in events
-        if event.get("type") == "content"
+        "尽调摘要" in event.get("text", "") for event in events if event.get("type") == "content"
     )
     assert events[-1]["type"] == "done"
     assert events[-1]["agent"] == "尽职调查Agent"

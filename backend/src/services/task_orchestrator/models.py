@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 异步任务 ORM 模型
 
@@ -31,6 +30,9 @@ import enum
 from datetime import datetime
 from typing import Any
 
+# 与项目其它 model 一致：以 JSON 为基础类型，并在 PostgreSQL 上自动 variant 到 JSONB。
+# 这样在 SQLite 测试库上可以正常 CREATE TABLE，在生产 PG 上仍享受 JSONB 索引能力。
+from sqlalchemy import JSON as _JSON
 from sqlalchemy import (
     DateTime,
     ForeignKey,
@@ -38,9 +40,6 @@ from sqlalchemy import (
     Integer,
     String,
 )
-# 与项目其它 model 一致：以 JSON 为基础类型，并在 PostgreSQL 上自动 variant 到 JSONB。
-# 这样在 SQLite 测试库上可以正常 CREATE TABLE，在生产 PG 上仍享受 JSONB 索引能力。
-from sqlalchemy import JSON as _JSON
 from sqlalchemy.dialects.postgresql import JSONB as _PGJSONB
 
 JSONB = _JSON().with_variant(_PGJSONB(), "postgresql")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P7-B: persona_market 路由 5 endpoint API 测试。
 
 不依赖真 LLM —— 用 ``set_agent_for_test()`` 注入 stub agent。
@@ -10,6 +9,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 OAuthFlowService 单元测试（P4-A）
 
@@ -19,25 +18,20 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
     _SQLiteTC.visit_JSONB = _visit_JSONB  # type: ignore[attr-defined]
 
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
 from cryptography.fernet import Fernet
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# 触发表注册到 Base.metadata（conftest setup_test_db 会 create_all）
-from src.services.app_authorization.models import (  # noqa: F401
-    AppAuthorization,
-    AppAuthorizationStatus,
-    AppToken,
-)
 from src.services.app_authorization import (
     BaseOAuthProvider,
     OAuthFlowService,
@@ -48,6 +42,12 @@ from src.services.app_authorization import (
     TokenStore,
 )
 
+# 触发表注册到 Base.metadata（conftest setup_test_db 会 create_all）
+from src.services.app_authorization.models import (  # noqa: F401
+    AppAuthorization,
+    AppAuthorizationStatus,
+    AppToken,
+)
 
 # ---------------------------------------------------------------------------
 # Stub Provider — 不打真实 HTTP
@@ -67,14 +67,16 @@ class _StubProvider(BaseOAuthProvider):
 
     async def authorize_url(self, state, redirect_uri, scopes=None):
         s = ",".join(scopes or self.default_scopes)
-        return f"https://stub.example/oauth/authorize?state={state}&scope={s}&redirect={redirect_uri}"
+        return (
+            f"https://stub.example/oauth/authorize?state={state}&scope={s}&redirect={redirect_uri}"
+        )
 
     async def exchange_code(self, code, redirect_uri):
         return OAuthTokenBundle(
             access_token=f"access_for_{code}",
             refresh_token=f"refresh_for_{code}",
             token_type="Bearer",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+            expires_at=datetime.now(UTC) + timedelta(hours=2),
             scopes=["read", "write"],
             raw={"code": code},
         )
@@ -87,7 +89,7 @@ class _StubProvider(BaseOAuthProvider):
             access_token=f"new_access_after_{refresh_token}",
             refresh_token=f"rotated_{refresh_token}",
             token_type="Bearer",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=2),
+            expires_at=datetime.now(UTC) + timedelta(hours=2),
             scopes=["read", "write"],
         )
 
@@ -129,6 +131,7 @@ def in_memory_state_cache():
     from src.services.app_authorization.oauth_flow import _StateCache
 
     cache = _StateCache()
+
     # 关闭 Redis：把 ensure_redis 强行返回 None
     async def _no_redis(self):
         self._redis_ready = True
@@ -242,10 +245,7 @@ async def test_callback_persists_authorization_and_encrypted_token(
     assert isinstance(token_row.encrypted_access_token, (bytes, bytearray, memoryview))
     decrypted_access = token_store.decrypt(token_row.encrypted_access_token)
     assert decrypted_access == "access_for_auth_code_xyz"
-    assert (
-        token_store.decrypt(token_row.encrypted_refresh_token)
-        == "refresh_for_auth_code_xyz"
-    )
+    assert token_store.decrypt(token_row.encrypted_refresh_token) == "refresh_for_auth_code_xyz"
 
 
 @pytest.mark.asyncio

@@ -16,6 +16,7 @@ from src.services.event_bus import event_bus
 
 class UserFeedback(BaseModel):
     """用户反馈模型"""
+
     episode_id: str
     rating: int  # 1-5 分
     comment: str = ""
@@ -41,12 +42,16 @@ class FeedbackPipeline:
         experience_extractor: Any | None = None,
         db: Any = None,
     ):
-        if experience_extractor is not None and not isinstance(experience_extractor, ExperienceExtractor):
+        if experience_extractor is not None and not isinstance(
+            experience_extractor, ExperienceExtractor
+        ):
             # 兼容旧签名：FeedbackPipeline(db, episodic_memory)
             db, episodic_memory, experience_extractor = episodic_memory, experience_extractor, None
 
         self.episodic_memory = episodic_memory
-        self.experience_extractor = experience_extractor or ExperienceExtractor(episodic_memory=episodic_memory)
+        self.experience_extractor = experience_extractor or ExperienceExtractor(
+            episodic_memory=episodic_memory
+        )
         self.db = db
         self._feedback_queue: asyncio.Queue[UserFeedback] = asyncio.Queue()
         self._processing = False
@@ -90,7 +95,7 @@ class FeedbackPipeline:
                 await update_feedback(
                     episode_id=feedback.episode_id,
                     user_rating=feedback.rating,
-                    user_feedback=feedback.comment
+                    user_feedback=feedback.comment,
                 )
             elif callable(update_rating) and (
                 hasattr(type(self.episodic_memory), "update_rating")
@@ -102,10 +107,7 @@ class FeedbackPipeline:
                     feedback.comment,
                 )
 
-            logger.info(
-                f"反馈已提交: {feedback.episode_id}, "
-                f"评分: {feedback.rating}"
-            )
+            logger.info(f"反馈已提交: {feedback.episode_id}, " f"评分: {feedback.rating}")
 
             if not self._processing and (feedback.rating >= 4 or feedback.rating <= 2):
                 await self._trigger_experience_extraction(feedback)
@@ -121,10 +123,7 @@ class FeedbackPipeline:
         while self._processing:
             try:
                 # 从队列获取反馈 (超时1秒)
-                feedback = await asyncio.wait_for(
-                    self._feedback_queue.get(),
-                    timeout=1.0
-                )
+                feedback = await asyncio.wait_for(self._feedback_queue.get(), timeout=1.0)
 
                 # 处理反馈
                 await self._process_feedback(feedback)
@@ -148,18 +147,19 @@ class FeedbackPipeline:
             return
 
         # 2. 发布反馈事件 (通知其他系统)
-        await event_bus.publish("feedback.received", {
-            "episode_id": feedback.episode_id,
-            "rating": feedback.rating,
-            "comment": feedback.comment,
-            "timestamp": feedback.timestamp.isoformat()
-        })
+        await event_bus.publish(
+            "feedback.received",
+            {
+                "episode_id": feedback.episode_id,
+                "rating": feedback.rating,
+                "comment": feedback.comment,
+                "timestamp": feedback.timestamp.isoformat(),
+            },
+        )
 
         # 3. 异步触发经验提取
         if feedback.rating >= 4 or feedback.rating <= 2:
-            asyncio.create_task(
-                self._trigger_experience_extraction(feedback)
-            )
+            asyncio.create_task(self._trigger_experience_extraction(feedback))
 
     def _validate_feedback(self, feedback: UserFeedback) -> bool:
         """
@@ -193,24 +193,23 @@ class FeedbackPipeline:
             )
 
             if patterns:
-                logger.info(
-                    f"从反馈 {feedback.episode_id} 提取了 {len(patterns)} 个模式"
-                )
+                logger.info(f"从反馈 {feedback.episode_id} 提取了 {len(patterns)} 个模式")
 
                 # 发布模式提取事件
-                await event_bus.publish("patterns.extracted", {
-                    "episode_id": feedback.episode_id,
-                    "patterns": [p.dict() for p in patterns],
-                    "rating": feedback.rating
-                })
+                await event_bus.publish(
+                    "patterns.extracted",
+                    {
+                        "episode_id": feedback.episode_id,
+                        "patterns": [p.dict() for p in patterns],
+                        "rating": feedback.rating,
+                    },
+                )
 
         except Exception as e:
             logger.error(f"经验提取失败: {e}")
 
     async def get_feedback_stats(
-        self,
-        episode_id: str | None = None,
-        limit: int = 100
+        self, episode_id: str | None = None, limit: int = 100
     ) -> dict[str, Any]:
         """
         获取反馈统计
@@ -226,7 +225,7 @@ class FeedbackPipeline:
         return {
             "total_feedbacks": 0,
             "average_rating": 0.0,
-            "rating_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+            "rating_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
         }
 
 

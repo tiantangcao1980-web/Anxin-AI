@@ -117,6 +117,7 @@ AVAILABLE_AGENTS: list[dict[str, Any]] = [
 # 全局 HTTP 客户端，用于复用连接池
 _shared_http_client: httpx.AsyncClient | None = None
 
+
 def get_shared_http_client() -> httpx.AsyncClient:
     global _shared_http_client
     if _shared_http_client is None or _shared_http_client.is_closed:
@@ -183,10 +184,18 @@ class AIAssistantService:
             raise ValueError(f"助手配置不存在: {config_id}")
 
         allowed_fields = {
-            "name", "description", "avatar_url", "welcome_message",
-            "system_prompt", "personality", "enabled_agents",
-            "knowledge_base_ids", "max_context_turns", "temperature",
-            "llm_config_id", "is_active",
+            "name",
+            "description",
+            "avatar_url",
+            "welcome_message",
+            "system_prompt",
+            "personality",
+            "enabled_agents",
+            "knowledge_base_ids",
+            "max_context_turns",
+            "temperature",
+            "llm_config_id",
+            "is_active",
         }
         for key, value in data.items():
             if key in allowed_fields:
@@ -204,9 +213,7 @@ class AIAssistantService:
     # 对话摘要
     # ------------------------------------------------------------------
 
-    async def generate_summary(
-        self, conversation_id: str, user_id: str
-    ) -> dict[str, Any]:
+    async def generate_summary(self, conversation_id: str, user_id: str) -> dict[str, Any]:
         """
         为对话生成 AI 摘要。
 
@@ -392,8 +399,7 @@ class AIAssistantService:
             .group_by(AIAssistantFeedback.feedback_type)
         )
         type_distribution: dict[str | None, int] = {
-            feedback_type: int(count)
-            for feedback_type, count in type_result.all()
+            feedback_type: int(count) for feedback_type, count in type_result.all()
         }
 
         # 每日趋势

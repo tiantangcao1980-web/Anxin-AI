@@ -22,13 +22,13 @@ class InvestigationDataStore:
 
     # 各数据源的缓存 TTL（秒）
     CACHE_TTL = {
-        "business_registry": 7 * 86400,   # 工商数据 7 天
-        "web_search": 86400,              # 网络搜索 1 天
-        "knowledge_base": 3 * 86400,      # 知识库 3 天
-        "llm_analysis": 2 * 86400,        # LLM 分析 2 天
-        "litigation": 3 * 86400,          # 诉讼数据 3 天
-        "credit": 7 * 86400,             # 信用数据 7 天
-        "news": 43200,                    # 新闻舆情 12 小时
+        "business_registry": 7 * 86400,  # 工商数据 7 天
+        "web_search": 86400,  # 网络搜索 1 天
+        "knowledge_base": 3 * 86400,  # 知识库 3 天
+        "llm_analysis": 2 * 86400,  # LLM 分析 2 天
+        "litigation": 3 * 86400,  # 诉讼数据 3 天
+        "credit": 7 * 86400,  # 信用数据 7 天
+        "news": 43200,  # 新闻舆情 12 小时
     }
 
     # ========== 搜索缓存 ==========
@@ -265,11 +265,7 @@ class InvestigationDataStore:
                 if data_source:
                     conditions.append(SearchCache.data_source == data_source)
 
-                stmt = (
-                    update(SearchCache)
-                    .where(and_(*conditions))
-                    .values(is_valid=False)
-                )
+                stmt = update(SearchCache).where(and_(*conditions)).values(is_valid=False)
                 result = await session.execute(stmt)
                 count = int(getattr(result, "rowcount", 0) or 0)
                 logger.info(
@@ -436,8 +432,7 @@ class InvestigationDataStore:
                 if not snap_a or not snap_b:
                     return {"error": "快照不存在"}
                 if user_id and (
-                    str(snap_a.user_id) != str(user_id)
-                    or str(snap_b.user_id) != str(user_id)
+                    str(snap_a.user_id) != str(user_id) or str(snap_b.user_id) != str(user_id)
                 ):
                     return {"error": "无权访问指定快照"}
 
@@ -457,8 +452,16 @@ class InvestigationDataStore:
                 diff_summary, changes = self._compute_diff_between(data_a, data_b)
 
                 return {
-                    "snapshot_a": {"id": snapshot_id_a, "time": snap_a.snapshot_time, "risk_score": snap_a.risk_score},
-                    "snapshot_b": {"id": snapshot_id_b, "time": snap_b.snapshot_time, "risk_score": snap_b.risk_score},
+                    "snapshot_a": {
+                        "id": snapshot_id_a,
+                        "time": snap_a.snapshot_time,
+                        "risk_score": snap_a.risk_score,
+                    },
+                    "snapshot_b": {
+                        "id": snapshot_id_b,
+                        "time": snap_b.snapshot_time,
+                        "risk_score": snap_b.risk_score,
+                    },
                     "risk_score_change": (snap_b.risk_score or 0) - (snap_a.risk_score or 0),
                     "diff_summary": diff_summary,
                     "changes": changes,
@@ -519,11 +522,13 @@ class InvestigationDataStore:
                         found = True
                         break
                 if not found:
-                    favorites.append({
-                        "name": company_name,
-                        "count": 1,
-                        "last_investigated": datetime.now().isoformat(),
-                    })
+                    favorites.append(
+                        {
+                            "name": company_name,
+                            "count": 1,
+                            "last_investigated": datetime.now().isoformat(),
+                        }
+                    )
                 # 按次数排序，保留 top 20
                 favorites.sort(key=lambda x: x.get("count", 0), reverse=True)
                 pref.favorite_companies = favorites[:20]
@@ -533,7 +538,9 @@ class InvestigationDataStore:
                     old_avg = pref.avg_investigation_duration or 0
                     old_count = max((pref.total_investigations or 1) - 1, 0)
                     if old_count > 0:
-                        pref.avg_investigation_duration = (old_avg * old_count + duration_seconds) / (old_count + 1)
+                        pref.avg_investigation_duration = (
+                            old_avg * old_count + duration_seconds
+                        ) / (old_count + 1)
                     else:
                         pref.avg_investigation_duration = duration_seconds
 
@@ -553,7 +560,9 @@ class InvestigationDataStore:
                     pref.search_keywords_history = history[-100:]
 
                 await session.flush()
-                logger.debug(f"用户偏好已更新: user={user_id}, investigations={pref.total_investigations}")
+                logger.debug(
+                    f"用户偏好已更新: user={user_id}, investigations={pref.total_investigations}"
+                )
                 return True
 
         except Exception as e:

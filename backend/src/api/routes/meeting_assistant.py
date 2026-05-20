@@ -1,6 +1,5 @@
 """AI 旁听助手 API 路由"""
 
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -103,7 +102,11 @@ async def get_status(
 ) -> dict[str, Any]:
     """查询旁听状态"""
     record = await meeting_assistant.get_record(db, conversation_id)
-    is_active = bool(record and str(record.started_by) == str(user.id) and meeting_assistant.is_listening(conversation_id))
+    is_active = bool(
+        record
+        and str(record.started_by) == str(user.id)
+        and meeting_assistant.is_listening(conversation_id)
+    )
     return UnifiedResponse.success(data={"listening": is_active})
 
 
@@ -153,9 +156,7 @@ async def list_records(
     user: User = Depends(get_current_user_required),
 ) -> dict[str, Any]:
     """获取用户的旁听记录列表"""
-    records, total = await meeting_assistant.get_records_by_user(
-        db, str(user.id), page, page_size
-    )
+    records, total = await meeting_assistant.get_records_by_user(db, str(user.id), page, page_size)
     return UnifiedResponse.success(
         data={
             "items": [
@@ -189,9 +190,7 @@ async def link_case(
 
     from src.models.meeting_record import MeetingRecord
 
-    result = await db.execute(
-        select(MeetingRecord).where(MeetingRecord.id == record_id)
-    )
+    result = await db.execute(select(MeetingRecord).where(MeetingRecord.id == record_id))
     record = result.scalar_one_or_none()
     if not record:
         raise HTTPException(status_code=404, detail="记录不存在")

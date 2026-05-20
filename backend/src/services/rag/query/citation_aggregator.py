@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """引文聚合器（DeepTutor 风格）。
 
 把 :class:`RetrievedSegment` 转成结构化、可点击跳转的引文：
@@ -14,7 +13,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from src.services.rag.query.base import Modality, RetrievedSegment
@@ -93,9 +92,7 @@ class CitationAggregator:
     def _to_citation(self, seg: RetrievedSegment) -> Citation:
         modality = Modality.coerce(seg.modality)
         snippet = self._make_snippet(seg, modality)
-        char_range: list[int] | None = (
-            list(seg.char_range) if seg.char_range else None
-        )
+        char_range: list[int] | None = list(seg.char_range) if seg.char_range else None
         document_name = seg.metadata.get("document_name") if seg.metadata else None
         return Citation(
             segment_id=seg.segment_id,

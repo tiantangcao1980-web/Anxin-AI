@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """合同管家 persona —— 数据模型（P9-C）。
 
 本模块为 ``ContractStewardPersona`` 6 大能力（起草 / 审查 / 风险 / 模板 /
@@ -21,10 +20,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
 
 from src.agents.personas.research_models import Citation
-
 
 # ---------------------------------------------------------------------------
 # 1. 起草
@@ -51,7 +48,7 @@ class ContractDraft:
     suggested_clauses: list[dict] = field(default_factory=list)
     estimated_word_count: int = 0
     language: str = "zh"
-    docx_template_path: Optional[str] = None
+    docx_template_path: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +139,7 @@ class Template:
     use_case: str = ""
     language: str = "zh"
     word_count: int = 0
-    last_used: Optional[datetime] = None
+    last_used: datetime | None = None
     download_url: str = ""
 
 

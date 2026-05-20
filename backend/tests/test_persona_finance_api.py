@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 7 个 API endpoint 集成测试（P9-E）。
 
 覆盖：
@@ -19,6 +18,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -27,7 +27,6 @@ if not hasattr(_SQLiteTC, "visit_JSONB"):
 
 import pytest
 from httpx import AsyncClient
-
 
 PREFIX = "/api/v1/personas/finance"
 
@@ -266,9 +265,7 @@ async def test_tax_rates_germany(auth_client: AsyncClient) -> None:
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_filing_calendar_endpoint(auth_client: AsyncClient) -> None:
-    r = await auth_client.get(
-        f"{PREFIX}/calendar", params={"region": "CN", "year": 2026}
-    )
+    r = await auth_client.get(f"{PREFIX}/calendar", params={"region": "CN", "year": 2026})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["year"] == 2026
@@ -280,7 +277,5 @@ async def test_filing_calendar_endpoint(auth_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_calendar_requires_auth(client: AsyncClient) -> None:
-    r = await client.get(
-        f"{PREFIX}/calendar", params={"region": "CN", "year": 2026}
-    )
+    r = await client.get(f"{PREFIX}/calendar", params={"region": "CN", "year": 2026})
     assert r.status_code in {401, 403}

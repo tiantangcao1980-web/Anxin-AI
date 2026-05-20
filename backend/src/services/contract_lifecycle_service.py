@@ -22,41 +22,55 @@ from loguru import logger
 from src.models.contract import Contract, ContractStatus
 
 LEGAL_TRANSITIONS: dict[ContractStatus, frozenset[ContractStatus]] = {
-    ContractStatus.DRAFT: frozenset({
-        ContractStatus.PENDING_REVIEW,
-        ContractStatus.UNDER_REVIEW,
-        ContractStatus.TERMINATED,
-    }),
-    ContractStatus.PENDING_REVIEW: frozenset({
-        ContractStatus.UNDER_REVIEW,
-        ContractStatus.APPROVED,
-        ContractStatus.DRAFT,
-        ContractStatus.TERMINATED,
-    }),
-    ContractStatus.UNDER_REVIEW: frozenset({
-        ContractStatus.PENDING_REVIEW,
-        ContractStatus.REVIEW_FAILED,
-        ContractStatus.APPROVED,
-        ContractStatus.TERMINATED,
-    }),
-    ContractStatus.REVIEW_FAILED: frozenset({
-        ContractStatus.UNDER_REVIEW,
-        ContractStatus.DRAFT,
-        ContractStatus.TERMINATED,
-    }),
-    ContractStatus.APPROVED: frozenset({
-        ContractStatus.SIGNED,
-        ContractStatus.TERMINATED,
-    }),
-    ContractStatus.SIGNED: frozenset({
-        ContractStatus.ACTIVE,
-        ContractStatus.EXPIRED,
-        ContractStatus.TERMINATED,
-    }),
-    ContractStatus.ACTIVE: frozenset({
-        ContractStatus.EXPIRED,
-        ContractStatus.TERMINATED,
-    }),
+    ContractStatus.DRAFT: frozenset(
+        {
+            ContractStatus.PENDING_REVIEW,
+            ContractStatus.UNDER_REVIEW,
+            ContractStatus.TERMINATED,
+        }
+    ),
+    ContractStatus.PENDING_REVIEW: frozenset(
+        {
+            ContractStatus.UNDER_REVIEW,
+            ContractStatus.APPROVED,
+            ContractStatus.DRAFT,
+            ContractStatus.TERMINATED,
+        }
+    ),
+    ContractStatus.UNDER_REVIEW: frozenset(
+        {
+            ContractStatus.PENDING_REVIEW,
+            ContractStatus.REVIEW_FAILED,
+            ContractStatus.APPROVED,
+            ContractStatus.TERMINATED,
+        }
+    ),
+    ContractStatus.REVIEW_FAILED: frozenset(
+        {
+            ContractStatus.UNDER_REVIEW,
+            ContractStatus.DRAFT,
+            ContractStatus.TERMINATED,
+        }
+    ),
+    ContractStatus.APPROVED: frozenset(
+        {
+            ContractStatus.SIGNED,
+            ContractStatus.TERMINATED,
+        }
+    ),
+    ContractStatus.SIGNED: frozenset(
+        {
+            ContractStatus.ACTIVE,
+            ContractStatus.EXPIRED,
+            ContractStatus.TERMINATED,
+        }
+    ),
+    ContractStatus.ACTIVE: frozenset(
+        {
+            ContractStatus.EXPIRED,
+            ContractStatus.TERMINATED,
+        }
+    ),
     ContractStatus.EXPIRED: frozenset(),
     ContractStatus.TERMINATED: frozenset(),
 }
@@ -119,9 +133,7 @@ class ContractLifecycleStateMachine:
 # ========== 1. 合同模板库 ==========
 
 CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
-
     # ===== 劳动合同（5种）=====
-
     "labor_fulltime": {
         "name": "全日制劳动合同",
         "category": "劳动用工",
@@ -150,7 +162,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "竞业限制是否约定了补偿金（月均不低于工资30%）",
         ],
     },
-
     "labor_parttime": {
         "name": "非全日制劳动合同",
         "category": "劳动用工",
@@ -170,7 +181,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "是否约定了试用期（非全日制不得约定试用期）",
         ],
     },
-
     "labor_intern": {
         "name": "实习协议",
         "category": "劳动用工",
@@ -195,7 +205,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "是否扣押了实习生身份证件",
         ],
     },
-
     "labor_executive": {
         "name": "高管劳动合同",
         "category": "劳动用工",
@@ -221,7 +230,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "离职交接是否有明确流程和责任",
         ],
     },
-
     "labor_dispatch": {
         "name": "劳务派遣协议",
         "category": "劳动用工",
@@ -246,9 +254,7 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "是否实现了同工同酬",
         ],
     },
-
     # ===== 商业合同 =====
-
     "sales_contract": {
         "name": "销售/采购合同",
         "category": "商业合同",
@@ -270,7 +276,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "质保期内的返修/退换条件",
         ],
     },
-
     "service_contract": {
         "name": "服务/委托合同",
         "category": "商业合同",
@@ -292,7 +297,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "是否有竞业限制/排他条款",
         ],
     },
-
     "construction_contract": {
         "name": "建设工程合同",
         "category": "商业合同",
@@ -314,7 +318,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "工程签证管理流程是否明确",
         ],
     },
-
     "loan_contract": {
         "name": "借款合同",
         "category": "商业合同",
@@ -336,7 +339,6 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
             "是否有资金来源合法性问题",
         ],
     },
-
     "nda_contract": {
         "name": "保密协议/NDA",
         "category": "商业合同",
@@ -360,14 +362,16 @@ CONTRACT_TEMPLATES: dict[str, dict[str, Any]] = {
 
 # ========== 2. 合同执行监控 ==========
 
+
 @dataclass
 class ContractMilestone:
     """合同里程碑/关键节点"""
+
     name: str
-    due_date: str                 # YYYY-MM-DD
-    type: str = "payment"         # payment / delivery / review / expiry
-    amount: float = 0             # 涉及金额
-    status: str = "pending"       # pending / done / overdue / warning
+    due_date: str  # YYYY-MM-DD
+    type: str = "payment"  # payment / delivery / review / expiry
+    amount: float = 0  # 涉及金额
+    status: str = "pending"  # pending / done / overdue / warning
     note: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -384,6 +388,7 @@ class ContractMilestone:
 @dataclass
 class ContractTracker:
     """合同追踪器"""
+
     contract_id: str
     contract_name: str
     counterparty: str
@@ -392,7 +397,7 @@ class ContractTracker:
     end_date: str
     total_amount: float = 0
     milestones: list[ContractMilestone] = field(default_factory=list)
-    status: str = "active"        # active / completed / terminated / disputed
+    status: str = "active"  # active / completed / terminated / disputed
     follow_ups: list[dict[str, Any]] = field(default_factory=list)  # 后续追踪记录
 
     def check_alerts(self) -> list[dict[str, Any]]:
@@ -412,42 +417,52 @@ class ContractTracker:
 
             if days_until < 0:
                 m.status = "overdue"
-                alerts.append({
-                    "level": "danger",
-                    "message": f"⚠️ {m.name} 已逾期 {abs(days_until)} 天（应于 {m.due_date} 完成）",
-                    "milestone": m.name,
-                    "overdue_days": abs(days_until),
-                })
+                alerts.append(
+                    {
+                        "level": "danger",
+                        "message": f"⚠️ {m.name} 已逾期 {abs(days_until)} 天（应于 {m.due_date} 完成）",
+                        "milestone": m.name,
+                        "overdue_days": abs(days_until),
+                    }
+                )
             elif days_until <= 7:
                 m.status = "warning"
-                alerts.append({
-                    "level": "warning",
-                    "message": f"📢 {m.name} 将于 {days_until} 天后到期（{m.due_date}）",
-                    "milestone": m.name,
-                    "days_until": days_until,
-                })
+                alerts.append(
+                    {
+                        "level": "warning",
+                        "message": f"📢 {m.name} 将于 {days_until} 天后到期（{m.due_date}）",
+                        "milestone": m.name,
+                        "days_until": days_until,
+                    }
+                )
             elif days_until <= 30:
-                alerts.append({
-                    "level": "info",
-                    "message": f"📋 {m.name} 将于 {days_until} 天后到期（{m.due_date}）",
-                    "milestone": m.name,
-                    "days_until": days_until,
-                })
+                alerts.append(
+                    {
+                        "level": "info",
+                        "message": f"📋 {m.name} 将于 {days_until} 天后到期（{m.due_date}）",
+                        "milestone": m.name,
+                        "days_until": days_until,
+                    }
+                )
 
         # 合同到期检查
         try:
             end = datetime.strptime(self.end_date, "%Y-%m-%d").date()
             days_to_end = (end - today).days
             if days_to_end < 0:
-                alerts.append({
-                    "level": "danger",
-                    "message": f"⚠️ 合同已于 {self.end_date} 到期",
-                })
+                alerts.append(
+                    {
+                        "level": "danger",
+                        "message": f"⚠️ 合同已于 {self.end_date} 到期",
+                    }
+                )
             elif days_to_end <= 30:
-                alerts.append({
-                    "level": "warning",
-                    "message": f"📢 合同将于 {days_to_end} 天后到期（{self.end_date}），请提前安排续签或终止",
-                })
+                alerts.append(
+                    {
+                        "level": "warning",
+                        "message": f"📢 合同将于 {days_to_end} 天后到期（{self.end_date}），请提前安排续签或终止",
+                    }
+                )
         except (ValueError, TypeError):
             pass
 
@@ -528,7 +543,6 @@ FOLLOW_UP_CHAINS: dict[str, list[dict[str, Any]]] = {
             "question": "恭喜！此事项已解决。建议保存所有往来函件和付款凭证作为档案。",
         },
     ],
-
     "contract_breach": [
         {
             "stage": "discovered",
@@ -600,14 +614,16 @@ class ContractLifecycleService:
         for key, tpl in CONTRACT_TEMPLATES.items():
             if category and tpl["category"] != category:
                 continue
-            result.append({
-                "template_id": key,
-                "name": tpl["name"],
-                "category": tpl["category"],
-                "applicable": tpl["applicable"],
-                "key_clauses_count": len(tpl["key_clauses"]),
-                "risk_checkpoints_count": len(tpl.get("risk_checkpoints", [])),
-            })
+            result.append(
+                {
+                    "template_id": key,
+                    "name": tpl["name"],
+                    "category": tpl["category"],
+                    "applicable": tpl["applicable"],
+                    "key_clauses_count": len(tpl["key_clauses"]),
+                    "risk_checkpoints_count": len(tpl.get("risk_checkpoints", [])),
+                }
+            )
         return result
 
     def get_template_detail(self, template_id: str) -> dict[str, Any] | None:
@@ -657,6 +673,7 @@ class ContractLifecycleService:
     ) -> ContractTracker:
         """创建合同追踪器"""
         import uuid
+
         tracker = ContractTracker(
             contract_id=str(uuid.uuid4())[:12],
             contract_name=contract_name,

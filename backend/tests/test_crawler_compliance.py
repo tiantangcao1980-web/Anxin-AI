@@ -165,8 +165,14 @@ async def test_crawler_fetch_uses_db_backed_route_token(monkeypatch, db_session,
         db=db_session,
     )
     audits = (
-        await db_session.execute(select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id))
-    ).scalars().all()
+        (
+            await db_session.execute(
+                select(AgentAuditEvent).where(AgentAuditEvent.org_id == test_organization.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     assert result["success"] is True
     assert result["status_code"] == 200
@@ -174,7 +180,9 @@ async def test_crawler_fetch_uses_db_backed_route_token(monkeypatch, db_session,
 
 
 @pytest.mark.asyncio
-async def test_crawler_fetch_fails_after_route_revocation(monkeypatch, db_session, test_organization):
+async def test_crawler_fetch_fails_after_route_revocation(
+    monkeypatch, db_session, test_organization
+):
     _allow_public_dns(monkeypatch)
     monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     monkeypatch.setattr(settings, "LIC_ALLOWED_HOSTS", ["court.gov.cn"], raising=False)

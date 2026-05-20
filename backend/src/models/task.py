@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 class Task(Base, TimestampMixin):
     """任务表"""
+
     __tablename__ = "tasks"
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -29,9 +30,7 @@ class Task(Base, TimestampMixin):
     assignee_id: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )
-    case_id: Mapped[str | None] = mapped_column(
-        GUID(), ForeignKey("cases.id", ondelete="SET NULL")
-    )
+    case_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("cases.id", ondelete="SET NULL"))
     created_by: Mapped[str | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
     )

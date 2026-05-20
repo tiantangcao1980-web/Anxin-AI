@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 L1 纯 HTTP 抓取 — httpx + selectolax / lxml。
 
@@ -40,6 +39,7 @@ from src.services.fetch.tiers.base import BaseTier
 
 try:
     from selectolax.parser import HTMLParser as _SelectolaxParser
+
     _HAS_SELECTOLAX = True
 except ImportError:  # pragma: no cover
     _HAS_SELECTOLAX = False
@@ -47,6 +47,7 @@ except ImportError:  # pragma: no cover
 
 try:
     from lxml import html as _lxml_html
+
     _HAS_LXML = True
 except ImportError:  # pragma: no cover
     _HAS_LXML = False
@@ -54,6 +55,7 @@ except ImportError:  # pragma: no cover
 
 try:
     from bs4 import BeautifulSoup
+
     _HAS_BS4 = True
 except ImportError:  # pragma: no cover
     _HAS_BS4 = False
@@ -114,7 +116,7 @@ class L1HttpTier(BaseTier):
         resp: httpx.Response | None = None
 
         try:
-            for hop in range(MAX_REDIRECT_DEPTH + 1):
+            for _hop in range(MAX_REDIRECT_DEPTH + 1):
                 resp = await client.request(
                     method=request.method,
                     url=current_url,
@@ -273,6 +275,7 @@ class L1HttpTier(BaseTier):
                 pass
         # 极简兜底：粗暴去标签
         import re
+
         return re.sub(r"<[^>]+>", "", html).strip()
 
     async def aclose(self) -> None:

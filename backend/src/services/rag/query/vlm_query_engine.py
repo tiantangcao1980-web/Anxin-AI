@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """VLM 增强查询引擎。
 
 把 :class:`MultimodalRetriever` 的命中段附带的图（image / seal）
@@ -31,7 +30,6 @@ from src.services.rag.query.base import (
 )
 from src.services.rag.query.citation_aggregator import CitationAggregator
 from src.services.rag.query.multimodal_retriever import MultimodalRetriever
-
 
 # 默认系统提示
 DEFAULT_VLM_SYSTEM_PROMPT = """你是一位严谨的法律 / 财税 / 合同领域多模态助手。
@@ -155,14 +153,10 @@ class VLMQueryEngine:
             if sid in seg_index
         ]
 
-        citations = (
-            self.citation_aggregator.aggregate(segments) if self.citation_aggregator else []
-        )
+        citations = self.citation_aggregator.aggregate(segments) if self.citation_aggregator else []
 
         # 综合置信度：retrieval 平均得分 * 0.5 + VLM 自报 * 0.5
-        retrieval_avg = (
-            sum(s.score for s in segments) / max(len(segments), 1) if segments else 0.0
-        )
+        retrieval_avg = sum(s.score for s in segments) / max(len(segments), 1) if segments else 0.0
         confidence = round(min(1.0, max(0.0, retrieval_avg * 0.5 + vlm_confidence * 0.5)), 4)
 
         return VLMQueryResponse(
@@ -193,12 +187,8 @@ class VLMQueryEngine:
             f"基于检索到的内容：\n{snippet}\n\n"
             "如需结合附图分析，请开启 enable_vlm=true 并选择支持 vision 的模型。"
         )
-        citations = (
-            self.citation_aggregator.aggregate(segments) if self.citation_aggregator else []
-        )
-        retrieval_avg = (
-            sum(s.score for s in segments) / max(len(segments), 1) if segments else 0.0
-        )
+        citations = self.citation_aggregator.aggregate(segments) if self.citation_aggregator else []
+        retrieval_avg = sum(s.score for s in segments) / max(len(segments), 1) if segments else 0.0
         confidence = round(min(1.0, max(0.0, retrieval_avg)), 4)
         return VLMQueryResponse(
             answer=answer,

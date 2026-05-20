@@ -5,7 +5,6 @@ This server exposes Anxin AI capabilities via the Model Context Protocol (MCP).
 It allows other AI agents (like Claude Desktop) to interact with the legal system.
 """
 
-
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import TypeVar
 
@@ -25,14 +24,20 @@ mcp = FastMCP("Anxin AI")
 
 
 def _ensure_standalone_mcp_enabled() -> None:
-    if settings.ENVIRONMENT.lower() in {"staging", "production"} and not settings.MCP_STANDALONE_ENABLED:
-        raise RuntimeError("Standalone MCP is disabled in commercial environments; use authenticated /api/v1/mcp routes.")
+    if (
+        settings.ENVIRONMENT.lower() in {"staging", "production"}
+        and not settings.MCP_STANDALONE_ENABLED
+    ):
+        raise RuntimeError(
+            "Standalone MCP is disabled in commercial environments; use authenticated /api/v1/mcp routes."
+        )
 
 
 # Helper to get DB session
 async def get_session() -> AsyncIterator[AsyncSession]:
     async with async_session_maker() as session:
         yield session
+
 
 # Helper to execute service calls with DB session
 async def with_service(
@@ -43,7 +48,9 @@ async def with_service(
         service = service_class(session)
         return await callback(service)
 
+
 # --- Resources ---
+
 
 @mcp.resource("legal://cases/list")
 async def list_cases_resource() -> str:
@@ -55,6 +62,7 @@ async def list_cases_resource() -> str:
         return "\n".join([f"- [{c.case_number}] {c.title} ({c.status.value})" for c in cases])
 
     return await with_service(CaseService, _list)
+
 
 @mcp.resource("legal://knowledge/stats")
 async def knowledge_stats_resource() -> str:
@@ -70,13 +78,15 @@ async def knowledge_stats_resource() -> str:
 
     return await with_service(KnowledgeService, _stats)
 
+
 # --- Tools ---
+
 
 @mcp.tool()
 async def search_knowledge_base(query: str, kb_id: str | None = None) -> str:
     """
     Search the legal knowledge base for relevant information.
-    
+
     Args:
         query: The search query (e.g., "contract breach penalties")
         kb_id: Optional ID of specific knowledge base to search
@@ -96,11 +106,12 @@ async def search_knowledge_base(query: str, kb_id: str | None = None) -> str:
 
     return await with_service(KnowledgeService, _search)
 
+
 @mcp.tool()
 async def analyze_legal_case(case_id: str) -> str:
     """
     Trigger AI analysis for a specific legal case.
-    
+
     Args:
         case_id: The UUID of the case to analyze
     """
@@ -124,11 +135,12 @@ async def analyze_legal_case(case_id: str) -> str:
 
     return await with_service(CaseService, _analyze)
 
+
 @mcp.tool()
 async def get_case_details(case_id: str) -> str:
     """
     Get detailed information about a specific legal case.
-    
+
     Args:
         case_id: The UUID of the case
     """
@@ -159,6 +171,7 @@ async def get_case_details(case_id: str) -> str:
 
     return await with_service(CaseService, _get)
 
+
 @mcp.tool()
 async def list_pending_cases() -> str:
     """List all pending legal cases that require attention."""
@@ -171,10 +184,13 @@ async def list_pending_cases() -> str:
 
         lines = ["Pending Cases:"]
         for c in cases:
-            lines.append(f"- ID: {c.id} | {c.case_number}: {c.title} (Priority: {c.priority.value})")
+            lines.append(
+                f"- ID: {c.id} | {c.case_number}: {c.title} (Priority: {c.priority.value})"
+            )
         return "\n".join(lines)
 
     return await with_service(CaseService, _list)
+
 
 if __name__ == "__main__":
     # Ensure we are in the right directory for imports to work if running directly

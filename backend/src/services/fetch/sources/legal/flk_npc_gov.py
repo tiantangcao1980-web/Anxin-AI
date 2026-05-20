@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """国家法律法规数据库（flk.npc.gov.cn）数据源。
 
 公开站点，提供宪法/法律/行政法规/部门规章/地方法规等的检索 API。
@@ -14,9 +13,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Awaitable, Callable, ClassVar, Optional
+from typing import Any, ClassVar
 from urllib.parse import urljoin
 from urllib.robotparser import RobotFileParser
 
@@ -95,8 +95,8 @@ class FlkNpcGovSource(BaseLegalSource):
 
     def __init__(
         self,
-        client: Optional[httpx.AsyncClient] = None,
-        rate_limiter: Optional[Callable[[], Awaitable[None]]] = None,
+        client: httpx.AsyncClient | None = None,
+        rate_limiter: Callable[[], Awaitable[None]] | None = None,
         timeout: float = 15.0,
     ) -> None:
         self._client = client
@@ -129,9 +129,7 @@ class FlkNpcGovSource(BaseLegalSource):
         # 合规护栏：URL 校验 + robots 校验
         self._ensure_compliant(url)
         if not _check_robots(self.BASE_URL, self.SEARCH_PATH):
-            raise ComplianceError(
-                f"flk_npc_gov: robots.txt 拒绝访问 {self.SEARCH_PATH}"
-            )
+            raise ComplianceError(f"flk_npc_gov: robots.txt 拒绝访问 {self.SEARCH_PATH}")
 
         params = self._build_search_params(query)
         await self._rate_limit()
@@ -147,9 +145,7 @@ class FlkNpcGovSource(BaseLegalSource):
         url = urljoin(self.BASE_URL, self.DETAIL_PATH)
         self._ensure_compliant(url)
         if not _check_robots(self.BASE_URL, self.DETAIL_PATH):
-            raise ComplianceError(
-                f"flk_npc_gov: robots.txt 拒绝访问 {self.DETAIL_PATH}"
-            )
+            raise ComplianceError(f"flk_npc_gov: robots.txt 拒绝访问 {self.DETAIL_PATH}")
 
         await self._rate_limit()
         client = await self._get_client()
@@ -161,10 +157,7 @@ class FlkNpcGovSource(BaseLegalSource):
         if "json" in ctype:
             data = resp.json()
             return (
-                data.get("result", {}).get("body")
-                or data.get("body")
-                or data.get("content")
-                or ""
+                data.get("result", {}).get("body") or data.get("body") or data.get("content") or ""
             )
         # HTML fallback
         if HTMLParser is None:
@@ -208,7 +201,7 @@ class FlkNpcGovSource(BaseLegalSource):
         return params
 
     @staticmethod
-    def _map_law_type(law_type: Optional[str]) -> str:
+    def _map_law_type(law_type: str | None) -> str:
         # 站点 type 取值: flfg=法律法规, xzfg=行政法规, sfjs=司法解释, ...
         mapping = {
             LawType.LAW.value: "flfg",
@@ -223,14 +216,12 @@ class FlkNpcGovSource(BaseLegalSource):
             data = resp.json()
         except ValueError:
             # 非 JSON：返回空，避免误吃 HTML 错误页
-            logger.warning("flk_npc_gov: 非 JSON 响应 content-type=%s", resp.headers.get("content-type"))
+            logger.warning(
+                "flk_npc_gov: 非 JSON 响应 content-type=%s", resp.headers.get("content-type")
+            )
             return []
 
-        items = (
-            data.get("result", {}).get("data")
-            or data.get("data")
-            or []
-        )
+        items = data.get("result", {}).get("data") or data.get("data") or []
         results: list[LawSearchResult] = []
         for item in items:
             results.append(
@@ -254,7 +245,7 @@ class FlkNpcGovSource(BaseLegalSource):
         return results
 
 
-def _parse_date(value: Any) -> Optional[date]:
+def _parse_date(value: Any) -> date | None:
     if not value:
         return None
     if isinstance(value, date):

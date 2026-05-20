@@ -93,10 +93,14 @@ async def retry_due_failed_webhooks(
         except WebhookRetryError as exc:
             await db.commit()
             summary["failed"] += 1
-            logger.warning(f"webhook 自动重试失败: id={record.id}, scope={record.scope}, error={exc}")
+            logger.warning(
+                f"webhook 自动重试失败: id={record.id}, scope={record.scope}, error={exc}"
+            )
         except Exception as exc:
             await db.rollback()
             summary["failed"] += 1
-            logger.exception(f"webhook 自动重试异常: id={record.id}, scope={record.scope}, error={exc}")
+            logger.exception(
+                f"webhook 自动重试异常: id={record.id}, scope={record.scope}, error={exc}"
+            )
 
     return summary

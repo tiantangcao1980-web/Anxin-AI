@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """AI 议价多轮策略专项测试（P7-E）。
 
 覆盖路径：
@@ -14,7 +13,6 @@
 from __future__ import annotations
 
 import pytest
-
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 
@@ -29,9 +27,9 @@ from src.agents.personas.ecommerce_assistant import (  # noqa: E402
     CLOSE_DEAL_BAND_PCT,
     CONCEDE_STEP_AGGRESSIVE,
     CONCEDE_STEP_FRIENDLY,
-    EcommerceAssistantAgent,
     TRADE_AFTER_ROUND,
     WALK_AWAY_THRESHOLD_PCT,
+    EcommerceAssistantAgent,
 )
 
 
@@ -190,4 +188,8 @@ async def test_concede_monotonic_increase(persona):
 async def test_anchor_script_contains_payment_terms(persona):
     move = await persona.negotiate(target_price=200.0, mood="moderate", history=[])
     # anchor 必须带付款条款（影响落地 likelihood）
-    assert "T/T" in move.script_text or "deposit" in move.script_text.lower() or "定金" in move.script_text
+    assert (
+        "T/T" in move.script_text
+        or "deposit" in move.script_text.lower()
+        or "定金" in move.script_text
+    )

@@ -135,7 +135,14 @@ def test_agent_approval_and_audit_events_keep_tenant_and_route_context():
     approval_columns = set(AgentApproval.__table__.columns.keys())
     audit_columns = set(AgentAuditEvent.__table__.columns.keys())
 
-    assert {"org_id", "route_id", "requested_by", "decided_by", "status", "expires_at"} <= approval_columns
+    assert {
+        "org_id",
+        "route_id",
+        "requested_by",
+        "decided_by",
+        "status",
+        "expires_at",
+    } <= approval_columns
     assert {
         "org_id",
         "team_id",
@@ -193,7 +200,9 @@ def test_governance_relationships_use_composite_org_scoped_foreign_keys():
             and {column.name for column in constraint.columns} == {org_column, scoped_column}
         ]
         assert composite_constraints, f"{model.__name__} lacks a composite org-scoped FK"
-        assert referred_table in {element.column.table.name for element in composite_constraints[0].elements}
+        assert referred_table in {
+            element.column.table.name for element in composite_constraints[0].elements
+        }
 
 
 def test_cross_org_governance_links_fail_database_integrity():
@@ -222,8 +231,12 @@ def test_cross_org_governance_links_fail_database_integrity():
             ],
         )
         conn.execute(insert(AgentManager).values(id=manager_b, org_id=org_b, name="Manager B"))
-        conn.execute(insert(AgentTeam).values(id=team_b, org_id=org_b, manager_id=manager_b, name="Team B"))
-        conn.execute(insert(AgentWorker).values(id=worker_b, org_id=org_b, team_id=team_b, name="Worker B"))
+        conn.execute(
+            insert(AgentTeam).values(id=team_b, org_id=org_b, manager_id=manager_b, name="Team B")
+        )
+        conn.execute(
+            insert(AgentWorker).values(id=worker_b, org_id=org_b, team_id=team_b, name="Worker B")
+        )
         conn.execute(
             insert(CapabilityRoute).values(
                 id=route_b,
@@ -247,7 +260,12 @@ def test_cross_org_governance_links_fail_database_integrity():
         ),
         (
             AgentApproval,
-            {"id": str(uuid.uuid4()), "org_id": org_a, "route_id": route_b, "action_type": "mcp.call"},
+            {
+                "id": str(uuid.uuid4()),
+                "org_id": org_a,
+                "route_id": route_b,
+                "action_type": "mcp.call",
+            },
         ),
         (
             AgentAuditEvent,
@@ -270,7 +288,11 @@ def test_cross_org_governance_links_fail_database_integrity():
 
 def test_agent_governance_migration_has_upgrade_downgrade_and_no_secret_columns():
     migration = (
-        _repo_root() / "backend" / "alembic" / "versions" / "040_add_agent_governance_control_plane.py"
+        _repo_root()
+        / "backend"
+        / "alembic"
+        / "versions"
+        / "040_add_agent_governance_control_plane.py"
     ).read_text(encoding="utf-8")
 
     assert 'revision: str = "040_agent_governance_control_plane"' in migration

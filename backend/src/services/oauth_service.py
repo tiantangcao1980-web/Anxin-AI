@@ -53,9 +53,7 @@ class WeChatOAuth:
             data = _response_json(resp)
             if "errcode" in data:
                 logger.error(f"微信 access_token 获取失败: {data}")
-                raise ValueError(
-                    f"微信授权失败: {data.get('errmsg', '未知错误')}"
-                )
+                raise ValueError(f"微信授权失败: {data.get('errmsg', '未知错误')}")
             return data  # {access_token, openid, unionid, ...}
 
     @staticmethod
@@ -72,9 +70,7 @@ class WeChatOAuth:
             data = _response_json(resp)
             if "errcode" in data:
                 logger.error(f"微信用户信息获取失败: {data}")
-                raise ValueError(
-                    f"获取用户信息失败: {data.get('errmsg')}"
-                )
+                raise ValueError(f"获取用户信息失败: {data.get('errmsg')}")
             return data  # {openid, nickname, headimgurl, unionid, ...}
 
 
@@ -107,9 +103,7 @@ class WeChatMiniProgramOAuth:
             data = _response_json(resp)
             if data.get("errcode"):
                 logger.error(f"微信小程序 code2session 失败: {data}")
-                raise ValueError(
-                    f"微信小程序登录失败: {data.get('errmsg', '未知错误')}"
-                )
+                raise ValueError(f"微信小程序登录失败: {data.get('errmsg', '未知错误')}")
             if not data.get("openid"):
                 logger.error(f"微信小程序 code2session 响应缺少 openid: {data}")
                 raise ValueError("微信小程序登录失败: 缺少 openid")
@@ -185,7 +179,5 @@ class AlipayOAuth:
             raw_user_resp = data.get("alipay_user_info_share_response", {})
             user_resp = raw_user_resp if isinstance(raw_user_resp, dict) else {}
             if user_resp.get("code") != "10000":
-                raise ValueError(
-                    f"获取支付宝用户信息失败: {user_resp.get('sub_msg')}"
-                )
+                raise ValueError(f"获取支付宝用户信息失败: {user_resp.get('sub_msg')}")
             return cast(JsonObject, user_resp)  # {user_id, nick_name, avatar, ...}

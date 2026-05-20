@@ -44,13 +44,13 @@ class ExperienceConfig(TypedDict):
 
 
 EXPERIENCE_CONFIG: ExperienceConfig = {
-    "min_confidence": 0.3,         # 最低置信度（低于此值标记过期）
-    "initial_confidence": 0.6,     # 新经验初始置信度
-    "confirmed_boost": 0.15,       # 每次确认提升
+    "min_confidence": 0.3,  # 最低置信度（低于此值标记过期）
+    "initial_confidence": 0.6,  # 新经验初始置信度
+    "confirmed_boost": 0.15,  # 每次确认提升
     "contradiction_penalty": 0.3,  # 矛盾时降级
-    "decay_rate_per_day": 0.005,   # 每日衰减率
-    "max_experiences": 500,        # 单用户最大经验数
-    "extraction_threshold": 10,    # 最少 10 条消息才触发提取
+    "decay_rate_per_day": 0.005,  # 每日衰减率
+    "max_experiences": 500,  # 单用户最大经验数
+    "extraction_threshold": 10,  # 最少 10 条消息才触发提取
 }
 
 PATTERN_CATEGORIES = [
@@ -80,11 +80,13 @@ class Experience:
         source: str = "auto",
         user_id: str | None = None,
     ) -> None:
-        self.id = hashlib.md5(f"{pattern}{context}{datetime.now().isoformat()}".encode()).hexdigest()[:12]
-        self.pattern = pattern       # 触发条件
-        self.category = category     # 模式类别
-        self.context = context       # 上下文描述
-        self.solution = solution     # 解决方案/结论
+        self.id = hashlib.md5(
+            f"{pattern}{context}{datetime.now().isoformat()}".encode()
+        ).hexdigest()[:12]
+        self.pattern = pattern  # 触发条件
+        self.category = category  # 模式类别
+        self.context = context  # 上下文描述
+        self.solution = solution  # 解决方案/结论
         self.confidence = confidence
         self.source = source
         self.user_id = user_id
@@ -172,6 +174,7 @@ class ExperienceEngine:
             from sqlalchemy import text
 
             from src.core.database import async_session_maker
+
             async with async_session_maker() as db:
                 await db.execute(
                     text("""
@@ -219,6 +222,7 @@ class ExperienceEngine:
             from sqlalchemy import text
 
             from src.core.database import async_session_maker
+
             async with async_session_maker() as db:
                 result = await db.execute(
                     text("""
@@ -251,7 +255,9 @@ class ExperienceEngine:
                     experiences.append(exp)
                 self._store[user_id] = experiences
                 if experiences:
-                    logger.info(f"[ExperienceEngine] 加载 {len(experiences)} 条经验 (user={user_id[:8]})")
+                    logger.info(
+                        f"[ExperienceEngine] 加载 {len(experiences)} 条经验 (user={user_id[:8]})"
+                    )
                 return experiences
         except Exception as e:
             logger.debug(f"[ExperienceEngine] 加载经验失败: {e}")
@@ -328,7 +334,7 @@ class ExperienceEngine:
         # 限制数量
         if len(user_exps) > EXPERIENCE_CONFIG["max_experiences"]:
             user_exps.sort(key=lambda e: e.confidence, reverse=True)
-            self._store[user_id] = user_exps[:EXPERIENCE_CONFIG["max_experiences"]]
+            self._store[user_id] = user_exps[: EXPERIENCE_CONFIG["max_experiences"]]
 
         logger.info(f"经验提取完成 (user={user_id}): 新增 {len(extracted)} 条，已持久化")
         return extracted
@@ -347,11 +353,13 @@ class ExperienceEngine:
                     if messages[j].get("role") == "assistant":
                         prev_ai = messages[j].get("content", "")[:200]
                         break
-                corrections.append({
-                    "trigger": prev_ai[:100] if prev_ai else "未知触发",
-                    "context": "AI回复后用户纠正",
-                    "correction": content[:200],
-                })
+                corrections.append(
+                    {
+                        "trigger": prev_ai[:100] if prev_ai else "未知触发",
+                        "context": "AI回复后用户纠正",
+                        "correction": content[:200],
+                    }
+                )
         return corrections
 
     def _detect_legal_patterns(self, messages: list[SessionMessage]) -> list[StringMap]:
@@ -364,7 +372,8 @@ class ExperienceEngine:
             if any(kw in content for kw in LEGAL_KEYWORDS):
                 # 提取法条引用上下文
                 import re
-                citations = re.findall(r'《([^》]+)》(?:第\d+条)?', content)
+
+                citations = re.findall(r"《([^》]+)》(?:第\d+条)?", content)
                 if citations:
                     # 找用户问的问题
                     user_q = ""
@@ -372,11 +381,13 @@ class ExperienceEngine:
                         if messages[j].get("role") == "user":
                             user_q = messages[j].get("content", "")[:150]
                             break
-                    patterns.append({
-                        "issue": user_q[:80] if user_q else "法律问题",
-                        "context": f"引用了 {', '.join(citations[:3])}",
-                        "resolution": content[:200],
-                    })
+                    patterns.append(
+                        {
+                            "issue": user_q[:80] if user_q else "法律问题",
+                            "context": f"引用了 {', '.join(citations[:3])}",
+                            "resolution": content[:200],
+                        }
+                    )
         return patterns
 
     def _detect_error_resolutions(self, messages: list[SessionMessage]) -> list[StringMap]:
@@ -392,11 +403,13 @@ class ExperienceEngine:
                 error_context = content[:200]
             elif error_context and role == "assistant" and len(content) > 50:
                 # 可能是解决方案
-                resolutions.append({
-                    "error": error_context[:100],
-                    "context": "错误解决",
-                    "fix": content[:200],
-                })
+                resolutions.append(
+                    {
+                        "error": error_context[:100],
+                        "context": "错误解决",
+                        "fix": content[:200],
+                    }
+                )
                 error_context = None
 
         return resolutions
@@ -465,7 +478,9 @@ class ExperienceEngine:
                 return True
         return False
 
-    def contradict_experience(self, user_id: str, experience_id: str, new_evidence: str = "") -> bool:
+    def contradict_experience(
+        self, user_id: str, experience_id: str, new_evidence: str = ""
+    ) -> bool:
         """标记经验矛盾"""
         for exp in self._get_user_experiences(user_id):
             if exp.id == experience_id:
@@ -494,12 +509,9 @@ class ExperienceEngine:
             "total": len(experiences),
             "active": len(active),
             "by_category": {
-                cat: sum(1 for e in active if e.category == cat)
-                for cat in PATTERN_CATEGORIES
+                cat: sum(1 for e in active if e.category == cat) for cat in PATTERN_CATEGORIES
             },
-            "avg_confidence": round(
-                sum(e.confidence for e in active) / max(len(active), 1), 3
-            ),
+            "avg_confidence": round(sum(e.confidence for e in active) / max(len(active), 1), 3),
             "most_used": sorted(
                 [e.to_dict() for e in active],
                 key=lambda x: x["use_count"],
@@ -532,10 +544,12 @@ class ExperienceEngine:
 
         lines = ["[历史经验]"]
         for exp in relevant[:5]:
-            lines.append(f"- [{exp.category}] {exp.pattern[:60]} → {exp.solution[:80]} (置信度{exp.confidence:.0%})")
+            lines.append(
+                f"- [{exp.category}] {exp.pattern[:60]} → {exp.solution[:80]} (置信度{exp.confidence:.0%})"
+            )
 
         result = "\n".join(lines)
-        return result[:max_tokens * 2]  # 粗估 token
+        return result[: max_tokens * 2]  # 粗估 token
 
 
 # 全局实例

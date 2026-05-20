@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """阿里 1688 开放平台数据源 — mock + 接口契约（P6-D）。
 
 为什么 mock？
@@ -22,8 +21,7 @@ mock 数据里把这些字段都放进 ``Product.raw``，前端可按 source 分
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from .base import (
     BaseEcommerceSource,
@@ -107,7 +105,7 @@ def _build_mock_product(item: dict) -> Product:
             f"https://cbu01.alicdn.com/img/ibank/{item['offer_id']}_main.jpg",
         ],
         inventory_qty=10000,  # 1688 通常库存充足
-        rating=None,           # 1688 不展示零售评分
+        rating=None,  # 1688 不展示零售评分
         review_count=None,
         seller_name=item["supplier"],
         # 「金牌供应商」=4.8，「实力商家」=4.5（启发式映射）
@@ -165,7 +163,7 @@ class Alibaba1688EcommerceSource(BaseEcommerceSource):
     async def search_products(
         self,
         query: ProductSearchQuery,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> list[Product]:
         """Mock —— 5 条 deterministic 供应商商品（含批发价 + 起订量）。
 
@@ -179,8 +177,8 @@ class Alibaba1688EcommerceSource(BaseEcommerceSource):
     async def get_product(
         self,
         sku: str,
-        oauth_token: Optional[str] = None,
-    ) -> Optional[Product]:
+        oauth_token: str | None = None,
+    ) -> Product | None:
         """Mock —— offer_id 命中即返回。
 
         真实端点：``alibaba.icbu.product.get``
@@ -193,22 +191,21 @@ class Alibaba1688EcommerceSource(BaseEcommerceSource):
     async def list_orders(
         self,
         oauth_token: str,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
         limit: int = 50,
     ) -> list[Order]:
         """Mock —— 返回 2 条假采购单。
 
         真实端点：``alibaba.trade.getBuyerOrderList``
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         base_since = since or (now - timedelta(days=14))
         return [
             Order(
                 source="alibaba_1688",
                 order_id=f"1688-MOCK-{i:08d}",
                 customer_name=f"采购方-MOCK-{i}",
-                total_amount=_MOCK_SUPPLIERS[i]["wholesale_price_min"]
-                * _MOCK_SUPPLIERS[i]["moq"],
+                total_amount=_MOCK_SUPPLIERS[i]["wholesale_price_min"] * _MOCK_SUPPLIERS[i]["moq"],
                 currency="CNY",
                 status=("paid", "shipped")[i],
                 placed_at=base_since + timedelta(days=i),
@@ -238,7 +235,7 @@ class Alibaba1688EcommerceSource(BaseEcommerceSource):
 
     async def health_check(
         self,
-        oauth_token: Optional[str] = None,
+        oauth_token: str | None = None,
     ) -> bool:
         """Mock —— ISV 凭据齐 → True。
 

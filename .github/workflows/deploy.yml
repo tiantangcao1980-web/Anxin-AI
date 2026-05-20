@@ -86,6 +86,7 @@ jobs:
           echo "检测结果: backend=$BACKEND_CHANGED, frontend=$FRONTEND_CHANGED"
 
       - name: 部署前检查
+        id: preflight
         if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -98,10 +99,20 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          test -n "$DEPLOY_HOST" || { echo "❌ 缺少 DEPLOY_HOST secret"; exit 1; }
-          test -n "$DEPLOY_USER" || { echo "❌ 缺少 DEPLOY_USER secret"; exit 1; }
-          test -n "$DEPLOY_PATH" || { echo "❌ 缺少 DEPLOY_PATH secret"; exit 1; }
-          test -n "$DEPLOY_SSH_KEY" || { echo "❌ 缺少 DEPLOY_SSH_KEY secret"; exit 1; }
+          # 任一关键 secret 未配置 → 友好跳过（job 通过，不阻塞主线 CI）。
+          MISSING=""
+          [ -z "$DEPLOY_HOST" ] && MISSING="$MISSING DEPLOY_HOST"
+          [ -z "$DEPLOY_USER" ] && MISSING="$MISSING DEPLOY_USER"
+          [ -z "$DEPLOY_PATH" ] && MISSING="$MISSING DEPLOY_PATH"
+          [ -z "$DEPLOY_SSH_KEY" ] && MISSING="$MISSING DEPLOY_SSH_KEY"
+
+          if [ -n "$MISSING" ]; then
+            echo "::warning::部署被跳过：缺少 secret(s)：$MISSING"
+            echo "deploy_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "在 Settings → Secrets and variables → Actions 配置上述 secret 后才会真正部署。"
+            exit 0
+          fi
+          echo "deploy_enabled=true" >> "$GITHUB_OUTPUT"
 
           SSH_PORT="${DEPLOY_PORT:-22}"
           SERVICES=""
@@ -125,7 +136,7 @@ jobs:
 
       # ========== 3. 配置 SSH 连接 ==========
       - name: 配置 SSH 私钥
-        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        if: steps.preflight.outputs.deploy_enabled == 'true'
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
@@ -154,7 +165,7 @@ jobs:
           fi
 
       - name: 写入 known_hosts
-        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        if: steps.preflight.outputs.deploy_enabled == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -164,7 +175,7 @@ jobs:
           chmod 644 ~/.ssh/known_hosts
 
       - name: 验证 SSH 连通性
-        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        if: steps.preflight.outputs.deploy_enabled == 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -186,7 +197,7 @@ jobs:
 
       # ========== 4. SSH 到服务器执行部署 ==========
       - name: SSH 部署
-        if: steps.changes.outputs.backend_changed == 'true' || steps.changes.outputs.frontend_changed == 'true'
+        if: steps.preflight.outputs.deploy_enabled == 'true'
         env:
           BACKEND_CHANGED: ${{ steps.changes.outputs.backend_changed }}
           FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend_changed }}

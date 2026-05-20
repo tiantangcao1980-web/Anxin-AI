@@ -10,6 +10,7 @@ async def test_file_type_detection():
     assert multimodal_service.detect_file_type("meeting.mp3") == FileType.AUDIO
     assert multimodal_service.detect_file_type("evidence.png") == FileType.IMAGE
 
+
 @pytest.mark.asyncio
 async def test_multimodal_processing_mock():
     # 测试模拟的 OCR/ASR
@@ -18,6 +19,7 @@ async def test_multimodal_processing_mock():
 
     res_audio = await multimodal_service.process_file("dummy.mp3", "dummy.mp3", FileType.AUDIO)
     assert "ASR转录结果" in res_audio["raw_text"]
+
 
 @pytest.mark.asyncio
 async def test_preference_service():

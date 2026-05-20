@@ -244,11 +244,36 @@ def test_release_artifact_validation_accepts_mobile_manual_template(tmp_path):
                 ],
                 "scenarios": [
                     {"id": "login", "status": "pending", "screenshot_refs": [], "log_refs": []},
-                    {"id": "approval_detail", "status": "pending", "screenshot_refs": [], "log_refs": []},
-                    {"id": "message_detail", "status": "pending", "screenshot_refs": [], "log_refs": []},
-                    {"id": "task_detail", "status": "pending", "screenshot_refs": [], "log_refs": []},
-                    {"id": "chat_continuation", "status": "pending", "screenshot_refs": [], "log_refs": []},
-                    {"id": "settings_error_state", "status": "pending", "screenshot_refs": [], "log_refs": []},
+                    {
+                        "id": "approval_detail",
+                        "status": "pending",
+                        "screenshot_refs": [],
+                        "log_refs": [],
+                    },
+                    {
+                        "id": "message_detail",
+                        "status": "pending",
+                        "screenshot_refs": [],
+                        "log_refs": [],
+                    },
+                    {
+                        "id": "task_detail",
+                        "status": "pending",
+                        "screenshot_refs": [],
+                        "log_refs": [],
+                    },
+                    {
+                        "id": "chat_continuation",
+                        "status": "pending",
+                        "screenshot_refs": [],
+                        "log_refs": [],
+                    },
+                    {
+                        "id": "settings_error_state",
+                        "status": "pending",
+                        "screenshot_refs": [],
+                        "log_refs": [],
+                    },
                     {
                         "id": "mini_program_wx_login_code2session",
                         "status": "pending",
@@ -538,7 +563,9 @@ def test_release_artifact_validation_accepts_cross_device_continuation_code_smok
     assert result.returncode == 0, result.stdout
 
 
-def test_release_artifact_validation_rejects_incomplete_cross_device_continuation_code_smoke(tmp_path):
+def test_release_artifact_validation_rejects_incomplete_cross_device_continuation_code_smoke(
+    tmp_path,
+):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "cross-device-continuation-code-smoke-bad.json"
     artifact.write_text(
@@ -869,7 +896,9 @@ def test_release_artifact_validation_rejects_incomplete_mobile_mini_code_smoke(t
     assert result.returncode == 1
     assert "release_evidence_complete=false" in result.stdout
     assert "mini_program_wechat_build must be passed" in result.stdout
-    assert "mini_program_wechat_devtools_cli must be passed or external_unavailable" in result.stdout
+    assert (
+        "mini_program_wechat_devtools_cli must be passed or external_unavailable" in result.stdout
+    )
     assert "zero critical vulnerabilities" in result.stdout
     assert "must not leave xmldom/plist residuals" in result.stdout
     assert "must record xmldom override remediation" in result.stdout
@@ -1143,7 +1172,9 @@ def test_release_artifact_validation_accepts_desktop_release_runtime_unsigned_sm
     assert result.returncode == 0, result.stdout
 
 
-def test_release_artifact_validation_rejects_incomplete_desktop_release_runtime_unsigned_smoke(tmp_path):
+def test_release_artifact_validation_rejects_incomplete_desktop_release_runtime_unsigned_smoke(
+    tmp_path,
+):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "desktop-release-runtime-unsigned-bad.json"
     payload = _desktop_release_runtime_unsigned_payload()
@@ -1227,7 +1258,9 @@ def test_release_artifact_validation_accepts_desktop_release_packaged_profile_sm
     assert result.returncode == 0, result.stdout
 
 
-def test_release_artifact_validation_rejects_incomplete_desktop_release_packaged_profile_smoke(tmp_path):
+def test_release_artifact_validation_rejects_incomplete_desktop_release_packaged_profile_smoke(
+    tmp_path,
+):
     repo_root = Path(__file__).resolve().parents[2]
     artifact = tmp_path / "desktop-release-profile-bad.json"
     payload = _desktop_release_packaged_profile_payload()
@@ -1369,8 +1402,18 @@ def _desktop_release_package_checks() -> list[dict]:
         {"id": "command.xcrun", "label": "xcrun", "status": "pass", "release_blocking": True},
         {"id": "command.codesign", "label": "codesign", "status": "pass", "release_blocking": True},
         {"id": "command.hdiutil", "label": "hdiutil", "status": "pass", "release_blocking": True},
-        {"id": "dmg.hdiutil_create_probe", "label": "hdiutil probe", "status": "fail", "release_blocking": True},
-        {"id": "signing.identity", "label": "signing identity", "status": "fail", "release_blocking": True},
+        {
+            "id": "dmg.hdiutil_create_probe",
+            "label": "hdiutil probe",
+            "status": "fail",
+            "release_blocking": True,
+        },
+        {
+            "id": "signing.identity",
+            "label": "signing identity",
+            "status": "fail",
+            "release_blocking": True,
+        },
         {"id": "notary.credentials", "label": "notary", "status": "fail", "release_blocking": True},
         {
             "id": "entitlements.aps_environment",
@@ -1551,7 +1594,9 @@ def test_release_artifact_validation_rejects_incomplete_sandbox_preflight(tmp_pa
                 "providers": {
                     "esignbao": {
                         "configured": True,
-                        "fields": [{"label": "app ID", "name": "ESIGN_BAO_APP_ID", "present": True}],
+                        "fields": [
+                            {"label": "app ID", "name": "ESIGN_BAO_APP_ID", "present": True}
+                        ],
                         "missing": ["app secret"],
                         "runtime_prerequisites": [
                             {
@@ -1659,7 +1704,10 @@ def test_release_artifact_validation_rejects_incomplete_sandbox_live_artifact(tm
                 "live_checks": {
                     "esignbao": [
                         {"step": "esignbao create/start/get sign URL", "status": "pass"},
-                        {"step": "esignbao download completed signed document", "status": "skipped"},
+                        {
+                            "step": "esignbao download completed signed document",
+                            "status": "skipped",
+                        },
                     ]
                 },
             }

@@ -47,33 +47,85 @@ RiskPattern = dict[str, Any]
 
 # 意图关键词映射
 INTENT_PATTERNS: list[tuple[str, list[str]]] = [
-    ("find_lawyer", [
-        r"找.{0,10}律师", r"推荐.{0,10}律师", r"请.{0,4}律师", r"律师.{0,4}推荐",
-        r"帮我找.{0,10}律师", r"需要.{0,10}律师", r"法律咨询", r"咨询律师",
-        r"委托.{0,10}律师", r"律师咨询", r"联系律师", r"律师",
-    ]),
-    ("review_contract", [
-        r"审[查阅看核].*合同", r"合同.*审[查阅看核]", r"检查.*合同",
-        r"合同.*[问题风险]", r"帮我看.*合同", r"审核.*协议",
-    ]),
-    ("draft_document", [
-        r"起草.*[文书合同协议函]", r"写.*[合同协议律师函]", r"生成.*[文书合同]",
-        r"帮我[写拟]", r"草拟",
-    ]),
-    ("risk_assessment", [
-        r"风险.*评估", r"评估.*风险", r"风险分析", r"合规.*检查",
-        r"有.*[什么啥].*风险",
-    ]),
-    ("due_diligence", [
-        r"尽职调查", r"背景调查", r"调查.*公司", r"企业.*调查",
-        r"尽调", r"查一下.*公司", r"看看.*公司", r"公司.*怎么样",
-        r"工商信息", r"股权结构", r"诉讼记录", r"信用记录",
-        r"供应商.*靠不靠谱", r"合作方.*风险", r"交易对手.*背景",
-    ]),
-    ("legal_consultation", [
-        r"法律.*[问题咨询]", r"法务.*咨询", r"怎么.{0,6}法律",
-        r"合法[吗么]", r"违法[吗么]", r"法律上",
-    ]),
+    (
+        "find_lawyer",
+        [
+            r"找.{0,10}律师",
+            r"推荐.{0,10}律师",
+            r"请.{0,4}律师",
+            r"律师.{0,4}推荐",
+            r"帮我找.{0,10}律师",
+            r"需要.{0,10}律师",
+            r"法律咨询",
+            r"咨询律师",
+            r"委托.{0,10}律师",
+            r"律师咨询",
+            r"联系律师",
+            r"律师",
+        ],
+    ),
+    (
+        "review_contract",
+        [
+            r"审[查阅看核].*合同",
+            r"合同.*审[查阅看核]",
+            r"检查.*合同",
+            r"合同.*[问题风险]",
+            r"帮我看.*合同",
+            r"审核.*协议",
+        ],
+    ),
+    (
+        "draft_document",
+        [
+            r"起草.*[文书合同协议函]",
+            r"写.*[合同协议律师函]",
+            r"生成.*[文书合同]",
+            r"帮我[写拟]",
+            r"草拟",
+        ],
+    ),
+    (
+        "risk_assessment",
+        [
+            r"风险.*评估",
+            r"评估.*风险",
+            r"风险分析",
+            r"合规.*检查",
+            r"有.*[什么啥].*风险",
+        ],
+    ),
+    (
+        "due_diligence",
+        [
+            r"尽职调查",
+            r"背景调查",
+            r"调查.*公司",
+            r"企业.*调查",
+            r"尽调",
+            r"查一下.*公司",
+            r"看看.*公司",
+            r"公司.*怎么样",
+            r"工商信息",
+            r"股权结构",
+            r"诉讼记录",
+            r"信用记录",
+            r"供应商.*靠不靠谱",
+            r"合作方.*风险",
+            r"交易对手.*背景",
+        ],
+    ),
+    (
+        "legal_consultation",
+        [
+            r"法律.*[问题咨询]",
+            r"法务.*咨询",
+            r"怎么.{0,6}法律",
+            r"合法[吗么]",
+            r"违法[吗么]",
+            r"法律上",
+        ],
+    ),
 ]
 
 
@@ -92,6 +144,7 @@ def detect_intent(message: str) -> str | None:
 
 # ========== A2UI 响应生成 ==========
 
+
 async def handle_a2ui_intent(
     intent: str,
     user_message: str,
@@ -99,12 +152,12 @@ async def handle_a2ui_intent(
 ) -> JSONDict | None:
     """
     根据意图生成 A2UI WebSocket 消息。
-    
+
     Args:
         intent: 意图类型
         user_message: 用户原始消息
         context: 上下文信息（对话历史、用户信息等）
-        
+
     Returns:
         A2UI WebSocket 消息 dict，或 None
     """
@@ -134,14 +187,14 @@ async def handle_a2ui_event(
 ) -> JSONDict | None:
     """
     处理前端 A2UI 事件回调，生成后续响应。
-    
+
     Args:
         action_id: 操作标识
         component_id: 来源组件 ID
         payload: 操作负载
         form_data: 表单数据
         context: 上下文
-        
+
     Returns:
         A2UI WebSocket 消息 dict，或 None
     """
@@ -200,7 +253,12 @@ async def handle_a2ui_event(
         return await _handle_select_doc_type(payload, context)
 
     # --- 风险评估细分动作 ---
-    if action_id in {"assess_contract_risk", "assess_compliance", "assess_litigation_risk", "assess_ip_risk"}:
+    if action_id in {
+        "assess_contract_risk",
+        "assess_compliance",
+        "assess_litigation_risk",
+        "assess_ip_risk",
+    }:
         return await _handle_risk_drilldown(action_id, payload, context)
 
     # --- 委托详情 ---
@@ -217,45 +275,70 @@ async def handle_a2ui_event(
 # TODO: v1.1 替换为 LawyerProfile 数据库查询
 MOCK_LAWYERS: JSONList = [
     {
-        "id": "lawyer-001", "name": "张明", "firm": "金杜律师事务所",
-        "title": "合伙人", "specialties": ["合同法", "公司法", "知识产权"],
-        "rating": 4.9, "win_rate": "92%", "experience": "15年执业",
+        "id": "lawyer-001",
+        "name": "张明",
+        "firm": "金杜律师事务所",
+        "title": "合伙人",
+        "specialties": ["合同法", "公司法", "知识产权"],
+        "rating": 4.9,
+        "win_rate": "92%",
+        "experience": "15年执业",
         "response_time": "通常3分钟内回复",
         "consult_fee": {"amount": 500, "unit": "次"},
         "status": "online",
         "introduction": "擅长复杂商事合同纠纷、股权架构设计、知识产权保护，曾处理多起标的额过亿案件。",
     },
     {
-        "id": "lawyer-002", "name": "李婷", "firm": "中伦律师事务所",
-        "title": "高级合伙人", "specialties": ["劳动法", "人事合规", "竞业禁止"],
-        "rating": 4.8, "win_rate": "89%", "experience": "12年执业",
+        "id": "lawyer-002",
+        "name": "李婷",
+        "firm": "中伦律师事务所",
+        "title": "高级合伙人",
+        "specialties": ["劳动法", "人事合规", "竞业禁止"],
+        "rating": 4.8,
+        "win_rate": "89%",
+        "experience": "12年执业",
         "response_time": "通常5分钟内回复",
         "consult_fee": {"amount": 400, "unit": "次"},
         "status": "online",
         "introduction": "专注劳动法领域，在劳动争议调解、竞业限制、员工股权激励方面有丰富实战经验。",
     },
     {
-        "id": "lawyer-003", "name": "王强", "firm": "方达律师事务所",
-        "title": "合伙人", "specialties": ["并购重组", "投资基金", "证券法"],
-        "rating": 4.7, "win_rate": "95%", "experience": "18年执业",
+        "id": "lawyer-003",
+        "name": "王强",
+        "firm": "方达律师事务所",
+        "title": "合伙人",
+        "specialties": ["并购重组", "投资基金", "证券法"],
+        "rating": 4.7,
+        "win_rate": "95%",
+        "experience": "18年执业",
         "response_time": "通常15分钟内回复",
         "consult_fee": {"amount": 800, "unit": "次"},
         "status": "busy",
         "introduction": "深耕资本市场与并购重组，为数十家上市公司及PE/VC基金提供法律服务。",
     },
     {
-        "id": "lawyer-004", "name": "赵雪", "firm": "君合律师事务所",
-        "title": "律师", "specialties": ["知识产权", "商标注册", "专利诉讼"],
-        "rating": 4.9, "win_rate": "91%", "experience": "8年执业",
+        "id": "lawyer-004",
+        "name": "赵雪",
+        "firm": "君合律师事务所",
+        "title": "律师",
+        "specialties": ["知识产权", "商标注册", "专利诉讼"],
+        "rating": 4.9,
+        "win_rate": "91%",
+        "experience": "8年执业",
         "response_time": "通常5分钟内回复",
         "consult_fee": {"amount": 350, "unit": "次"},
         "status": "online",
         "introduction": "专注知识产权保护，代理过多起重大商标、专利侵权案件，在TMT行业经验丰富。",
     },
     {
-        "id": "lawyer-005", "name": "陈浩", "firm": "德恒律师事务所",
-        "title": "高级合伙人", "specialties": ["刑事辩护", "行政诉讼", "合规审查"],
-        "rating": 4.6, "win_rate": "85%", "experience": "20年执业",
+        "id": "lawyer-005",
+        "name": "陈浩",
+        "firm": "德恒律师事务所",
+        "title": "高级合伙人",
+        "specialties": ["刑事辩护", "行政诉讼", "合规审查"],
+        "rating": 4.6,
+        "win_rate": "85%",
+        "experience": "20年执业",
         "response_time": "通常30分钟内回复",
         "consult_fee": {"amount": 600, "unit": "次"},
         "status": "offline",
@@ -269,10 +352,17 @@ async def _handle_find_lawyer(user_message: str, context: ContextDict) -> JSONDi
 
     # 根据用户消息匹配合适的律师（简单匹配逻辑，未来可接入真实搜索）
     keyword_specialty_map = {
-        "合同": "合同法", "公司": "公司法", "知识产权": "知识产权",
-        "劳动": "劳动法", "竞业": "竞业禁止", "并购": "并购重组",
-        "投资": "投资基金", "商标": "商标注册", "专利": "专利诉讼",
-        "刑事": "刑事辩护", "行政": "行政诉讼",
+        "合同": "合同法",
+        "公司": "公司法",
+        "知识产权": "知识产权",
+        "劳动": "劳动法",
+        "竞业": "竞业禁止",
+        "并购": "并购重组",
+        "投资": "投资基金",
+        "商标": "商标注册",
+        "专利": "专利诉讼",
+        "刑事": "刑事辩护",
+        "行政": "行政诉讼",
     }
 
     matched_specialty = None
@@ -294,15 +384,23 @@ async def _handle_find_lawyer(user_message: str, context: ContextDict) -> JSONDi
     # 构建律师卡片
     cards: list[JSONDict] = []
     for lawyer in matched_lawyers:
-        cards.append(lawyer_card(
-            lawyer_id=lawyer["id"], name=lawyer["name"], firm=lawyer["firm"],
-            specialties=lawyer["specialties"], rating=lawyer["rating"],
-            status=lawyer["status"],
-            title=lawyer["title"], win_rate=lawyer["win_rate"],
-            experience=lawyer["experience"], response_time=lawyer["response_time"],
-            consult_fee=lawyer["consult_fee"], introduction=lawyer["introduction"],
-            action={"label": "立即咨询", "actionId": "contact_lawyer"},
-        ))
+        cards.append(
+            lawyer_card(
+                lawyer_id=lawyer["id"],
+                name=lawyer["name"],
+                firm=lawyer["firm"],
+                specialties=lawyer["specialties"],
+                rating=lawyer["rating"],
+                status=lawyer["status"],
+                title=lawyer["title"],
+                win_rate=lawyer["win_rate"],
+                experience=lawyer["experience"],
+                response_time=lawyer["response_time"],
+                consult_fee=lawyer["consult_fee"],
+                introduction=lawyer["introduction"],
+                action={"label": "立即咨询", "actionId": "contact_lawyer"},
+            )
+        )
 
     # 构建 A2UI 消息
     components = [
@@ -322,14 +420,26 @@ async def _handle_find_lawyer(user_message: str, context: ContextDict) -> JSONDi
 
     # 添加底部操作
     components.append(divider())
-    components.append(button_group(
-        buttons=[
-            {"id": "btn-more", "label": "查看更多律师", "actionId": "view_more_lawyers", "variant": "outline"},
-            {"id": "btn-ai-match", "label": "AI 智能匹配", "actionId": "ai_match_lawyer", "variant": "primary"},
-        ],
-        layout="horizontal",
-        align="stretch",
-    ))
+    components.append(
+        button_group(
+            buttons=[
+                {
+                    "id": "btn-more",
+                    "label": "查看更多律师",
+                    "actionId": "view_more_lawyers",
+                    "variant": "outline",
+                },
+                {
+                    "id": "btn-ai-match",
+                    "label": "AI 智能匹配",
+                    "actionId": "ai_match_lawyer",
+                    "variant": "primary",
+                },
+            ],
+            layout="horizontal",
+            align="stretch",
+        )
+    )
 
     return a2ui_message(
         components,
@@ -404,7 +514,9 @@ async def _handle_select_service(payload: ContextDict, context: ContextDict) -> 
             subtitle="请填写以下信息以便律师更好地为您服务",
             sections=[
                 form_section(
-                    "case_type", "案件类型", "single-select",
+                    "case_type",
+                    "案件类型",
+                    "single-select",
                     required=True,
                     options=[
                         form_option("contract", "合同纠纷"),
@@ -416,21 +528,31 @@ async def _handle_select_service(payload: ContextDict, context: ContextDict) -> 
                     ],
                 ),
                 form_section(
-                    "urgency", "紧急程度", "single-select",
+                    "urgency",
+                    "紧急程度",
+                    "single-select",
                     options=[
                         form_option("normal", "普通（7日内处理）"),
-                        form_option("urgent", "加急（24小时内）", price={"amount": 200, "label": "加急费"}),
-                        form_option("critical", "紧急（2小时内）", price={"amount": 500, "label": "紧急费"}),
+                        form_option(
+                            "urgent", "加急（24小时内）", price={"amount": 200, "label": "加急费"}
+                        ),
+                        form_option(
+                            "critical", "紧急（2小时内）", price={"amount": 500, "label": "紧急费"}
+                        ),
                     ],
                     default_value="normal",
                 ),
                 form_section(
-                    "description", "案件描述", "textarea",
+                    "description",
+                    "案件描述",
+                    "textarea",
                     required=True,
                     placeholder="请简要描述您的法律问题（如涉及金额、时间、关键事实等）",
                 ),
                 form_section(
-                    "contact_method", "联系方式", "single-select",
+                    "contact_method",
+                    "联系方式",
+                    "single-select",
                     options=[
                         form_option("online", "在线沟通"),
                         form_option("phone", "电话沟通"),
@@ -452,18 +574,29 @@ async def _handle_submit_engagement(form_data: ContextDict, context: ContextDict
     """处理「提交委托」操作 → 显示确认订单"""
 
     case_type_names = {
-        "contract": "合同纠纷", "labor": "劳动争议", "ip": "知识产权",
-        "corporate": "公司治理", "criminal": "刑事辩护", "other": "其他",
+        "contract": "合同纠纷",
+        "labor": "劳动争议",
+        "ip": "知识产权",
+        "corporate": "公司治理",
+        "criminal": "刑事辩护",
+        "other": "其他",
     }
     urgency_names = {
-        "normal": "普通（7日内）", "urgent": "加急（24小时内）", "critical": "紧急（2小时内）",
+        "normal": "普通（7日内）",
+        "urgent": "加急（24小时内）",
+        "critical": "紧急（2小时内）",
     }
     contact_names = {
-        "online": "在线沟通", "phone": "电话沟通", "video": "视频会议", "in_person": "当面咨询",
+        "online": "在线沟通",
+        "phone": "电话沟通",
+        "video": "视频会议",
+        "in_person": "当面咨询",
     }
 
     base_fee = 500
-    urgency_fee = {"normal": 0, "urgent": 200, "critical": 500}.get(form_data.get("urgency", "normal"), 0)
+    urgency_fee = {"normal": 0, "urgent": 200, "critical": 500}.get(
+        form_data.get("urgency", "normal"), 0
+    )
 
     components = [
         order_card(
@@ -475,15 +608,37 @@ async def _handle_submit_engagement(form_data: ContextDict, context: ContextDict
                 "price": {"amount": base_fee + urgency_fee},
             },
             details=[
-                {"label": "案件类型", "value": case_type_names.get(form_data.get("case_type", "other"), "其他")},
-                {"label": "紧急程度", "value": urgency_names.get(form_data.get("urgency", "normal"), "普通")},
-                {"label": "联系方式", "value": contact_names.get(form_data.get("contact_method", "online"), "在线沟通")},
-                {"label": "案件描述", "value": (form_data.get("description", "")[:50] + "...") if len(form_data.get("description", "")) > 50 else form_data.get("description", "未填写")},
+                {
+                    "label": "案件类型",
+                    "value": case_type_names.get(form_data.get("case_type", "other"), "其他"),
+                },
+                {
+                    "label": "紧急程度",
+                    "value": urgency_names.get(form_data.get("urgency", "normal"), "普通"),
+                },
+                {
+                    "label": "联系方式",
+                    "value": contact_names.get(
+                        form_data.get("contact_method", "online"), "在线沟通"
+                    ),
+                },
+                {
+                    "label": "案件描述",
+                    "value": (
+                        (form_data.get("description", "")[:50] + "...")
+                        if len(form_data.get("description", "")) > 50
+                        else form_data.get("description", "未填写")
+                    ),
+                },
             ],
             pricing={
                 "items": [
                     {"label": "咨询服务费", "amount": base_fee},
-                    *([{"label": "加急费", "amount": urgency_fee, "type": "add"}] if urgency_fee > 0 else []),
+                    *(
+                        [{"label": "加急费", "amount": urgency_fee, "type": "add"}]
+                        if urgency_fee > 0
+                        else []
+                    ),
                     {"label": "平台服务费", "amount": 0, "original": 50, "type": "subtract"},
                 ],
                 "total": {"label": "合计", "amount": base_fee + urgency_fee},
@@ -517,11 +672,37 @@ async def _handle_confirm_engagement(payload: ContextDict, context: ContextDict)
             title="委托处理流程",
             current_step=1,
             steps=[
-                {"id": "s1", "label": "提交委托", "status": "completed", "description": "您已成功提交委托申请", "timestamp": "刚刚"},
-                {"id": "s2", "label": "律师确认", "status": "active", "description": "等待律师确认接受委托"},
-                {"id": "s3", "label": "资料准备", "status": "pending", "description": "双方准备相关资料"},
-                {"id": "s4", "label": "咨询进行", "status": "pending", "description": "律师提供专业咨询"},
-                {"id": "s5", "label": "服务完成", "status": "pending", "description": "出具法律意见/完成代理"},
+                {
+                    "id": "s1",
+                    "label": "提交委托",
+                    "status": "completed",
+                    "description": "您已成功提交委托申请",
+                    "timestamp": "刚刚",
+                },
+                {
+                    "id": "s2",
+                    "label": "律师确认",
+                    "status": "active",
+                    "description": "等待律师确认接受委托",
+                },
+                {
+                    "id": "s3",
+                    "label": "资料准备",
+                    "status": "pending",
+                    "description": "双方准备相关资料",
+                },
+                {
+                    "id": "s4",
+                    "label": "咨询进行",
+                    "status": "pending",
+                    "description": "律师提供专业咨询",
+                },
+                {
+                    "id": "s5",
+                    "label": "服务完成",
+                    "status": "pending",
+                    "description": "出具法律意见/完成代理",
+                },
             ],
             direction="vertical",
         ),
@@ -541,11 +722,17 @@ async def _handle_view_lawyer_detail(payload: ContextDict, context: ContextDict)
 
     components = [
         lawyer_card(
-            lawyer_id=lawyer["id"], name=lawyer["name"], firm=lawyer["firm"],
-            specialties=lawyer["specialties"], rating=lawyer["rating"],
-            status=lawyer["status"], title=lawyer["title"],
-            win_rate=lawyer["win_rate"], experience=lawyer["experience"],
-            response_time=lawyer["response_time"], consult_fee=lawyer["consult_fee"],
+            lawyer_id=lawyer["id"],
+            name=lawyer["name"],
+            firm=lawyer["firm"],
+            specialties=lawyer["specialties"],
+            rating=lawyer["rating"],
+            status=lawyer["status"],
+            title=lawyer["title"],
+            win_rate=lawyer["win_rate"],
+            experience=lawyer["experience"],
+            response_time=lawyer["response_time"],
+            consult_fee=lawyer["consult_fee"],
             introduction=lawyer["introduction"],
             action={"label": "立即咨询", "actionId": "contact_lawyer"},
         ),
@@ -554,8 +741,17 @@ async def _handle_view_lawyer_detail(payload: ContextDict, context: ContextDict)
             items=[
                 {"label": "执业证号", "value": f"1101201{hash(lawyer['id']) % 10000:04d}"},
                 {"label": "执业年限", "value": lawyer["experience"]},
-                {"label": "胜诉率", "value": lawyer["win_rate"], "valueType": "badge", "color": "green"},
-                {"label": "咨询费", "value": f"¥{lawyer['consult_fee']['amount']}/次", "valueType": "highlight"},
+                {
+                    "label": "胜诉率",
+                    "value": lawyer["win_rate"],
+                    "valueType": "badge",
+                    "color": "green",
+                },
+                {
+                    "label": "咨询费",
+                    "value": f"¥{lawyer['consult_fee']['amount']}/次",
+                    "valueType": "highlight",
+                },
                 {"label": "所在地区", "value": "北京市朝阳区"},
                 {"label": "服务评价", "value": f"{lawyer['rating']}分（128条评价）"},
             ],
@@ -567,6 +763,7 @@ async def _handle_view_lawyer_detail(payload: ContextDict, context: ContextDict)
 
 # ========== 「合同审查」流程 ==========
 
+
 async def _handle_review_contract(user_message: str, context: ContextDict) -> JSONDict:
     """处理「合同审查」意图"""
 
@@ -574,9 +771,25 @@ async def _handle_review_contract(user_message: str, context: ContextDict) -> JS
         text_block("收到！我可以帮您审查合同，快速识别风险条款。请选择审查方式："),
         button_group(
             buttons=[
-                {"id": "btn-upload", "label": "上传合同文件", "actionId": "upload_contract", "variant": "primary", "icon": "file-text"},
-                {"id": "btn-paste", "label": "粘贴合同文本", "actionId": "paste_contract", "variant": "outline"},
-                {"id": "btn-template", "label": "使用合同模板", "actionId": "browse_templates", "variant": "ghost"},
+                {
+                    "id": "btn-upload",
+                    "label": "上传合同文件",
+                    "actionId": "upload_contract",
+                    "variant": "primary",
+                    "icon": "file-text",
+                },
+                {
+                    "id": "btn-paste",
+                    "label": "粘贴合同文本",
+                    "actionId": "paste_contract",
+                    "variant": "outline",
+                },
+                {
+                    "id": "btn-template",
+                    "label": "使用合同模板",
+                    "actionId": "browse_templates",
+                    "variant": "ghost",
+                },
             ],
             layout="vertical",
             align="stretch",
@@ -629,8 +842,18 @@ async def _handle_start_review(payload: ContextDict, context: ContextDict) -> JS
         ),
         button_group(
             buttons=[
-                {"id": "btn-consult", "label": "咨询律师", "actionId": "find_lawyer", "variant": "primary"},
-                {"id": "btn-modify", "label": "AI 修改建议", "actionId": "ai_suggestions", "variant": "outline"},
+                {
+                    "id": "btn-consult",
+                    "label": "咨询律师",
+                    "actionId": "find_lawyer",
+                    "variant": "primary",
+                },
+                {
+                    "id": "btn-modify",
+                    "label": "AI 修改建议",
+                    "actionId": "ai_suggestions",
+                    "variant": "outline",
+                },
             ],
         ),
     ]
@@ -638,6 +861,7 @@ async def _handle_start_review(payload: ContextDict, context: ContextDict) -> JS
 
 
 # ========== 「文书起草」流程 ==========
+
 
 async def _handle_draft_document(user_message: str, context: ContextDict) -> JSONDict:
     """处理「文书起草」意图"""
@@ -648,26 +872,30 @@ async def _handle_draft_document(user_message: str, context: ContextDict) -> JSO
             title="选择文书类型",
             services=[
                 {
-                    "id": "contract", "name": "合同/协议",
+                    "id": "contract",
+                    "name": "合同/协议",
                     "description": "各类商事合同、服务协议、保密协议等",
                     "features": ["智能条款生成", "风险检测", "多方签约"],
                     "actionId": "select_doc_type",
                 },
                 {
-                    "id": "lawyer_letter", "name": "律师函",
+                    "id": "lawyer_letter",
+                    "name": "律师函",
                     "description": "催款函、警告函、维权通知函等",
                     "features": ["专业法律措辞", "法条引用", "律所盖章"],
                     "popular": True,
                     "actionId": "select_doc_type",
                 },
                 {
-                    "id": "legal_opinion", "name": "法律意见书",
+                    "id": "legal_opinion",
+                    "name": "法律意见书",
                     "description": "针对特定法律问题出具的专业意见",
                     "features": ["深度法律分析", "风险评估", "专家建议"],
                     "actionId": "select_doc_type",
                 },
                 {
-                    "id": "authorization", "name": "授权/委托书",
+                    "id": "authorization",
+                    "name": "授权/委托书",
                     "description": "授权委托书、法人委托书等",
                     "features": ["标准格式", "条款完善", "签章流程"],
                     "actionId": "select_doc_type",
@@ -681,6 +909,7 @@ async def _handle_draft_document(user_message: str, context: ContextDict) -> JSO
 
 # ========== 「风险评估」流程 ==========
 
+
 async def _handle_risk_assessment(user_message: str, context: ContextDict) -> JSONDict:
     """处理「风险评估」意图"""
 
@@ -688,10 +917,30 @@ async def _handle_risk_assessment(user_message: str, context: ContextDict) -> JS
         text_block("我来帮您进行风险评估。请告诉我需要评估的领域："),
         button_group(
             buttons=[
-                {"id": "btn-contract-risk", "label": "合同风险", "actionId": "assess_contract_risk", "variant": "outline"},
-                {"id": "btn-compliance", "label": "合规审查", "actionId": "assess_compliance", "variant": "outline"},
-                {"id": "btn-litigation", "label": "诉讼风险", "actionId": "assess_litigation_risk", "variant": "outline"},
-                {"id": "btn-ip", "label": "知识产权风险", "actionId": "assess_ip_risk", "variant": "outline"},
+                {
+                    "id": "btn-contract-risk",
+                    "label": "合同风险",
+                    "actionId": "assess_contract_risk",
+                    "variant": "outline",
+                },
+                {
+                    "id": "btn-compliance",
+                    "label": "合规审查",
+                    "actionId": "assess_compliance",
+                    "variant": "outline",
+                },
+                {
+                    "id": "btn-litigation",
+                    "label": "诉讼风险",
+                    "actionId": "assess_litigation_risk",
+                    "variant": "outline",
+                },
+                {
+                    "id": "btn-ip",
+                    "label": "知识产权风险",
+                    "actionId": "assess_ip_risk",
+                    "variant": "outline",
+                },
             ],
             layout="grid",
         ),
@@ -702,6 +951,7 @@ async def _handle_risk_assessment(user_message: str, context: ContextDict) -> JS
 
 # ========== 「尽职调查」流程 ==========
 
+
 async def _handle_due_diligence(user_message: str, context: ContextDict) -> JSONDict:
     """处理「尽职调查」意图"""
 
@@ -710,21 +960,37 @@ async def _handle_due_diligence(user_message: str, context: ContextDict) -> JSON
         form_sheet(
             title="企业尽职调查",
             sections=[
-                form_section("company_name", "企业名称", "text-input", required=True, placeholder="请输入完整的企业名称"),
-                form_section("investigation_scope", "调查范围", "multi-select", options=[
-                    form_option("basic", "基础工商信息"),
-                    form_option("financial", "财务状况"),
-                    form_option("litigation", "诉讼记录"),
-                    form_option("compliance", "合规情况"),
-                    form_option("ip", "知识产权"),
-                    form_option("related_parties", "关联方分析"),
-                ]),
-                form_section("purpose", "调查目的", "single-select", options=[
-                    form_option("investment", "投资决策"),
-                    form_option("cooperation", "合作评估"),
-                    form_option("ma", "并购重组"),
-                    form_option("supplier", "供应商审核"),
-                ]),
+                form_section(
+                    "company_name",
+                    "企业名称",
+                    "text-input",
+                    required=True,
+                    placeholder="请输入完整的企业名称",
+                ),
+                form_section(
+                    "investigation_scope",
+                    "调查范围",
+                    "multi-select",
+                    options=[
+                        form_option("basic", "基础工商信息"),
+                        form_option("financial", "财务状况"),
+                        form_option("litigation", "诉讼记录"),
+                        form_option("compliance", "合规情况"),
+                        form_option("ip", "知识产权"),
+                        form_option("related_parties", "关联方分析"),
+                    ],
+                ),
+                form_section(
+                    "purpose",
+                    "调查目的",
+                    "single-select",
+                    options=[
+                        form_option("investment", "投资决策"),
+                        form_option("cooperation", "合作评估"),
+                        form_option("ma", "并购重组"),
+                        form_option("supplier", "供应商审核"),
+                    ],
+                ),
             ],
             submit_action={"label": "开始调查", "actionId": "start_due_diligence"},
         ),
@@ -743,7 +1009,9 @@ async def _handle_start_due_diligence(form_data: ContextDict, context: ContextDi
         return a2ui_message(
             [
                 info_banner("请先填写需要调查的企业名称。", variant="warning"),
-                text_block("建议填写完整企业名称，必要时补充统一社会信用代码，以便提高调查准确性。"),
+                text_block(
+                    "建议填写完整企业名称，必要时补充统一社会信用代码，以便提高调查准确性。"
+                ),
             ],
             agent="尽职调查 Agent",
         )
@@ -774,7 +1042,9 @@ async def _handle_start_due_diligence(form_data: ContextDict, context: ContextDi
                     f"{company_name} 调查暂时失败",
                     description="当前尽调服务未返回可靠结果，请稍后重试，或补充统一社会信用代码后再次发起调查。",
                 ),
-                text_block("如果您需要，我也可以先帮您列出尽调清单，包括工商、诉讼、股权、信用和合规核查项。"),
+                text_block(
+                    "如果您需要，我也可以先帮您列出尽调清单，包括工商、诉讼、股权、信用和合规核查项。"
+                ),
             ],
             agent="尽职调查 Agent",
         )
@@ -791,12 +1061,20 @@ async def _handle_start_due_diligence(form_data: ContextDict, context: ContextDi
         "high": ("warning", "高风险"),
         "critical": ("error", "重大风险"),
     }
-    status_variant, risk_label = status_map.get(overall_rating, ("info", overall_rating or "待核验"))
+    status_variant, risk_label = status_map.get(
+        overall_rating, ("info", overall_rating or "待核验")
+    )
 
     focus_scope = [scope_labels[item] for item in investigation_scope if item in scope_labels]
-    risk_points = [str(item).strip() for item in (risk.get("risk_points") or []) if str(item).strip()]
-    recommendations = [str(item).strip() for item in (risk.get("recommendations") or []) if str(item).strip()]
-    total_cases = int(litigation.get("plaintiff_cases", 0) or 0) + int(litigation.get("defendant_cases", 0) or 0)
+    risk_points = [
+        str(item).strip() for item in (risk.get("risk_points") or []) if str(item).strip()
+    ]
+    recommendations = [
+        str(item).strip() for item in (risk.get("recommendations") or []) if str(item).strip()
+    ]
+    total_cases = int(litigation.get("plaintiff_cases", 0) or 0) + int(
+        litigation.get("defendant_cases", 0) or 0
+    )
 
     components = [
         status_card(
@@ -811,7 +1089,10 @@ async def _handle_start_due_diligence(form_data: ContextDict, context: ContextDi
             [
                 {"label": "企业名称", "value": basic_info.get("name") or company_name},
                 {"label": "经营状态", "value": basic_info.get("status") or "待核验"},
-                {"label": "法定代表人", "value": basic_info.get("legal_representative") or "待核验"},
+                {
+                    "label": "法定代表人",
+                    "value": basic_info.get("legal_representative") or "待核验",
+                },
                 {"label": "注册资本", "value": basic_info.get("registered_capital") or "待核验"},
                 {"label": "诉讼案件数", "value": str(total_cases)},
                 {"label": "信用评级", "value": credit.get("credit_rating") or "待核验"},
@@ -824,25 +1105,44 @@ async def _handle_start_due_diligence(form_data: ContextDict, context: ContextDi
         components.append(text_block(f"本次重点关注范围：{'、'.join(focus_scope)}。"))
 
     if risk_points:
-        components.append(recommendation_card(
-            title="重点风险提示",
-            description="；".join(risk_points[:3]),
-            meta=f"综合风险等级：{risk_label}",
-        ))
+        components.append(
+            recommendation_card(
+                title="重点风险提示",
+                description="；".join(risk_points[:3]),
+                meta=f"综合风险等级：{risk_label}",
+            )
+        )
 
     if recommendations:
-        components.append(detail_list(
-            [{"label": f"建议 {idx + 1}", "value": item} for idx, item in enumerate(recommendations[:3])],
-            title="建议动作",
-        ))
+        components.append(
+            detail_list(
+                [
+                    {"label": f"建议 {idx + 1}", "value": item}
+                    for idx, item in enumerate(recommendations[:3])
+                ],
+                title="建议动作",
+            )
+        )
 
-    components.append(button_group(
-        buttons=[
-            {"id": "btn-continue-dd", "label": "继续补充调查", "actionId": "start_due_diligence", "variant": "outline"},
-            {"id": "btn-consult-lawyer", "label": "咨询律师解读", "actionId": "find_lawyer", "variant": "primary"},
-        ],
-        layout="horizontal",
-    ))
+    components.append(
+        button_group(
+            buttons=[
+                {
+                    "id": "btn-continue-dd",
+                    "label": "继续补充调查",
+                    "actionId": "start_due_diligence",
+                    "variant": "outline",
+                },
+                {
+                    "id": "btn-consult-lawyer",
+                    "label": "咨询律师解读",
+                    "actionId": "find_lawyer",
+                    "variant": "primary",
+                },
+            ],
+            layout="horizontal",
+        )
+    )
 
     return a2ui_message(components, agent="尽职调查 Agent")
 
@@ -860,15 +1160,25 @@ async def _handle_go_back(action_id: str, context: ContextDict) -> JSONDict:
     )
 
 
-async def _handle_lawyer_followup(action_id: str, payload: ContextDict, context: ContextDict) -> JSONDict:
+async def _handle_lawyer_followup(
+    action_id: str, payload: ContextDict, context: ContextDict
+) -> JSONDict:
     if action_id == "ai_match_lawyer":
         # 从上下文提取用户描述，进行关键词匹配推荐
         user_text = (context.get("user_message") or context.get("last_user_message") or "").lower()
         keyword_specialty_map = {
-            "合同": "合同法", "公司": "公司法", "知识产权": "知识产权",
-            "劳动": "劳动法", "竞业": "竞业禁止", "并购": "并购重组",
-            "投资": "投资基金", "商标": "商标注册", "专利": "专利诉讼",
-            "刑事": "刑事辩护", "行政": "行政诉讼", "合规": "合规审查",
+            "合同": "合同法",
+            "公司": "公司法",
+            "知识产权": "知识产权",
+            "劳动": "劳动法",
+            "竞业": "竞业禁止",
+            "并购": "并购重组",
+            "投资": "投资基金",
+            "商标": "商标注册",
+            "专利": "专利诉讼",
+            "刑事": "刑事辩护",
+            "行政": "行政诉讼",
+            "合规": "合规审查",
         }
         matched_specialties = [sp for kw, sp in keyword_specialty_map.items() if kw in user_text]
 
@@ -882,19 +1192,33 @@ async def _handle_lawyer_followup(action_id: str, payload: ContextDict, context:
             matched_lawyers = [item[2] for item in scored[:3]]
         else:
             # 无法提取关键词时，按评分排序推荐
-            matched_lawyers = sorted(MOCK_LAWYERS, key=lambda lawyer: lawyer["rating"], reverse=True)[:3]
+            matched_lawyers = sorted(
+                MOCK_LAWYERS, key=lambda lawyer: lawyer["rating"], reverse=True
+            )[:3]
 
         cards = []
         for lawyer in matched_lawyers:
-            cards.append(lawyer_card(
-                lawyer_id=lawyer["id"], name=lawyer["name"], firm=lawyer["firm"],
-                specialties=lawyer["specialties"], rating=lawyer["rating"],
-                status=lawyer["status"], title=lawyer["title"], win_rate=lawyer["win_rate"],
-                experience=lawyer["experience"], response_time=lawyer["response_time"],
-                consult_fee=lawyer["consult_fee"],
-            ))
+            cards.append(
+                lawyer_card(
+                    lawyer_id=lawyer["id"],
+                    name=lawyer["name"],
+                    firm=lawyer["firm"],
+                    specialties=lawyer["specialties"],
+                    rating=lawyer["rating"],
+                    status=lawyer["status"],
+                    title=lawyer["title"],
+                    win_rate=lawyer["win_rate"],
+                    experience=lawyer["experience"],
+                    response_time=lawyer["response_time"],
+                    consult_fee=lawyer["consult_fee"],
+                )
+            )
 
-        match_desc = f"已根据您的问题（{'、'.join(matched_specialties[:3])}）智能匹配" if matched_specialties else "已为您推荐评分最高的律师"
+        match_desc = (
+            f"已根据您的问题（{'、'.join(matched_specialties[:3])}）智能匹配"
+            if matched_specialties
+            else "已为您推荐评分最高的律师"
+        )
         return a2ui_message(
             [
                 info_banner(f"{match_desc}以下律师：", variant="success"),
@@ -910,12 +1234,18 @@ async def _handle_lawyer_followup(action_id: str, payload: ContextDict, context:
     return await _handle_find_lawyer("查看更多律师推荐", context)
 
 
-async def _handle_contract_followup(action_id: str, payload: ContextDict, context: ContextDict) -> JSONDict:
+async def _handle_contract_followup(
+    action_id: str, payload: ContextDict, context: ContextDict
+) -> JSONDict:
     if action_id == "paste_contract":
         return a2ui_message(
             [
-                info_banner("请直接把合同全文粘贴到对话框中，我会继续做条款解析和风险审查。", variant="info"),
-                text_block("如果合同较长，建议优先上传文件；如果只想看重点，也可以只粘贴关键条款。"),
+                info_banner(
+                    "请直接把合同全文粘贴到对话框中，我会继续做条款解析和风险审查。", variant="info"
+                ),
+                text_block(
+                    "如果合同较长，建议优先上传文件；如果只想看重点，也可以只粘贴关键条款。"
+                ),
             ],
             agent="合同审查 Agent",
         )
@@ -926,9 +1256,27 @@ async def _handle_contract_followup(action_id: str, payload: ContextDict, contex
                 service_selection(
                     title="常用合同模板",
                     services=[
-                        {"id": "nda", "name": "保密协议", "description": "适用于合作前信息披露场景", "features": ["标准保密条款", "违约责任"], "actionId": "select_doc_type"},
-                        {"id": "service", "name": "服务合同", "description": "适用于技术/咨询/外包服务合作", "features": ["服务范围", "付款条款"], "actionId": "select_doc_type"},
-                        {"id": "procurement", "name": "采购合同", "description": "适用于设备/货物采购与供应商合作", "features": ["验收条款", "违约责任"], "actionId": "select_doc_type"},
+                        {
+                            "id": "nda",
+                            "name": "保密协议",
+                            "description": "适用于合作前信息披露场景",
+                            "features": ["标准保密条款", "违约责任"],
+                            "actionId": "select_doc_type",
+                        },
+                        {
+                            "id": "service",
+                            "name": "服务合同",
+                            "description": "适用于技术/咨询/外包服务合作",
+                            "features": ["服务范围", "付款条款"],
+                            "actionId": "select_doc_type",
+                        },
+                        {
+                            "id": "procurement",
+                            "name": "采购合同",
+                            "description": "适用于设备/货物采购与供应商合作",
+                            "features": ["验收条款", "违约责任"],
+                            "actionId": "select_doc_type",
+                        },
                     ],
                     subtitle="选择模板后，我会继续帮您起草或审查。",
                 )
@@ -939,12 +1287,25 @@ async def _handle_contract_followup(action_id: str, payload: ContextDict, contex
     if action_id == "view_full_report":
         return a2ui_message(
             [
-                status_card("info", "详细报告已准备", description="建议重点查看违约责任、保密条款、争议解决和知识产权归属。"),
+                status_card(
+                    "info",
+                    "详细报告已准备",
+                    description="建议重点查看违约责任、保密条款、争议解决和知识产权归属。",
+                ),
                 detail_list(
                     [
-                        {"label": "高优先级", "value": "保密条款责任边界不清，建议补充泄密责任与例外情形。"},
-                        {"label": "中优先级", "value": "违约责任上限未明确，建议约定赔偿上限或计算方式。"},
-                        {"label": "中优先级", "value": "争议解决地未约定，建议明确法院或仲裁机构。"},
+                        {
+                            "label": "高优先级",
+                            "value": "保密条款责任边界不清，建议补充泄密责任与例外情形。",
+                        },
+                        {
+                            "label": "中优先级",
+                            "value": "违约责任上限未明确，建议约定赔偿上限或计算方式。",
+                        },
+                        {
+                            "label": "中优先级",
+                            "value": "争议解决地未约定，建议明确法院或仲裁机构。",
+                        },
                     ],
                     title="合同审查重点",
                 ),
@@ -983,9 +1344,26 @@ async def _handle_select_doc_type(payload: ContextDict, context: ContextDict) ->
                 title=f"{title}信息收集",
                 subtitle="补充关键信息后，我就可以继续起草。",
                 sections=[
-                    form_section("parties", "主体信息", "textarea", required=True, placeholder="请输入甲乙方/委托方等主体信息"),
-                    form_section("purpose", "文书目的", "textarea", required=True, placeholder="例如：催款、合作签约、授权代理"),
-                    form_section("key_terms", "关键要求", "textarea", placeholder="例如：金额、期限、违约责任、保密要求"),
+                    form_section(
+                        "parties",
+                        "主体信息",
+                        "textarea",
+                        required=True,
+                        placeholder="请输入甲乙方/委托方等主体信息",
+                    ),
+                    form_section(
+                        "purpose",
+                        "文书目的",
+                        "textarea",
+                        required=True,
+                        placeholder="例如：催款、合作签约、授权代理",
+                    ),
+                    form_section(
+                        "key_terms",
+                        "关键要求",
+                        "textarea",
+                        placeholder="例如：金额、期限、违约责任、保密要求",
+                    ),
                 ],
                 submit_action={"label": "继续起草", "actionId": "go_back"},
             )
@@ -994,7 +1372,9 @@ async def _handle_select_doc_type(payload: ContextDict, context: ContextDict) ->
     )
 
 
-def _compute_risk_score(action_id: str, context: ContextDict) -> tuple[str, int, str, str, list[str]]:
+def _compute_risk_score(
+    action_id: str, context: ContextDict
+) -> tuple[str, int, str, str, list[str]]:
     """根据用户输入动态计算风险评分和风险点"""
     user_text = (context.get("user_message") or context.get("last_user_message") or "").lower()
 
@@ -1067,7 +1447,9 @@ def _compute_risk_score(action_id: str, context: ContextDict) -> tuple[str, int,
     score = int(pattern["base_score"])
     matched_risks: list[str] = []
 
-    for keyword, (weight, risk_desc) in cast(dict[str, tuple[int, str]], pattern["keywords"]).items():
+    for keyword, (weight, risk_desc) in cast(
+        dict[str, tuple[int, str]], pattern["keywords"]
+    ).items():
         if keyword in user_text:
             score += weight
             matched_risks.append(risk_desc)
@@ -1083,7 +1465,9 @@ def _compute_risk_score(action_id: str, context: ContextDict) -> tuple[str, int,
     return str(pattern["title"]), score, level, desc, matched_risks
 
 
-async def _handle_risk_drilldown(action_id: str, payload: ContextDict, context: ContextDict) -> JSONDict:
+async def _handle_risk_drilldown(
+    action_id: str, payload: ContextDict, context: ContextDict
+) -> JSONDict:
     title, score, level, desc, matched = _compute_risk_score(action_id, context)
 
     components = [risk_indicator(title=title, score=score, level=level, description=desc)]
@@ -1133,6 +1517,7 @@ async def _handle_view_engagement_detail(payload: ContextDict, context: ContextD
 
 # ========== 「法律咨询」流程 ==========
 
+
 async def _handle_legal_consultation(user_message: str, context: ContextDict) -> JSONDict:
     """处理「法律咨询」意图 → 提供快速分析入口"""
 
@@ -1142,7 +1527,8 @@ async def _handle_legal_consultation(user_message: str, context: ContextDict) ->
             title="选择服务",
             services=[
                 {
-                    "id": "ai_consult", "name": "AI 智能咨询",
+                    "id": "ai_consult",
+                    "name": "AI 智能咨询",
                     "description": "AI 即时分析您的法律问题，提供初步建议",
                     "features": ["即时响应", "法条检索", "案例参考", "免费"],
                     "price": {"amount": 0, "label": "免费"},
@@ -1150,7 +1536,8 @@ async def _handle_legal_consultation(user_message: str, context: ContextDict) ->
                     "popular": True,
                 },
                 {
-                    "id": "lawyer_consult", "name": "律师在线咨询",
+                    "id": "lawyer_consult",
+                    "name": "律师在线咨询",
                     "description": "连接专业律师，获得权威法律意见",
                     "features": ["专业律师", "一对一", "保密承诺", "出具意见书"],
                     "price": {"amount": 99, "unit": "起"},

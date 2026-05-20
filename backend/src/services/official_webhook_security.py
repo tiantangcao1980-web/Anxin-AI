@@ -178,7 +178,9 @@ def verify_wechat_pay_notification(
     return payload
 
 
-def decrypt_wechat_pay_resource(payload: Mapping[str, Any], *, api_v3_key: str | None) -> dict[str, Any]:
+def decrypt_wechat_pay_resource(
+    payload: Mapping[str, Any], *, api_v3_key: str | None
+) -> dict[str, Any]:
     """Decrypt a WeChat Pay v3 AEAD_AES_256_GCM notification resource."""
 
     resource = payload.get("resource")
@@ -385,7 +387,9 @@ def _fadada_sort_content(params: Mapping[str, Any]) -> str:
 
 def _fadada_signature(params: Mapping[str, Any], *, timestamp: str, app_secret: str) -> str:
     sign_text = hashlib.sha256(_fadada_sort_content(params).encode("utf-8")).hexdigest().lower()
-    temporary_key = hmac.new(app_secret.encode("utf-8"), timestamp.encode("utf-8"), hashlib.sha256).digest()
+    temporary_key = hmac.new(
+        app_secret.encode("utf-8"), timestamp.encode("utf-8"), hashlib.sha256
+    ).digest()
     return hmac.new(temporary_key, sign_text.encode("utf-8"), hashlib.sha256).hexdigest().lower()
 
 

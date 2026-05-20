@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 HeadlessXClient 重试策略测试。
 
@@ -11,8 +10,6 @@ HeadlessXClient 重试策略测试。
 """
 
 from __future__ import annotations
-
-import asyncio
 
 import httpx
 import pytest
@@ -49,14 +46,14 @@ def _make_client(handler, retry_config: RetryConfig | None = None) -> HeadlessXC
         base_url="http://headlessx-test:3000",
         api_key="test-key",
         timeout=10,
-        retry_config=retry_config or RetryConfig(
-            max_attempts=3, base_delay=0.01, max_delay=0.1, jitter=0.0
-        ),
+        retry_config=retry_config
+        or RetryConfig(max_attempts=3, base_delay=0.01, max_delay=0.1, jitter=0.0),
         http_client=http_client,
     )
 
 
 # ============ 重试成功路径 ============
+
 
 @pytest.mark.asyncio
 async def test_retry_on_429_then_success():
@@ -98,6 +95,7 @@ async def test_retry_on_503_then_success():
 
 # ============ 重试耗尽 ============
 
+
 @pytest.mark.asyncio
 async def test_retry_exhausts_on_persistent_503():
     state = {"calls": 0}
@@ -135,6 +133,7 @@ async def test_retry_exhausts_on_persistent_429():
 
 # ============ 不可重试异常立即终止 ============
 
+
 @pytest.mark.asyncio
 async def test_auth_error_aborts_retry_immediately():
     state = {"calls": 0}
@@ -154,6 +153,7 @@ async def test_auth_error_aborts_retry_immediately():
 
 # ============ 504 → TimeoutError ============
 
+
 @pytest.mark.asyncio
 async def test_504_classified_as_timeout_and_retried():
     state = {"calls": 0}
@@ -172,6 +172,7 @@ async def test_504_classified_as_timeout_and_retried():
 
 
 # ============ with_retry 纯函数测试 ============
+
 
 @pytest.mark.asyncio
 async def test_with_retry_succeeds_after_retries():

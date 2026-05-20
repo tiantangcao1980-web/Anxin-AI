@@ -25,9 +25,7 @@ DEFAULT_LEGAL_WHITELIST = (
 
 def normalize_legal_whitelist(configured_hosts: Iterable[str] | None = None) -> tuple[str, ...]:
     hosts = tuple(
-        host.strip().lower()
-        for host in (configured_hosts or ())
-        if host and host.strip()
+        host.strip().lower() for host in (configured_hosts or ()) if host and host.strip()
     )
     return hosts or DEFAULT_LEGAL_WHITELIST
 

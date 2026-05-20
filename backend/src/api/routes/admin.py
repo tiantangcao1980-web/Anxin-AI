@@ -43,6 +43,7 @@ _system_start_time = time.time()
 
 class DashboardResponse(BaseModel):
     """系统仪表盘响应"""
+
     total_users: int = 0
     active_users: int = 0
     total_cases: int = 0
@@ -55,6 +56,7 @@ class DashboardResponse(BaseModel):
 
 class UserListResponse(BaseModel):
     """用户列表响应"""
+
     total: int
     items: list[dict[str, Any]]
     skip: int
@@ -63,6 +65,7 @@ class UserListResponse(BaseModel):
 
 class UserDetailResponse(BaseModel):
     """用户详情响应"""
+
     id: str
     email: str
     name: str
@@ -77,16 +80,20 @@ class UserDetailResponse(BaseModel):
 
 class AdminCreateUserRequest(BaseModel):
     """管理员创建用户请求"""
+
     email: EmailStr
     password: str = Field(..., min_length=6, description="密码，至少6位")
     name: str = Field(..., min_length=1, max_length=100)
-    role: str = Field(default="member", description="角色: admin/lawyer/paralegal/client/member/viewer")
+    role: str = Field(
+        default="member", description="角色: admin/lawyer/paralegal/client/member/viewer"
+    )
     org_id: str | None = None
     is_active: bool = True
 
 
 class AdminUpdateUserRequest(BaseModel):
     """管理员更新用户请求"""
+
     name: str | None = Field(None, min_length=1, max_length=100)
     role: str | None = None
     is_active: bool | None = None
@@ -96,16 +103,19 @@ class AdminUpdateUserRequest(BaseModel):
 
 class ToggleStatusRequest(BaseModel):
     """切换用户状态请求"""
+
     is_active: bool
 
 
 class ResetPasswordRequest(BaseModel):
     """重置密码请求"""
+
     new_password: str = Field(..., min_length=6, description="新密码，至少6位")
 
 
 class RoleDefinition(BaseModel):
     """角色定义"""
+
     role_name: str
     display_name: str
     permissions: list[str]
@@ -113,11 +123,13 @@ class RoleDefinition(BaseModel):
 
 class UpdateRolePermissionsRequest(BaseModel):
     """更新角色权限请求"""
+
     permissions: list[str]
 
 
 class AuditLogListResponse(BaseModel):
     """审计日志列表响应"""
+
     total: int
     items: list[dict[str, Any]]
     skip: int
@@ -126,6 +138,7 @@ class AuditLogListResponse(BaseModel):
 
 class AuditLogStatsResponse(BaseModel):
     """审计统计响应"""
+
     actions_per_day: list[dict[str, Any]] = Field(default_factory=list)
     top_users: list[dict[str, Any]] = Field(default_factory=list)
     top_actions: list[dict[str, Any]] = Field(default_factory=list)
@@ -133,6 +146,7 @@ class AuditLogStatsResponse(BaseModel):
 
 class SystemConfigResponse(BaseModel):
     """系统配置响应"""
+
     app_name: str
     app_version: str
     environment: str
@@ -153,6 +167,7 @@ class SystemConfigResponse(BaseModel):
 
 class UpdateSystemConfigRequest(BaseModel):
     """更新系统配置请求"""
+
     rate_limit_per_minute: int | None = None
     password_min_length: int | None = None
     # E签宝 配置
@@ -167,6 +182,7 @@ class UpdateSystemConfigRequest(BaseModel):
 
 class SystemHealthResponse(BaseModel):
     """系统健康检查响应"""
+
     status: str
     database: str
     redis: str
@@ -175,6 +191,7 @@ class SystemHealthResponse(BaseModel):
 
 class OrgCreateRequest(BaseModel):
     """创建组织请求"""
+
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     logo_url: str | None = None
@@ -182,6 +199,7 @@ class OrgCreateRequest(BaseModel):
 
 class OrgUpdateRequest(BaseModel):
     """更新组织请求"""
+
     name: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
     logo_url: str | None = None
@@ -190,6 +208,7 @@ class OrgUpdateRequest(BaseModel):
 
 class OrgListResponse(BaseModel):
     """组织列表响应"""
+
     total: int
     items: list[dict[str, Any]]
     skip: int
@@ -299,9 +318,7 @@ async def get_dashboard(
         total_documents = 0
 
     # 按角色分组统计用户
-    role_stats_result = await db.execute(
-        select(User.role, func.count(User.id)).group_by(User.role)
-    )
+    role_stats_result = await db.execute(select(User.role, func.count(User.id)).group_by(User.role))
     users_by_role = {row[0]: row[1] for row in role_stats_result.all()}
 
     # 系统运行时间
@@ -348,7 +365,9 @@ async def list_webhook_records(
     records = result.scalars().all()
 
     stats_result = await db.execute(
-        select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(WebhookReceived.status)
+        select(WebhookReceived.status, func.count(WebhookReceived.id)).group_by(
+            WebhookReceived.status
+        )
     )
     stats: dict[str, int] = {}
     for status, count in stats_result.all():
@@ -472,6 +491,7 @@ async def create_user(
     """管理员创建用户"""
     # 验证密码强度
     from src.api.routes.auth import validate_password
+
     validate_password(body.password)
 
     # 校验角色有效性
@@ -528,7 +548,12 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
-    old_value = {"name": user.name, "role": user.role, "is_active": user.is_active, "org_id": user.org_id}
+    old_value = {
+        "name": user.name,
+        "role": user.role,
+        "is_active": user.is_active,
+        "org_id": user.org_id,
+    }
 
     # 校验角色有效性
     if body.role is not None:
@@ -551,7 +576,12 @@ async def update_user(
 
     await db.flush()
 
-    new_value = {"name": user.name, "role": user.role, "is_active": user.is_active, "org_id": user.org_id}
+    new_value = {
+        "name": user.name,
+        "role": user.role,
+        "is_active": user.is_active,
+        "org_id": user.org_id,
+    }
 
     # 审计日志
     audit_service = AuditService(db)
@@ -569,7 +599,9 @@ async def update_user(
     return UserDetailResponse(**data)
 
 
-@router.put("/users/{user_id}/toggle-status", response_model=UserDetailResponse, summary="切换用户状态")
+@router.put(
+    "/users/{user_id}/toggle-status", response_model=UserDetailResponse, summary="切换用户状态"
+)
 async def toggle_user_status(
     user_id: str,
     body: ToggleStatusRequest,
@@ -619,6 +651,7 @@ async def reset_user_password(
 ) -> dict[str, str]:
     """管理员重置用户密码"""
     from src.api.routes.auth import validate_password
+
     validate_password(body.new_password)
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -654,11 +687,13 @@ async def list_roles(
     """获取所有角色定义及其权限"""
     roles = []
     for role_value, permissions in ROLE_PERMISSIONS.items():
-        roles.append(RoleDefinition(
-            role_name=role_value,
-            display_name=ROLE_DISPLAY_NAMES.get(role_value, role_value),
-            permissions=sorted([p.value for p in permissions]),
-        ))
+        roles.append(
+            RoleDefinition(
+                role_name=role_value,
+                display_name=ROLE_DISPLAY_NAMES.get(role_value, role_value),
+                permissions=sorted([p.value for p in permissions]),
+            )
+        )
     return roles
 
 
@@ -735,41 +770,36 @@ async def get_audit_stats(
     top_actions = await audit_service.get_action_stats(start_time=start_time)
 
     # 按日统计
-    daily_query = select(
-        func.date(AuditLog.created_at).label("date"),
-        func.count(AuditLog.id).label("count"),
-    ).where(
-        AuditLog.created_at >= start_time
-    ).group_by(
-        func.date(AuditLog.created_at)
-    ).order_by(
-        func.date(AuditLog.created_at).asc()
+    daily_query = (
+        select(
+            func.date(AuditLog.created_at).label("date"),
+            func.count(AuditLog.id).label("count"),
+        )
+        .where(AuditLog.created_at >= start_time)
+        .group_by(func.date(AuditLog.created_at))
+        .order_by(func.date(AuditLog.created_at).asc())
     )
     daily_result = await db.execute(daily_query)
-    actions_per_day = [
-        {"date": str(row[0]), "count": row[1]}
-        for row in daily_result.all()
-    ]
+    actions_per_day = [{"date": str(row[0]), "count": row[1]} for row in daily_result.all()]
 
     # 活跃用户统计（top users）
-    user_query = select(
-        AuditLog.user_email,
-        func.count(AuditLog.id).label("count"),
-    ).where(
-        and_(
-            AuditLog.created_at >= start_time,
-            AuditLog.user_email.isnot(None),
+    user_query = (
+        select(
+            AuditLog.user_email,
+            func.count(AuditLog.id).label("count"),
         )
-    ).group_by(
-        AuditLog.user_email
-    ).order_by(
-        func.count(AuditLog.id).desc()
-    ).limit(10)
+        .where(
+            and_(
+                AuditLog.created_at >= start_time,
+                AuditLog.user_email.isnot(None),
+            )
+        )
+        .group_by(AuditLog.user_email)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(10)
+    )
     user_result = await db.execute(user_query)
-    top_users = [
-        {"user_email": row[0], "count": row[1]}
-        for row in user_result.all()
-    ]
+    top_users = [{"user_email": row[0], "count": row[1]} for row in user_result.all()]
 
     return AuditLogStatsResponse(
         actions_per_day=actions_per_day,
@@ -850,7 +880,7 @@ async def export_audit_report(
     start_time = datetime.utcnow() - timedelta(days=days)
     audit_service = AuditService(db)
     report = await audit_service.export_audit_report(
-        org_id=getattr(admin, 'org_id', None),
+        org_id=getattr(admin, "org_id", None),
         start_time=start_time,
     )
     return UnifiedResponse.success(data=report)
@@ -868,7 +898,7 @@ async def get_compliance_report(
     返回结构化数据：操作统计 / 用户活跃度 / 异常操作。
     前端接到数据后渲染为 PDF 格式下载。
     """
-    org_id = getattr(admin, 'org_id', None)
+    org_id = getattr(admin, "org_id", None)
     if not org_id:
         return UnifiedResponse.error(code=400, message="当前账号无组织归属，无法生成合规报告")
     end_time = datetime.now(UTC)
@@ -973,7 +1003,7 @@ async def update_system_config(
     if body.esign is not None:
         e = body.esign
         if "app_id" in e:
-            settings.ESIGN_BAO_APP_ID = (e["app_id"] or None)
+            settings.ESIGN_BAO_APP_ID = e["app_id"] or None
         if e.get("app_secret"):
             settings.ESIGN_BAO_APP_SECRET = e["app_secret"]
         if "api_url" in e and e["api_url"]:
@@ -987,7 +1017,7 @@ async def update_system_config(
     if body.fadada is not None:
         f = body.fadada
         if "app_id" in f:
-            settings.FADADA_APP_ID = (f["app_id"] or None)
+            settings.FADADA_APP_ID = f["app_id"] or None
         if f.get("app_secret"):
             settings.FADADA_APP_SECRET = f["app_secret"]
         if "api_url" in f and f["api_url"]:
@@ -997,9 +1027,9 @@ async def update_system_config(
     if body.wechat_pay is not None:
         w = body.wechat_pay
         if "app_id" in w:
-            settings.WECHAT_PAY_APP_ID = (w["app_id"] or None)
+            settings.WECHAT_PAY_APP_ID = w["app_id"] or None
         if "mch_id" in w:
-            settings.WECHAT_PAY_MCH_ID = (w["mch_id"] or None)
+            settings.WECHAT_PAY_MCH_ID = w["mch_id"] or None
         if w.get("merchant_private_key"):
             settings.WECHAT_PAY_MERCHANT_PRIVATE_KEY = w["merchant_private_key"]
         if w.get("api_v3_key"):
@@ -1076,6 +1106,7 @@ async def system_health_check(
     redis_status = "healthy"
     try:
         from src.core.security import get_rate_limiter
+
         rate_limiter = get_rate_limiter()
         if hasattr(rate_limiter, "redis") and rate_limiter.redis:
             await rate_limiter.redis.ping()
@@ -1140,9 +1171,7 @@ async def create_organization(
 ) -> dict[str, Any]:
     """创建新组织"""
     # 检查名称是否重复
-    existing = await db.execute(
-        select(Organization).where(Organization.name == body.name)
-    )
+    existing = await db.execute(select(Organization).where(Organization.name == body.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="组织名称已存在")
 

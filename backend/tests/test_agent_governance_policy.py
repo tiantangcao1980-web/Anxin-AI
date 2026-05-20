@@ -37,10 +37,12 @@ def test_available_tools_fail_closed_without_role_permissions():
 
 def test_high_risk_tool_visible_only_after_authorized_approval():
     engine = PolicyEngine()
-    engine.set_policy(AgentPolicy(
-        agent_name="legal_advisor",
-        max_risk_level=RiskLevel.HIGH_RISK,
-    ))
+    engine.set_policy(
+        AgentPolicy(
+            agent_name="legal_advisor",
+            max_risk_level=RiskLevel.HIGH_RISK,
+        )
+    )
 
     base_context = {
         "subscription_features": {"lawyer_matching"},

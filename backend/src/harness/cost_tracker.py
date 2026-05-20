@@ -46,6 +46,7 @@ DEFAULT_PRICING = {"input": 1.00, "output": 3.00}
 @dataclass
 class CostRecord:
     """单次 LLM 调用的费用记录"""
+
     timestamp: float
     model: str
     provider: str
@@ -95,7 +96,9 @@ class CostTracker:
     def calculate_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
         """计算单次调用费用（美元）"""
         pricing = self.get_pricing(model)
-        cost = (prompt_tokens * pricing["input"] + completion_tokens * pricing["output"]) / 1_000_000
+        cost = (
+            prompt_tokens * pricing["input"] + completion_tokens * pricing["output"]
+        ) / 1_000_000
         return round(cost, 8)
 
     def record(
@@ -131,7 +134,7 @@ class CostTracker:
 
         self._records.append(record)
         if len(self._records) > self._max_records:
-            self._records = self._records[-self._max_records:]
+            self._records = self._records[-self._max_records :]
 
         # 更新聚合
         self._total_tokens += total
@@ -146,6 +149,7 @@ class CostTracker:
 
         # 同步更新 trace_context
         from src.harness.trace_context import current_trace
+
         trace = current_trace()
         if trace:
             trace.record_llm_usage(prompt_tokens, completion_tokens, cost)
@@ -160,9 +164,7 @@ class CostTracker:
             "total_cost_usd": round(self._total_cost, 4),
             "by_model": dict(self._by_model),
             "by_agent": dict(self._by_agent),
-            "top_users": dict(
-                sorted(self._by_user.items(), key=lambda x: x[1], reverse=True)[:10]
-            ),
+            "top_users": dict(sorted(self._by_user.items(), key=lambda x: x[1], reverse=True)[:10]),
         }
 
     def get_conversation_cost(self, conversation_id: str) -> dict[str, Any]:

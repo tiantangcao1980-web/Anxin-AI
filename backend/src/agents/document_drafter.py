@@ -59,7 +59,9 @@ class DocumentDraftAgent(BaseLegalAgent):
                 max_articles=6,
             )
             if rag_context:
-                rag_context = AgentRAGService.build_rag_prompt_section(rag_context, task_type="draft")
+                rag_context = AgentRAGService.build_rag_prompt_section(
+                    rag_context, task_type="draft"
+                )
         except Exception:
             pass
 
@@ -99,9 +101,7 @@ class DocumentDraftAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning=f"基于法律文书规范、专业模板和行业惯例生成。{validation_info}",
-            actions=[
-                {"type": "document_generated", "description": "文书起草完成"}
-            ],
+            actions=[{"type": "document_generated", "description": "文书起草完成"}],
             metadata={
                 "draft_mode": draft_plan.draft_mode,
                 "normalized_doc_type": draft_plan.normalized_doc_type,
@@ -207,38 +207,134 @@ class DocumentDraftAgent(BaseLegalAgent):
 
     def _get_missing_field_specs(self, normalized: str) -> dict[str, MissingFieldSpec]:
         common: dict[str, MissingFieldSpec] = {
-            "主体信息": {"severity": "high", "group": "基础信息", "suggestion": "建议补充：明确文书涉及的主体身份与角色"},
-            "事实细节": {"severity": "high", "group": "事实背景", "suggestion": "建议补充：按时间顺序说明关键事实经过"},
-            "金额或核心条件": {"severity": "high", "group": "交易条件", "suggestion": "建议补充：明确金额、价格或核心商务条件"},
-            "时间安排": {"severity": "medium", "group": "时间节点", "suggestion": "建议补充：明确起止日期、履行期限或关键时间点"},
+            "主体信息": {
+                "severity": "high",
+                "group": "基础信息",
+                "suggestion": "建议补充：明确文书涉及的主体身份与角色",
+            },
+            "事实细节": {
+                "severity": "high",
+                "group": "事实背景",
+                "suggestion": "建议补充：按时间顺序说明关键事实经过",
+            },
+            "金额或核心条件": {
+                "severity": "high",
+                "group": "交易条件",
+                "suggestion": "建议补充：明确金额、价格或核心商务条件",
+            },
+            "时间安排": {
+                "severity": "medium",
+                "group": "时间节点",
+                "suggestion": "建议补充：明确起止日期、履行期限或关键时间点",
+            },
         }
         if normalized == "contract":
             return {
-                "合同金额与付款安排": {"severity": "high", "group": "交易条件", "suggestion": "建议补充：明确合同总价、付款节点、付款条件", "weight": 1.4},
-                "履行期限与交付节点": {"severity": "high", "group": "履行安排", "suggestion": "建议补充：明确履行期限、交付时间和验收节点", "weight": 1.3},
-                "服务/标的范围": {"severity": "high", "group": "标的范围", "suggestion": "建议补充：明确服务内容、标的范围和交付标准", "weight": 0.8},
-                "当事方信息": {"severity": "high", "group": "主体信息", "suggestion": "建议补充：明确甲乙方名称、身份信息与联系方式", "weight": 1.0},
+                "合同金额与付款安排": {
+                    "severity": "high",
+                    "group": "交易条件",
+                    "suggestion": "建议补充：明确合同总价、付款节点、付款条件",
+                    "weight": 1.4,
+                },
+                "履行期限与交付节点": {
+                    "severity": "high",
+                    "group": "履行安排",
+                    "suggestion": "建议补充：明确履行期限、交付时间和验收节点",
+                    "weight": 1.3,
+                },
+                "服务/标的范围": {
+                    "severity": "high",
+                    "group": "标的范围",
+                    "suggestion": "建议补充：明确服务内容、标的范围和交付标准",
+                    "weight": 0.8,
+                },
+                "当事方信息": {
+                    "severity": "high",
+                    "group": "主体信息",
+                    "suggestion": "建议补充：明确甲乙方名称、身份信息与联系方式",
+                    "weight": 1.0,
+                },
             }
         if normalized == "lawsuit":
             return {
-                "原被告信息": {"severity": "high", "group": "诉讼主体", "suggestion": "建议补充：明确原告、被告的完整身份信息", "weight": 1.2},
-                "诉讼请求": {"severity": "high", "group": "诉讼请求", "suggestion": "建议补充：逐项列明诉讼请求与诉请金额", "weight": 1.4},
-                "事实与理由": {"severity": "high", "group": "案件事实", "suggestion": "建议补充：说明争议经过、违约或侵权事实及法律依据", "weight": 1.2},
-                "证据与法院信息": {"severity": "medium", "group": "程序信息", "suggestion": "建议补充：明确证据材料及拟提交法院或仲裁机构", "weight": 0.8},
+                "原被告信息": {
+                    "severity": "high",
+                    "group": "诉讼主体",
+                    "suggestion": "建议补充：明确原告、被告的完整身份信息",
+                    "weight": 1.2,
+                },
+                "诉讼请求": {
+                    "severity": "high",
+                    "group": "诉讼请求",
+                    "suggestion": "建议补充：逐项列明诉讼请求与诉请金额",
+                    "weight": 1.4,
+                },
+                "事实与理由": {
+                    "severity": "high",
+                    "group": "案件事实",
+                    "suggestion": "建议补充：说明争议经过、违约或侵权事实及法律依据",
+                    "weight": 1.2,
+                },
+                "证据与法院信息": {
+                    "severity": "medium",
+                    "group": "程序信息",
+                    "suggestion": "建议补充：明确证据材料及拟提交法院或仲裁机构",
+                    "weight": 0.8,
+                },
             }
         if normalized == "lawyer_letter":
             return {
-                "委托人与收函对象": {"severity": "high", "group": "委托基础", "suggestion": "建议补充：明确委托人、收函对象及双方关系", "weight": 1.1},
-                "事实经过": {"severity": "high", "group": "事实背景", "suggestion": "建议补充：简述争议事实、违约经过和催告背景", "weight": 1.0},
-                "履行要求与期限": {"severity": "high", "group": "主张内容", "suggestion": "建议补充：明确履行事项、履行方式和最后期限", "weight": 1.4},
-                "法律后果提示": {"severity": "medium", "group": "风险控制", "suggestion": "建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果", "weight": 0.8},
+                "委托人与收函对象": {
+                    "severity": "high",
+                    "group": "委托基础",
+                    "suggestion": "建议补充：明确委托人、收函对象及双方关系",
+                    "weight": 1.1,
+                },
+                "事实经过": {
+                    "severity": "high",
+                    "group": "事实背景",
+                    "suggestion": "建议补充：简述争议事实、违约经过和催告背景",
+                    "weight": 1.0,
+                },
+                "履行要求与期限": {
+                    "severity": "high",
+                    "group": "主张内容",
+                    "suggestion": "建议补充：明确履行事项、履行方式和最后期限",
+                    "weight": 1.4,
+                },
+                "法律后果提示": {
+                    "severity": "medium",
+                    "group": "风险控制",
+                    "suggestion": "建议补充：说明逾期不履行将面临的诉讼、仲裁或其他法律后果",
+                    "weight": 0.8,
+                },
             }
         if normalized == "legal_opinion":
             return {
-                "委托事项与范围": {"severity": "high", "group": "委托基础", "suggestion": "建议补充：明确委托事项、审查范围和意见用途", "weight": 1.2},
-                "事实前提": {"severity": "high", "group": "事实基础", "suggestion": "建议补充：列明意见所依据的事实、文件和假设前提", "weight": 1.1},
-                "法律分析焦点": {"severity": "high", "group": "分析框架", "suggestion": "建议补充：明确需要分析的法律问题与风险焦点", "weight": 1.1},
-                "结论与适用限制": {"severity": "high", "group": "结论边界", "suggestion": "建议补充：明确核心结论、保留意见和适用限制", "weight": 1.4},
+                "委托事项与范围": {
+                    "severity": "high",
+                    "group": "委托基础",
+                    "suggestion": "建议补充：明确委托事项、审查范围和意见用途",
+                    "weight": 1.2,
+                },
+                "事实前提": {
+                    "severity": "high",
+                    "group": "事实基础",
+                    "suggestion": "建议补充：列明意见所依据的事实、文件和假设前提",
+                    "weight": 1.1,
+                },
+                "法律分析焦点": {
+                    "severity": "high",
+                    "group": "分析框架",
+                    "suggestion": "建议补充：明确需要分析的法律问题与风险焦点",
+                    "weight": 1.1,
+                },
+                "结论与适用限制": {
+                    "severity": "high",
+                    "group": "结论边界",
+                    "suggestion": "建议补充：明确核心结论、保留意见和适用限制",
+                    "weight": 1.4,
+                },
             }
         return common
 
@@ -262,7 +358,19 @@ class DocumentDraftAgent(BaseLegalAgent):
                     key in requirements for key in ["amount", "payment_terms", "price", "fee"]
                 ),
                 "履行期限与交付节点": any(
-                    token in combined_text for token in ["期限", "日期", "时间", "交付", "付款", "履行", "完成", "年度", "月度", "季度"]
+                    token in combined_text
+                    for token in [
+                        "期限",
+                        "日期",
+                        "时间",
+                        "交付",
+                        "付款",
+                        "履行",
+                        "完成",
+                        "年度",
+                        "月度",
+                        "季度",
+                    ]
                 ),
                 "服务/标的范围": bool(requirements.get("details") or scenario or description),
             }
@@ -280,19 +388,19 @@ class DocumentDraftAgent(BaseLegalAgent):
                 "履行要求与期限": any(
                     token in combined_text for token in ["期限", "日内", "履行", "付款", "整改"]
                 ),
-                "法律后果提示": any(token in combined_text for token in ["诉讼", "仲裁", "法律后果"]),
+                "法律后果提示": any(
+                    token in combined_text for token in ["诉讼", "仲裁", "法律后果"]
+                ),
             }
         if normalized == "legal_opinion":
             return {
                 "委托事项与范围": any(
                     key in requirements for key in ["scope", "mandate", "client", "matter"]
                 ),
-                "事实前提": bool(requirements.get("facts")) or any(
-                    token in combined_text for token in ["事实", "背景", "交易", "协议"]
-                ),
-                "法律分析焦点": bool(requirements.get("issues")) or any(
-                    token in combined_text for token in ["法律", "合规", "风险", "条款"]
-                ),
+                "事实前提": bool(requirements.get("facts"))
+                or any(token in combined_text for token in ["事实", "背景", "交易", "协议"]),
+                "法律分析焦点": bool(requirements.get("issues"))
+                or any(token in combined_text for token in ["法律", "合规", "风险", "条款"]),
                 "结论与适用限制": any(
                     key in requirements for key in ["conclusion", "limitations", "reservation"]
                 ),
@@ -380,7 +488,9 @@ class DocumentDraftAgent(BaseLegalAgent):
         if "## 起草说明" not in content:
             content += f"\n\n---\n## 起草说明\n- 本文书按{draft_plan.draft_mode}标准起草，并依据当前已知事实补足基础结构。"
         if "## 待确认事项" not in content:
-            content += "\n\n## 待确认事项\n" + self._format_missing_fields(draft_plan.missing_fields)
+            content += "\n\n## 待确认事项\n" + self._format_missing_fields(
+                draft_plan.missing_fields
+            )
         if "## 使用提示" not in content:
             content += f"\n\n## 使用提示\n- 使用前请结合{doc_type or '文书类型'}的实际业务背景、附件和证据材料复核。"
         return content

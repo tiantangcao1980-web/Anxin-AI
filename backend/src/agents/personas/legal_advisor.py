@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LegalAdvisorPersona —— 法律顾问 persona（P9-B）
 
 定位：把 5 个 specialized agent（``legal_advisor`` / ``legal_researcher`` /
@@ -39,7 +38,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -49,6 +48,8 @@ from src.agents.legal_researcher import LegalResearchAgent
 from src.agents.personas.base_persona import BasePersonaAgent
 from src.agents.personas.legal_models import (
     DEFAULT_DISCLAIMER,
+    VALID_COMPLIANCE_STATES,
+    VALID_RISK_LEVELS,
     Citation,
     ComplianceIssue,
     ComplianceReport,
@@ -58,12 +59,9 @@ from src.agents.personas.legal_models import (
     ResearchResult,
     RiskFactor,
     RiskReport,
-    VALID_COMPLIANCE_STATES,
-    VALID_RISK_LEVELS,
 )
 from src.agents.regulatory_monitor import RegulatoryMonitorAgent
 from src.agents.risk_assessor import RiskAssessmentAgent
-
 
 # ---------------------------------------------------------------------------
 # System prompt（persona 风格）
@@ -146,11 +144,11 @@ class LegalAdvisorPersona(BasePersonaAgent):
     # ------------------------------------------------------------------
     def __init__(
         self,
-        advisor: Optional[_CoreLegalAdvisor] = None,
-        researcher: Optional[LegalResearchAgent] = None,
-        risk: Optional[RiskAssessmentAgent] = None,
-        compliance: Optional[ComplianceAgent] = None,
-        monitor: Optional[RegulatoryMonitorAgent] = None,
+        advisor: _CoreLegalAdvisor | None = None,
+        researcher: LegalResearchAgent | None = None,
+        risk: RiskAssessmentAgent | None = None,
+        compliance: ComplianceAgent | None = None,
+        monitor: RegulatoryMonitorAgent | None = None,
     ) -> None:
         super().__init__()
         # 显式注入优先；缺失时 lazy 构造（生产）
@@ -192,13 +190,13 @@ class LegalAdvisorPersona(BasePersonaAgent):
     async def handle_message(
         self,
         message: str,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-        history: Optional[list[dict[str, Any]]] = None,
-        extra: Optional[dict[str, Any]] = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+        history: list[dict[str, Any]] | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> str:
         capability_hint = self._guess_capability(message)
-        prompt_override: Optional[str] = None
+        prompt_override: str | None = None
         if capability_hint:
             prompt_override = (
                 self.SYSTEM_PROMPT
@@ -213,7 +211,7 @@ class LegalAdvisorPersona(BasePersonaAgent):
         )
 
     @staticmethod
-    def _guess_capability(message: str) -> Optional[str]:
+    def _guess_capability(message: str) -> str | None:
         """简单关键词路由（仅给 LLM 一个 hint，不强制）。"""
         if not message:
             return None
@@ -260,7 +258,7 @@ class LegalAdvisorPersona(BasePersonaAgent):
     async def consult(
         self,
         question: str,
-        context: Optional[dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> ConsultationResult:
         """法律咨询 —— 包装 ``LegalAdvisorAgent.process()``。
 
@@ -282,9 +280,7 @@ class LegalAdvisorPersona(BasePersonaAgent):
             logger.warning(f"LegalAdvisorPersona.consult: specialized advisor 调用失败: {exc}")
             answer_text = ""
 
-        legal_basis, related, actions, confidence = self._parse_consultation_payload(
-            answer_text
-        )
+        legal_basis, related, actions, confidence = self._parse_consultation_payload(answer_text)
         return ConsultationResult(
             question=question,
             answer=answer_text,
@@ -374,7 +370,9 @@ class LegalAdvisorPersona(BasePersonaAgent):
             payload = await self._get_researcher().search_laws(keywords)
             text = payload.get("results", "") if isinstance(payload, dict) else str(payload)
         except Exception as exc:
-            logger.warning(f"LegalAdvisorPersona.research_law: specialized researcher 调用失败: {exc}")
+            logger.warning(
+                f"LegalAdvisorPersona.research_law: specialized researcher 调用失败: {exc}"
+            )
             text = ""
 
         citations = self._extract_citations_from_text(text)
@@ -426,7 +424,7 @@ class LegalAdvisorPersona(BasePersonaAgent):
     async def assess_risk(
         self,
         scenario: str,
-        jurisdiction: Optional[str] = None,
+        jurisdiction: str | None = None,
     ) -> RiskReport:
         """风险评估 —— 包装 ``RiskAssessmentAgent.process()``。
 
@@ -547,16 +545,14 @@ class LegalAdvisorPersona(BasePersonaAgent):
             response = await self._get_compliance().process(task)
             text = response.content or ""
         except Exception as exc:
-            logger.warning(f"LegalAdvisorPersona.review_compliance: specialized compliance 调用失败: {exc}")
+            logger.warning(
+                f"LegalAdvisorPersona.review_compliance: specialized compliance 调用失败: {exc}"
+            )
             text = ""
 
         overall, issues, score = self._parse_compliance_payload(text)
         # 文档摘要：取原文 first 200 字 + 省略号
-        summary = (
-            document_text[:200] + "…"
-            if len(document_text) > 200
-            else document_text
-        )
+        summary = document_text[:200] + "…" if len(document_text) > 200 else document_text
         return ComplianceReport(
             document_summary=summary,
             regulation_set=regulation_set,
@@ -640,7 +636,9 @@ class LegalAdvisorPersona(BasePersonaAgent):
             response = await self._get_monitor().process(task)
             text = response.content or ""
         except Exception as exc:
-            logger.warning(f"LegalAdvisorPersona.get_regulatory_updates: specialized monitor 调用失败: {exc}")
+            logger.warning(
+                f"LegalAdvisorPersona.get_regulatory_updates: specialized monitor 调用失败: {exc}"
+            )
             text = ""
 
         return self._parse_updates_payload(text)

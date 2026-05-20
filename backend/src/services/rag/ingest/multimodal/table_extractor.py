@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """表格抽取（P13-A）。
 
 真实接入路径
@@ -53,10 +52,7 @@ class TableExtractor:
             return ""
         head_line = "| " + " | ".join(headers) + " |"
         sep_line = "|" + "|".join(["---"] * len(headers)) + "|"
-        body_lines = [
-            "| " + " | ".join(str(cell) for cell in row) + " |"
-            for row in rows
-        ]
+        body_lines = ["| " + " | ".join(str(cell) for cell in row) + " |" for row in rows]
         return "\n".join([head_line, sep_line, *body_lines])
 
     @staticmethod

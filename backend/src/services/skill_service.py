@@ -20,7 +20,9 @@ class Skill:
         self.description = str(metadata.get("description", ""))
         self.version = str(metadata.get("version", "1.0.0"))
         raw_triggers = metadata.get("triggers", [])
-        self.triggers = [str(trigger) for trigger in raw_triggers] if isinstance(raw_triggers, list) else []
+        self.triggers = (
+            [str(trigger) for trigger in raw_triggers] if isinstance(raw_triggers, list) else []
+        )
         self.content = content
 
     def to_dict(self) -> dict[str, Any]:
@@ -29,8 +31,9 @@ class Skill:
             "description": self.description,
             "version": self.version,
             "triggers": self.triggers,
-            "content": self.content[:500] + "..." # 摘要
+            "content": self.content[:500] + "...",  # 摘要
         }
+
 
 class SkillService:
     def __init__(
@@ -41,7 +44,9 @@ class SkillService:
         only_enabled_skills: bool = False,
     ) -> None:
         # 向上寻找 skills 目录
-        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        base_path = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )
         self.skill_dir = os.path.join(base_path, skill_root_dir)
         self.evolution_service = evolution_service
         self.only_enabled_skills = only_enabled_skills
@@ -71,7 +76,7 @@ class SkillService:
 
     def _parse_skill_file(self, file_path: str) -> None:
         """解析单个技能文件 (YAML Front Matter + Markdown)"""
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         # 分割 Front Matter
@@ -131,6 +136,7 @@ class SkillService:
         if self.evolution_service is None:
             return False
         return self.evolution_service.is_skill_enabled(skill.name, skill.version)
+
 
 # 全局实例
 skill_service = SkillService()

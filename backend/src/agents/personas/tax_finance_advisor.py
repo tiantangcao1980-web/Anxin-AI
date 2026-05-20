@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """财税顾问 persona（P9-E）。
 
 定位：制造业财税一站式智能体 —— 包装 ``tax_compliance.py`` 与
@@ -25,7 +24,6 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Any
 
 from src.agents.legal_calculator import LegalCalculatorAgent
 from src.agents.personas.base_persona import BasePersonaAgent
@@ -42,7 +40,6 @@ from src.agents.personas.finance_models import (
 )
 from src.agents.personas.research_models import Citation
 from src.agents.tax_compliance import TaxComplianceAgent
-
 
 # ---------------------------------------------------------------------------
 # 中国境内常用税率（与税务总局公开口径对齐 — 仅供财税计算 mock 默认值）
@@ -157,9 +154,7 @@ class TaxFinanceAdvisorPersona(BasePersonaAgent):
     # ------------------------------------------------------------------
     # 能力 1：税务计算
     # ------------------------------------------------------------------
-    async def calculate_tax(
-        self, scenario: TaxCalculationRequest
-    ) -> TaxCalculationResult:
+    async def calculate_tax(self, scenario: TaxCalculationRequest) -> TaxCalculationResult:
         """根据税种 + 场景计算应缴税额。
 
         :param scenario: :class:`TaxCalculationRequest`。
@@ -242,9 +237,7 @@ class TaxFinanceAdvisorPersona(BasePersonaAgent):
             notes=self._vat_notes(scenario),
         )
 
-    def _calc_corporate_income(
-        self, scenario: TaxCalculationRequest
-    ) -> TaxCalculationResult:
+    def _calc_corporate_income(self, scenario: TaxCalculationRequest) -> TaxCalculationResult:
         """企业所得税：(收入 - 成本费用) × 适用税率。"""
         revenue = scenario.revenue or 0.0
         expenses = scenario.expenses or 0.0
@@ -303,9 +296,7 @@ class TaxFinanceAdvisorPersona(BasePersonaAgent):
             ],
         )
 
-    def _calc_individual_income(
-        self, scenario: TaxCalculationRequest
-    ) -> TaxCalculationResult:
+    def _calc_individual_income(self, scenario: TaxCalculationRequest) -> TaxCalculationResult:
         """个税（综合所得简化版）：年应纳税所得额超额累进。"""
         annual_income = scenario.revenue or 0.0
         # 5000/月 × 12 = 60000 基本减除费用
@@ -387,9 +378,7 @@ class TaxFinanceAdvisorPersona(BasePersonaAgent):
             notes=["不同合同类型税率不同，借款合同万分之零点五，租赁千分之一。"],
         )
 
-    def _calc_consumption(
-        self, scenario: TaxCalculationRequest
-    ) -> TaxCalculationResult:
+    def _calc_consumption(self, scenario: TaxCalculationRequest) -> TaxCalculationResult:
         """消费税：从价/从量/复合计征。"""
         amount = scenario.revenue or 0.0
         # 简化：从价 10%（化妆品 / 摩托车等档位的中位数）
@@ -439,9 +428,7 @@ class TaxFinanceAdvisorPersona(BasePersonaAgent):
     # ------------------------------------------------------------------
     # 能力 2：出口退税
     # ------------------------------------------------------------------
-    async def export_tax_rebate(
-        self, exports: list[ExportTransaction]
-    ) -> RebateReport:
+    async def export_tax_rebate(self, exports: list[ExportTransaction]) -> RebateReport:
         """计算出口退税总额 + 申报材料清单。
 
         :param exports: 多笔出口业务。
@@ -457,16 +444,12 @@ class TaxFinanceAdvisorPersona(BasePersonaAgent):
         weighted_rebate_cny = 0.0
         for tx in exports:
             chapter = tx.hs_code[:2] if tx.hs_code else "default"
-            rate_pct = EXPORT_REBATE_RATES_PCT.get(
-                chapter, EXPORT_REBATE_RATES_PCT["default"]
-            )
+            rate_pct = EXPORT_REBATE_RATES_PCT.get(chapter, EXPORT_REBATE_RATES_PCT["default"])
             fob_cny = tx.fob_total_usd * usd_to_cny
             total_fob_cny += fob_cny
             weighted_rebate_cny += fob_cny * rate_pct / 100
 
-        weighted_rate = (
-            weighted_rebate_cny / total_fob_cny * 100 if total_fob_cny > 0 else 0.0
-        )
+        weighted_rate = weighted_rebate_cny / total_fob_cny * 100 if total_fob_cny > 0 else 0.0
 
         latest_export_date = max(tx.export_date for tx in exports)
         # 出口次月 15 日内申报
@@ -594,9 +577,7 @@ class TaxFinanceAdvisorPersona(BasePersonaAgent):
     # ------------------------------------------------------------------
     # 能力 4：财报分析
     # ------------------------------------------------------------------
-    async def analyze_financial_report(
-        self, report_text_or_excel_path: str
-    ) -> FinancialAnalysis:
+    async def analyze_financial_report(self, report_text_or_excel_path: str) -> FinancialAnalysis:
         """财报分析（健康度评分 + 红色信号 + 优化机会）。
 
         当前阶段返回基于关键词的轻量启发式分析；P10+ 接入 xlsx skill

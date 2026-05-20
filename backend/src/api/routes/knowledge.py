@@ -23,6 +23,7 @@ router = APIRouter()
 
 class KnowledgeBaseCreate(BaseModel):
     """创建知识库"""
+
     name: str
     knowledge_type: str = "other"
     description: str | None = None
@@ -31,6 +32,7 @@ class KnowledgeBaseCreate(BaseModel):
 
 class KnowledgeBaseResponse(BaseModel):
     """知识库响应"""
+
     id: str
     name: str
     knowledge_type: str
@@ -42,6 +44,7 @@ class KnowledgeBaseResponse(BaseModel):
 
 class KnowledgeBaseListResponse(BaseModel):
     """知识库列表响应"""
+
     items: list[KnowledgeBaseResponse]
     total: int
     page: int
@@ -50,6 +53,7 @@ class KnowledgeBaseListResponse(BaseModel):
 
 class DocumentCreate(BaseModel):
     """添加文档"""
+
     title: str
     content: str
     source: str | None = None
@@ -62,6 +66,7 @@ class DocumentCreate(BaseModel):
 
 class KnowledgeDocumentResponse(BaseModel):
     """知识库文档响应"""
+
     id: str
     title: str
     source: str | None = None
@@ -73,6 +78,7 @@ class KnowledgeDocumentResponse(BaseModel):
 
 class SearchRequest(BaseModel):
     """搜索请求"""
+
     query: str
     kb_ids: list[str] | None = None
     top_k: int = 10
@@ -82,6 +88,7 @@ class SearchRequest(BaseModel):
 
 class SearchResultItem(BaseModel):
     """搜索结果项"""
+
     id: str
     title: str
     content: str
@@ -92,6 +99,7 @@ class SearchResultItem(BaseModel):
 
 class RAGQueryRequest(BaseModel):
     """RAG 智能问答请求"""
+
     query: str  # 用户问题
     kb_ids: list[str] | None = None  # 限制搜索的知识库
     top_k: int | None = 5  # 检索的文档数量
@@ -101,6 +109,7 @@ class RAGQueryRequest(BaseModel):
 
 class RAGQueryResponse(BaseModel):
     """RAG 智能问答响应"""
+
     answer: str  # 生成的答案
     sources: list[dict[str, Any]] = Field(default_factory=list)  # 引用的来源
     context_used: bool = True  # 是否使用了检索上下文
@@ -110,6 +119,7 @@ class RAGQueryResponse(BaseModel):
 
 class IndexDocumentRequest(BaseModel):
     """索引文档请求"""
+
     title: str  # 文档标题
     content: str  # 文档内容
     source: str | None = None  # 文档来源
@@ -120,6 +130,7 @@ class IndexDocumentRequest(BaseModel):
 
 class IndexDocumentResponse(BaseModel):
     """索引文档响应"""
+
     success: bool
     doc_id: str | None = None
     chunk_count: int = 0  # 分块数量
@@ -129,6 +140,7 @@ class IndexDocumentResponse(BaseModel):
 
 class SemanticSearchRequest(BaseModel):
     """语义搜索请求"""
+
     query: str  # 搜索查询
     kb_id: str | None = None  # 知识库 ID
     top_k: int | None = 10  # 返回结果数量
@@ -136,6 +148,7 @@ class SemanticSearchRequest(BaseModel):
 
 class DeepResearchRequest(BaseModel):
     """深度研究请求"""
+
     topic: str
     kb_ids: list[str] | None = None
 
@@ -150,10 +163,7 @@ async def deep_research(
     深度法律研究报告生成
     """
     service = KnowledgeService(db)
-    result = await service.deep_research(
-        topic=request.topic,
-        kb_ids=request.kb_ids
-    )
+    result = await service.deep_research(topic=request.topic, kb_ids=request.kb_ids)
     return UnifiedResponse.success(data=result)
 
 
@@ -191,7 +201,7 @@ async def list_knowledge_bases(
         ],
         total=total,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
     return UnifiedResponse.success(data=data)
 
@@ -228,9 +238,7 @@ async def create_knowledge_base(
 
 @router.get("/bases/{kb_id}")
 async def get_knowledge_base(
-    kb_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required)
+    kb_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user_required)
 ) -> dict[str, Any]:
     """获取知识库详情"""
     service = KnowledgeService(db)
@@ -285,7 +293,7 @@ async def list_kb_documents(
         ],
         "total": total,
         "page": page,
-        "page_size": page_size
+        "page_size": page_size,
     }
     return UnifiedResponse.success(data=data)
 
@@ -337,7 +345,7 @@ async def search_knowledge(
 ) -> dict[str, Any]:
     """
     搜索知识库
-    
+
     支持三种搜索模式：
     - 向量语义搜索 (use_vector=True, hybrid=False)
     - 关键词文本搜索 (use_vector=False, hybrid=False)
@@ -390,9 +398,7 @@ async def get_vector_status(user: User = Depends(get_current_user_required)) -> 
 
 @router.delete("/documents/{doc_id}")
 async def delete_kb_document(
-    doc_id: str,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user_required)
+    doc_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user_required)
 ) -> dict[str, Any]:
     """删除知识库文档"""
     service = KnowledgeService(db)
@@ -510,10 +516,7 @@ async def upload_document_to_kb(
     content, filename, _content_type = await read_validated_upload_file(file)
 
     result = await service.index_file(
-        kb_id=kb_id,
-        file_content=content,
-        file_name=filename,
-        metadata={"uploaded_by": user.id}
+        kb_id=kb_id, file_content=content, file_name=filename, metadata={"uploaded_by": user.id}
     )
 
     if not result.get("success"):
@@ -576,6 +579,7 @@ async def get_vector_store_info(user: User = Depends(get_current_user_required))
 
 class KnowledgeBaseUpdate(BaseModel):
     """更新知识库"""
+
     name: str | None = None
     description: str | None = None
     knowledge_type: str | None = None
@@ -584,6 +588,7 @@ class KnowledgeBaseUpdate(BaseModel):
 
 class DocumentUpdate(BaseModel):
     """更新文档"""
+
     title: str | None = None
     content: str | None = None
     source: str | None = None
@@ -595,6 +600,7 @@ class DocumentUpdate(BaseModel):
 
 class DocumentDetailResponse(BaseModel):
     """文档详情响应（含内容）"""
+
     id: str
     title: str
     content: str
@@ -623,14 +629,20 @@ async def update_knowledge_base(
     if not update_data:
         return UnifiedResponse.error(message="未提供更新字段")
 
-    kb = await service.update_knowledge_base(kb_id, user_id=user.id, org_id=user.org_id, **update_data)
+    kb = await service.update_knowledge_base(
+        kb_id, user_id=user.id, org_id=user.org_id, **update_data
+    )
     if not kb:
         return UnifiedResponse.error(code=404, message="知识库不存在")
 
     data = KnowledgeBaseResponse(
-        id=kb.id, name=kb.name, knowledge_type=kb.knowledge_type.value,
-        description=kb.description, doc_count=kb.doc_count,
-        is_public=kb.is_public, created_at=kb.created_at,
+        id=kb.id,
+        name=kb.name,
+        knowledge_type=kb.knowledge_type.value,
+        description=kb.description,
+        doc_count=kb.doc_count,
+        is_public=kb.is_public,
+        created_at=kb.created_at,
     )
     return UnifiedResponse.success(data=data, message="更新成功")
 
@@ -662,11 +674,18 @@ async def get_document_detail(
         return UnifiedResponse.error(code=404, message="文档不存在")
 
     data = DocumentDetailResponse(
-        id=doc.id, title=doc.title, content=doc.content,
-        source=doc.source, source_url=doc.source_url, summary=doc.summary,
-        is_processed=doc.is_processed, chunk_count=doc.chunk_count,
-        tags=doc.tags, law_category=doc.law_category,
-        effective_date=doc.effective_date, issuing_authority=doc.issuing_authority,
+        id=doc.id,
+        title=doc.title,
+        content=doc.content,
+        source=doc.source,
+        source_url=doc.source_url,
+        summary=doc.summary,
+        is_processed=doc.is_processed,
+        chunk_count=doc.chunk_count,
+        tags=doc.tags,
+        law_category=doc.law_category,
+        effective_date=doc.effective_date,
+        issuing_authority=doc.issuing_authority,
         created_at=doc.created_at,
     )
     return UnifiedResponse.success(data=data)
@@ -690,9 +709,13 @@ async def update_document(
         return UnifiedResponse.error(code=404, message="文档不存在")
 
     data = KnowledgeDocumentResponse(
-        id=doc.id, title=doc.title, source=doc.source,
-        summary=doc.summary, is_processed=doc.is_processed,
-        tags=doc.tags, created_at=doc.created_at,
+        id=doc.id,
+        title=doc.title,
+        source=doc.source,
+        summary=doc.summary,
+        is_processed=doc.is_processed,
+        tags=doc.tags,
+        created_at=doc.created_at,
     )
     return UnifiedResponse.success(data=data, message="更新成功")
 
@@ -746,15 +769,12 @@ async def batch_upload_documents(
     results: list[dict[str, Any]] = []
     for filename, content in validated_files:
         result = await service.index_file(
-            kb_id=kb_id,
-            file_content=content,
-            file_name=filename,
-            metadata={"uploaded_by": user.id}
+            kb_id=kb_id, file_content=content, file_name=filename, metadata={"uploaded_by": user.id}
         )
         results.append({"filename": filename, **result})
 
     success_count = sum(1 for r in results if r.get("success"))
     return UnifiedResponse.success(
         data={"results": results, "total": len(files), "success": success_count},
-        message=f"已处理 {len(files)} 个文件，成功 {success_count} 个"
+        message=f"已处理 {len(files)} 个文件，成功 {success_count} 个",
     )

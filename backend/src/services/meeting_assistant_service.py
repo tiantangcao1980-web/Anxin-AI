@@ -133,17 +133,13 @@ class MeetingAssistantService:
         if not buf:
             return None
 
-        result = await db.execute(
-            select(MeetingRecord).where(MeetingRecord.id == buf.record_id)
-        )
+        result = await db.execute(select(MeetingRecord).where(MeetingRecord.id == buf.record_id))
         record = result.scalar_one_or_none()
         if not record:
             return None
 
         # 生成完整对话文本
-        transcript = "\n".join(
-            f"{m['sender']}: {m['content']}" for m in buf.all_messages
-        )
+        transcript = "\n".join(f"{m['sender']}: {m['content']}" for m in buf.all_messages)
         record.transcript_text = transcript
 
         # 生成结构化纪要
@@ -183,9 +179,11 @@ class MeetingAssistantService:
     async def get_record(self, db: AsyncSession, conversation_id: str) -> MeetingRecord | None:
         """获取对话的旁听记录"""
         result = await db.execute(
-            select(MeetingRecord).where(
+            select(MeetingRecord)
+            .where(
                 MeetingRecord.conversation_id == conversation_id,
-            ).order_by(MeetingRecord.created_at.desc())
+            )
+            .order_by(MeetingRecord.created_at.desc())
         )
         return result.scalar_one_or_none()
 
@@ -194,6 +192,7 @@ class MeetingAssistantService:
     ) -> tuple[list[MeetingRecord], int]:
         """获取用户的旁听记录列表"""
         from sqlalchemy import func as sa_func
+
         count_result = await db.execute(
             select(sa_func.count()).where(MeetingRecord.started_by == user_id)
         )
@@ -256,6 +255,7 @@ class MeetingAssistantService:
 
         try:
             from src.agents.workforce import get_workforce
+
             workforce = get_workforce()
             # 使用 coordinator 的基础 agent 直接分析
             agent = workforce.agents.get("legal_advisor")
@@ -274,7 +274,8 @@ class MeetingAssistantService:
 
             # 解析 JSON 响应
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return cast(JSONDict, json.loads(json_match.group()))
             return None
@@ -292,6 +293,7 @@ class MeetingAssistantService:
 
         try:
             from src.agents.workforce import get_workforce
+
             workforce = get_workforce()
             agent = workforce.agents.get("legal_advisor")
             if not agent:
@@ -309,7 +311,8 @@ class MeetingAssistantService:
             )
 
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
+
+            json_match = re.search(r"\{[\s\S]*\}", response)
             if json_match:
                 return cast(JSONDict, json.loads(json_match.group()))
             return None
@@ -318,9 +321,7 @@ class MeetingAssistantService:
             logger.error(f"纪要生成失败: {e}")
             return None
 
-    async def _push_insight_to_conversation(
-        self, conversation_id: str, insight: JSONDict
-    ) -> None:
+    async def _push_insight_to_conversation(self, conversation_id: str, insight: JSONDict) -> None:
         """通过 IM WebSocket 推送 AI 分析卡片"""
         try:
             from src.services.im_hub import im_manager

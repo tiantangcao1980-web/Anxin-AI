@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 HeadlessXClient 主路径测试 — render / screenshot / pdf / health
 
@@ -20,8 +19,8 @@ from src.services.fetch.headlessx_client import (
     HeadlessXError,
 )
 
-
 # ============ 测试辅助 ============
+
 
 def _make_client(handler) -> HeadlessXClient:
     """构造一个用 MockTransport 的 HeadlessXClient。"""
@@ -45,6 +44,7 @@ PDF_BYTES = b"%PDF-1.4 fake"
 
 
 # ============ render ============
+
 
 @pytest.mark.asyncio
 async def test_render_success_minimal():
@@ -139,6 +139,7 @@ async def test_render_passes_advanced_options():
 @pytest.mark.asyncio
 async def test_render_bot_score_blocked():
     """bot_score >= 0.7 → is_blocked True。"""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
@@ -162,6 +163,7 @@ async def test_render_bot_score_blocked():
 
 
 # ============ screenshot ============
+
 
 @pytest.mark.asyncio
 async def test_screenshot_returns_bytes():
@@ -211,6 +213,7 @@ async def test_screenshot_missing_raises():
 
 # ============ pdf ============
 
+
 @pytest.mark.asyncio
 async def test_pdf_returns_bytes():
     def handler(request: httpx.Request) -> httpx.Response:
@@ -237,6 +240,7 @@ async def test_pdf_returns_bytes():
 
 # ============ health ============
 
+
 @pytest.mark.asyncio
 async def test_health():
     def handler(request: httpx.Request) -> httpx.Response:
@@ -253,6 +257,7 @@ async def test_health():
 
 
 # ============ 鉴权 / 客户端错误 ============
+
 
 @pytest.mark.asyncio
 async def test_render_401_raises_auth_error():
@@ -283,6 +288,7 @@ async def test_render_400_raises_client_error():
 
 
 # ============ 构造校验 ============
+
 
 def test_client_requires_base_url():
     with pytest.raises(ValueError):

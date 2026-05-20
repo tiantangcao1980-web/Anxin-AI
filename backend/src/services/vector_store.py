@@ -17,7 +17,7 @@ from src.core.config import settings
 class VectorStoreService:
     """
     向量存储服务
-    
+
     支持两种 Embedding 模式：
     1. OpenAI API（或兼容的 API）
     2. 本地 sentence-transformers 模型
@@ -58,7 +58,9 @@ class VectorStoreService:
                     api_key=settings.QDRANT_API_KEY if settings.QDRANT_API_KEY else None,
                     timeout=30,
                 )
-                logger.info(f"Qdrant 客户端初始化成功 (HOST模式): {settings.QDRANT_HOST}:{settings.QDRANT_PORT}")
+                logger.info(
+                    f"Qdrant 客户端初始化成功 (HOST模式): {settings.QDRANT_HOST}:{settings.QDRANT_PORT}"
+                )
             else:
                 # 内存模式（用于测试）
                 self.client = QdrantClient(path=":memory:")
@@ -74,7 +76,7 @@ class VectorStoreService:
     def _init_embedding(self) -> None:
         """
         初始化 Embedding 模型
-        
+
         根据配置选择使用本地 sentence-transformers 模型或 OpenAI API
         """
         if self.use_local_embedding:
@@ -126,7 +128,9 @@ class VectorStoreService:
             self.embedding_model = settings.EMBEDDING_MODEL or "text-embedding-3-small"
             self.embedding_dim = settings.EMBEDDING_DIMENSIONS or 1536
 
-            logger.info(f"OpenAI Embedding 模型初始化成功: {self.embedding_model} (维度: {self.embedding_dim})")
+            logger.info(
+                f"OpenAI Embedding 模型初始化成功: {self.embedding_model} (维度: {self.embedding_dim})"
+            )
 
         except ImportError:
             logger.warning("openai 未安装，向量化功能不可用")
@@ -137,7 +141,8 @@ class VectorStoreService:
     def is_available(self) -> bool:
         """检查服务是否可用"""
         has_embedding = (
-            self.local_model is not None if self.use_local_embedding
+            self.local_model is not None
+            if self.use_local_embedding
             else self.openai_client is not None
         )
         return self.client is not None and has_embedding
@@ -165,12 +170,11 @@ class VectorStoreService:
             import asyncio
 
             from qdrant_client.models import Distance, VectorParams
+
             client = cast(Any, self.client)
 
             # 检查集合是否存在
-            collections = await asyncio.to_thread(
-                lambda: client.get_collections().collections
-            )
+            collections = await asyncio.to_thread(lambda: client.get_collections().collections)
             exists = any(c.name == collection_name for c in collections)
             need_create = False
 
@@ -182,18 +186,14 @@ class VectorStoreService:
                 else:
                     # 检查已有集合的向量维度是否与当前配置一致
                     try:
-                        info = await asyncio.to_thread(
-                            self.client.get_collection, collection_name
-                        )
+                        info = await asyncio.to_thread(self.client.get_collection, collection_name)
                         existing_dim = info.config.params.vectors.size
                         if existing_dim != self.embedding_dim:
                             logger.warning(
                                 f"集合 {collection_name} 维度不匹配: "
                                 f"已有 {existing_dim}, 当前配置 {self.embedding_dim}，自动重建"
                             )
-                            await asyncio.to_thread(
-                                client.delete_collection, collection_name
-                            )
+                            await asyncio.to_thread(client.delete_collection, collection_name)
                             need_create = True
                         else:
                             return True
@@ -227,12 +227,12 @@ class VectorStoreService:
     async def get_embedding(self, text: str) -> list[float] | None:
         """
         获取文本的向量表示
-        
+
         根据配置自动选择本地模型或 API
-        
+
         Args:
             text: 需要向量化的文本
-            
+
         Returns:
             向量列表，失败返回 None
         """
@@ -276,7 +276,7 @@ class VectorStoreService:
             # 截断过长的文本
             max_tokens = 8000
             if len(text) > max_tokens * 4:  # 粗略估计（1 token ≈ 4 字符）
-                text = text[:max_tokens * 4]
+                text = text[: max_tokens * 4]
 
             response = self.openai_client.embeddings.create(
                 model=self.embedding_model,
@@ -296,11 +296,11 @@ class VectorStoreService:
     ) -> list[list[float] | None]:
         """
         批量获取文本向量
-        
+
         Args:
             texts: 文本列表
             batch_size: 批处理大小
-            
+
         Returns:
             向量列表
         """
@@ -336,11 +336,11 @@ class VectorStoreService:
     ) -> int:
         """
         添加文档到向量集合
-        
+
         Args:
             collection_name: 集合名称
             documents: 文档列表，每个文档包含 id, content, metadata
-            
+
         Returns:
             成功添加的文档数量
         """
@@ -364,17 +364,19 @@ class VectorStoreService:
                 doc_id = doc.get("id", "")
                 point_id = int(hashlib.md5(doc_id.encode()).hexdigest()[:8], 16)
 
-                points.append(PointStruct(
-                    id=point_id,
-                    vector=embedding,
-                    payload={
-                        "doc_id": doc_id,
-                        "title": doc.get("title", ""),
-                        "content": doc.get("content", "")[:1000],  # 存储部分内容
-                        "source": doc.get("source", ""),
-                        **doc.get("metadata", {}),
-                    }
-                ))
+                points.append(
+                    PointStruct(
+                        id=point_id,
+                        vector=embedding,
+                        payload={
+                            "doc_id": doc_id,
+                            "title": doc.get("title", ""),
+                            "content": doc.get("content", "")[:1000],  # 存储部分内容
+                            "source": doc.get("source", ""),
+                            **doc.get("metadata", {}),
+                        },
+                    )
+                )
 
             if points:
                 client = cast(Any, self.client)
@@ -400,14 +402,14 @@ class VectorStoreService:
     ) -> list[dict[str, Any]]:
         """
         向量相似度搜索
-        
+
         Args:
             collection_name: 集合名称
             query: 查询文本
             top_k: 返回结果数量，默认使用配置值
             score_threshold: 最低相似度阈值，默认使用配置值
             filter_conditions: 过滤条件
-            
+
         Returns:
             搜索结果列表
         """
@@ -464,8 +466,11 @@ class VectorStoreService:
                     "content": hit.payload.get("content", ""),
                     "source": hit.payload.get("source", ""),
                     "score": hit.score,
-                    "metadata": {k: v for k, v in hit.payload.items()
-                               if k not in ["doc_id", "title", "content", "source"]},
+                    "metadata": {
+                        k: v
+                        for k, v in hit.payload.items()
+                        if k not in ["doc_id", "title", "content", "source"]
+                    },
                 }
                 for hit in response.points
             ]
@@ -529,12 +534,12 @@ class VectorStoreService:
     ) -> int:
         """
         批量添加文档分块到向量集合
-        
+
         Args:
             collection_name: 集合名称
             doc_id: 原始文档 ID
             chunks: 分块列表，每个分块包含 chunk_id, content, chunk_index 等
-            
+
         Returns:
             成功添加的分块数量
         """
@@ -559,19 +564,21 @@ class VectorStoreService:
                 chunk_id = chunk.get("chunk_id", f"{doc_id}_{i}")
                 point_id = int(hashlib.md5(chunk_id.encode()).hexdigest()[:8], 16)
 
-                points.append(PointStruct(
-                    id=point_id,
-                    vector=embedding,
-                    payload={
-                        "doc_id": doc_id,
-                        "chunk_id": chunk_id,
-                        "chunk_index": chunk.get("chunk_index", i),
-                        "title": chunk.get("title", ""),
-                        "content": chunk.get("content", ""),
-                        "source": chunk.get("source", ""),
-                        **chunk.get("metadata", {}),
-                    }
-                ))
+                points.append(
+                    PointStruct(
+                        id=point_id,
+                        vector=embedding,
+                        payload={
+                            "doc_id": doc_id,
+                            "chunk_id": chunk_id,
+                            "chunk_index": chunk.get("chunk_index", i),
+                            "title": chunk.get("title", ""),
+                            "content": chunk.get("content", ""),
+                            "source": chunk.get("source", ""),
+                            **chunk.get("metadata", {}),
+                        },
+                    )
+                )
 
             if points:
                 client = cast(Any, self.client)
@@ -629,13 +636,15 @@ async def embed_and_store_document(
     """向量化并存储单个文档"""
     result = await vector_store.add_documents(
         collection_name=collection_name,
-        documents=[{
-            "id": doc_id,
-            "title": title,
-            "content": content,
-            "source": source,
-            "metadata": metadata or {},
-        }],
+        documents=[
+            {
+                "id": doc_id,
+                "title": title,
+                "content": content,
+                "source": source,
+                "metadata": metadata or {},
+            }
+        ],
     )
     return result > 0
 
@@ -661,15 +670,15 @@ async def multi_collection_search(
 ) -> list[dict[str, Any]]:
     """
     多集合搜索
-    
+
     在多个向量集合中搜索，合并结果并按分数排序
-    
+
     Args:
         collection_names: 集合名称列表
         query: 查询文本
         top_k: 每个集合返回的结果数
         score_threshold: 相似度阈值
-        
+
     Returns:
         合并后的搜索结果
     """
@@ -704,13 +713,13 @@ async def search_with_filter(
 ) -> list[dict[str, Any]]:
     """
     带过滤条件的搜索
-    
+
     Args:
         collection_name: 集合名称
         query: 查询文本
         filters: 过滤条件字典
         top_k: 返回结果数
-        
+
     Returns:
         过滤后的搜索结果
     """
@@ -730,15 +739,15 @@ async def get_similar_chunks(
 ) -> list[dict[str, Any]]:
     """
     获取相似分块
-    
+
     根据已有分块找到相似的其他分块
-    
+
     Args:
         collection_name: 集合名称
         chunk_id: 分块 ID
         top_k: 返回结果数
         exclude_same_doc: 是否排除同一文档的分块
-        
+
     Returns:
         相似分块列表
     """
@@ -779,15 +788,20 @@ async def get_similar_chunks(
             if exclude_same_doc and hit.payload.get("doc_id") == original_doc_id:
                 continue
 
-            formatted_results.append({
-                "id": hit.payload.get("chunk_id", ""),
-                "doc_id": hit.payload.get("doc_id", ""),
-                "title": hit.payload.get("title", ""),
-                "content": hit.payload.get("content", ""),
-                "score": hit.score,
-                "metadata": {k: v for k, v in hit.payload.items()
-                           if k not in ["doc_id", "chunk_id", "title", "content"]},
-            })
+            formatted_results.append(
+                {
+                    "id": hit.payload.get("chunk_id", ""),
+                    "doc_id": hit.payload.get("doc_id", ""),
+                    "title": hit.payload.get("title", ""),
+                    "content": hit.payload.get("content", ""),
+                    "score": hit.score,
+                    "metadata": {
+                        k: v
+                        for k, v in hit.payload.items()
+                        if k not in ["doc_id", "chunk_id", "title", "content"]
+                    },
+                }
+            )
 
             if len(formatted_results) >= top_k:
                 break

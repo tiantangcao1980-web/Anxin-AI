@@ -70,35 +70,40 @@ class ContextEngine:
         # Step 2: 记忆注入
         if include_memory and user_id:
             result_messages = await self._inject_memory(
-                result_messages, user_id, session_id, query,
+                result_messages,
+                user_id,
+                session_id,
+                query,
             )
 
         # Step 3: 经验注入
         if include_experience and user_id:
             result_messages = await self._inject_experience(
-                result_messages, user_id, query,
+                result_messages,
+                user_id,
+                query,
             )
 
         return result_messages
 
-    async def _maybe_compress(
-        self, messages: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    async def _maybe_compress(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """检查并执行上下文压缩"""
         try:
             from src.services.context_compressor import context_compressor
 
             tier = context_compressor.should_compress(
-                messages, max_context_tokens=self.max_context_tokens,
+                messages,
+                max_context_tokens=self.max_context_tokens,
             )
             if tier is not None:
                 logger.info(f"[ContextEngine] 触发 Tier {tier} 压缩（{len(messages)} 条消息）")
                 compressed, stats = await context_compressor.compress(
-                    messages, tier=tier, max_context_tokens=self.max_context_tokens,
+                    messages,
+                    tier=tier,
+                    max_context_tokens=self.max_context_tokens,
                 )
                 logger.info(
-                    f"[ContextEngine] 压缩完成 | "
-                    f"节省 {stats.get('saved_tokens', '?')} tokens"
+                    f"[ContextEngine] 压缩完成 | " f"节省 {stats.get('saved_tokens', '?')} tokens"
                 )
                 return compressed
         except Exception as e:
@@ -147,7 +152,9 @@ class ContextEngine:
             from src.services.experience_engine import experience_engine
 
             exp_context = experience_engine.build_experience_context(
-                user_id, query, max_tokens=self.experience_budget_tokens,
+                user_id,
+                query,
+                max_tokens=self.experience_budget_tokens,
             )
             if exp_context:
                 messages = [
@@ -184,11 +191,14 @@ class ContextEngine:
 
             for art_type in artifact_types:
                 data = await memory_layer.get_session_artifact(
-                    source_session_id, art_type,
+                    source_session_id,
+                    art_type,
                 )
                 if data:
                     await memory_layer.set_session_artifact(
-                        target_session_id, art_type, data,
+                        target_session_id,
+                        art_type,
+                        data,
                     )
                     transferred[art_type] = True
 

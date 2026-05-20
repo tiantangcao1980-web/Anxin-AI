@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P5-A: skills 路由 API 测试
 
@@ -19,6 +18,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -33,9 +33,7 @@ from httpx import AsyncClient
 
 from src.services.skill_registry import Skill, SkillRegistry
 
-
-SKILL_CONTRACT = textwrap.dedent(
-    """\
+SKILL_CONTRACT = textwrap.dedent("""\
     ---
     name: contract-review
     description: 合同审查
@@ -47,11 +45,9 @@ SKILL_CONTRACT = textwrap.dedent(
       - lawyer
     ---
     body
-    """
-)
+    """)
 
-SKILL_DOCS = textwrap.dedent(
-    """\
+SKILL_DOCS = textwrap.dedent("""\
     ---
     name: doc-summary
     description: 文档摘要
@@ -60,8 +56,7 @@ SKILL_DOCS = textwrap.dedent(
       - 摘要
     ---
     body
-    """
-)
+    """)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -69,21 +64,25 @@ async def _seed_registry(monkeypatch):
     """每个测试用全新的注册表，避免污染。"""
     SkillRegistry.reset_instance()
     reg = SkillRegistry.instance()
-    reg.register(Skill(
-        name="contract-review",
-        description="合同审查",
-        category="legal",
-        triggers=["合同审查", "风险审核"],
-        personas=["lawyer"],
-        body="body A",
-    ))
-    reg.register(Skill(
-        name="doc-summary",
-        description="文档摘要",
-        category="office",
-        triggers=["摘要"],
-        body="body B",
-    ))
+    reg.register(
+        Skill(
+            name="contract-review",
+            description="合同审查",
+            category="legal",
+            triggers=["合同审查", "风险审核"],
+            personas=["lawyer"],
+            body="body A",
+        )
+    )
+    reg.register(
+        Skill(
+            name="doc-summary",
+            description="文档摘要",
+            category="office",
+            triggers=["摘要"],
+            body="body B",
+        )
+    )
     yield
     SkillRegistry.reset_instance()
 
@@ -226,11 +225,8 @@ async def test_toggle_skill_404(auth_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_skill_with_stub_llm(
-    auth_client: AsyncClient, monkeypatch
-) -> None:
+async def test_execute_skill_with_stub_llm(auth_client: AsyncClient, monkeypatch) -> None:
     """patch 默认 LLM callable，确保 execute 不依赖外部服务。"""
-    from src.services import skill_executor as se_module
     from src.services.skill_executor import executor as exec_module
 
     def stub(system: str, user: str) -> str:

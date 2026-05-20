@@ -93,16 +93,11 @@ from src.models.case import CasePriority, CaseStatus, CaseType
 # （独立子目录 ORM，不在 src.models.__init__ 集中导出，需在此处显式 import）
 from src.services.task_orchestrator.models import Task as AgentTask  # noqa: F401
 
-
 # ============ 测试数据库配置 ============
 
-import os
 
 # 优先从环境变量获取测试数据库 URL
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "sqlite+aiosqlite:///:memory:"
-)
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 # 如果是 PostgreSQL，确保使用 asyncpg 驱动
 if TEST_DATABASE_URL.startswith("postgresql://"):
@@ -115,7 +110,7 @@ test_engine = create_async_engine(
     TEST_DATABASE_URL,
     echo=False,
     poolclass=StaticPool if _is_sqlite_memory else NullPool,
-    **( {"connect_args": {"check_same_thread": False}} if _is_sqlite_memory else {} ),
+    **({"connect_args": {"check_same_thread": False}} if _is_sqlite_memory else {}),
 )
 
 # 创建测试会话工厂
@@ -130,6 +125,7 @@ test_session_maker = async_sessionmaker(
 
 # ============ Event Loop配置 ============
 
+
 @pytest.fixture(scope="session")
 def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
     """使用 pytest-asyncio 推荐的事件循环策略入口。"""
@@ -143,6 +139,7 @@ def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
 # 每个测试运行时强制关闭 CAPTCHA；个别测试（test_auth_surface_hardening.py
 # 中的 captcha 用例）会通过 monkeypatch 再显式打开。
 
+
 @pytest.fixture(autouse=True)
 def _disable_captcha_by_default(monkeypatch):
     from src.core.config import settings as _settings
@@ -153,10 +150,12 @@ def _disable_captcha_by_default(monkeypatch):
 
 # ============ 重置全局限流器状态（防止测试间污染） ============
 
+
 @pytest_asyncio.fixture(autouse=True)
 async def _reset_rate_limiter():
     """每个测试前重置限流状态（Redis + 本地内存），避免跨测试/跨运行干扰。"""
     from src.core.security import get_rate_limiter
+
     limiter = get_rate_limiter()
     limiter._memory_windows.clear()
     # 同时清理 Redis 中的限流键
@@ -174,6 +173,7 @@ async def _reset_rate_limiter():
 
 
 # ============ 数据库Fixtures ============
+
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_test_db():
@@ -195,13 +195,13 @@ async def setup_test_db():
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     创建测试数据库会话
-    
+
     每个测试函数都会获得一个干净的事务，测试结束后回滚
     """
     async with test_session_maker() as session:
         try:
             yield session
-            await session.rollback() # 始终回滚以保持测试间的隔离
+            await session.rollback()  # 始终回滚以保持测试间的隔离
         except Exception:
             await session.rollback()
             raise
@@ -216,6 +216,7 @@ async def db(db_session: AsyncSession) -> AsyncSession:
 
 
 # ============ 测试客户端Fixtures ============
+
 
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
@@ -299,6 +300,7 @@ async def admin_auth_client(
 
 # ============ 用户Fixtures ============
 
+
 @pytest_asyncio.fixture
 async def test_organization(db_session: AsyncSession) -> Organization:
     """创建测试组织"""
@@ -346,8 +348,11 @@ async def test_admin(db_session: AsyncSession, test_organization: Organization) 
 
 # ============ 案件Fixtures ============
 
+
 @pytest_asyncio.fixture
-async def test_case(db_session: AsyncSession, test_user: User, test_organization: Organization) -> Case:
+async def test_case(
+    db_session: AsyncSession, test_user: User, test_organization: Organization
+) -> Case:
     """创建测试案件"""
     case = Case(
         id=str(uuid4()),
@@ -366,7 +371,9 @@ async def test_case(db_session: AsyncSession, test_user: User, test_organization
 
 
 @pytest_asyncio.fixture
-async def test_cases(db_session: AsyncSession, test_user: User, test_organization: Organization) -> list[Case]:
+async def test_cases(
+    db_session: AsyncSession, test_user: User, test_organization: Organization
+) -> list[Case]:
     """创建多个测试案件"""
     cases = []
     for i in range(5):
@@ -390,8 +397,11 @@ async def test_cases(db_session: AsyncSession, test_user: User, test_organizatio
 
 # ============ 文档Fixtures ============
 
+
 @pytest_asyncio.fixture
-async def test_document(db_session: AsyncSession, test_user: User, test_organization: Organization) -> Document:
+async def test_document(
+    db_session: AsyncSession, test_user: User, test_organization: Organization
+) -> Document:
     """创建测试文档"""
     from src.models.document import DocumentType
 
@@ -411,8 +421,11 @@ async def test_document(db_session: AsyncSession, test_user: User, test_organiza
 
 # ============ 舆情Fixtures ============
 
+
 @pytest_asyncio.fixture
-async def test_monitor(db_session: AsyncSession, test_user: User, test_organization: Organization) -> SentimentMonitor:
+async def test_monitor(
+    db_session: AsyncSession, test_user: User, test_organization: Organization
+) -> SentimentMonitor:
     """创建测试监控配置"""
     monitor = SentimentMonitor(
         id=str(uuid4()),
@@ -432,9 +445,7 @@ async def test_monitor(db_session: AsyncSession, test_user: User, test_organizat
 
 @pytest_asyncio.fixture
 async def test_sentiment_records(
-    db_session: AsyncSession,
-    test_monitor: SentimentMonitor,
-    test_organization: Organization
+    db_session: AsyncSession, test_monitor: SentimentMonitor, test_organization: Organization
 ) -> list[SentimentRecord]:
     """创建测试舆情记录"""
     records = []
@@ -469,11 +480,10 @@ async def test_sentiment_records(
 
 # ============ 协作Fixtures ============
 
+
 @pytest_asyncio.fixture
 async def test_session(
-    db_session: AsyncSession,
-    test_document: Document,
-    test_user: User
+    db_session: AsyncSession, test_document: Document, test_user: User
 ) -> DocumentSession:
     """创建测试协作会话"""
     from src.models.collaboration import CollaboratorRole, SessionStatus
@@ -507,13 +517,14 @@ async def test_session(
 
 # ============ Mock Fixtures ============
 
+
 @pytest.fixture
 def mock_llm_response():
     """Mock LLM响应"""
     return {
         "content": "这是一个模拟的LLM响应",
         "model": "gpt-4o",
-        "usage": {"prompt_tokens": 100, "completion_tokens": 50}
+        "usage": {"prompt_tokens": 100, "completion_tokens": 50},
     }
 
 
@@ -522,11 +533,13 @@ def mock_agent():
     """Mock智能体"""
     agent = MagicMock()
     agent.chat = AsyncMock(return_value="这是模拟的智能体回复")
-    agent.process = AsyncMock(return_value=MagicMock(
-        agent_name="MockAgent",
-        content="模拟处理结果",
-        reasoning="模拟推理过程",
-    ))
+    agent.process = AsyncMock(
+        return_value=MagicMock(
+            agent_name="MockAgent",
+            content="模拟处理结果",
+            reasoning="模拟推理过程",
+        )
+    )
     return agent
 
 
@@ -535,20 +548,24 @@ def mock_workforce():
     """Mock智能体团队"""
     workforce = MagicMock()
     workforce.chat = AsyncMock(return_value="这是模拟的团队回复")
-    workforce.process_task = AsyncMock(return_value={
-        "task": "测试任务",
-        "analysis": {"agents": ["legal_advisor"]},
-        "agent_results": [],
-        "final_result": {"summary": "模拟分析结果"}
-    })
+    workforce.process_task = AsyncMock(
+        return_value={
+            "task": "测试任务",
+            "analysis": {"agents": ["legal_advisor"]},
+            "agent_results": [],
+            "final_result": {"summary": "模拟分析结果"},
+        }
+    )
     return workforce
 
 
 # ============ 辅助函数 ============
 
+
 def create_auth_headers(user: User) -> dict:
     """创建认证头（用于需要认证的API测试）"""
     from src.core.security import create_access_token
+
     token = create_access_token(user_id=user.id)
     return {"Authorization": f"Bearer {token}"}
 
@@ -562,6 +579,7 @@ def create_auth_headers(user: User) -> dict:
 # 这里提供一个显式 fixture，让需要隔离的测试主动声明，每次给一份干净的
 # registry（reset → 自动 bootstrap）。reset_instance 内部已会复位 routes
 # 层 _AUTOLOADED guard，因此对 API 测试同样安全。
+
 
 @pytest.fixture
 def fresh_persona_registry():

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Notion OAuth Provider 单测 (P4-D)。
 
 覆盖 5 个核心断言：
@@ -33,7 +32,6 @@ from src.services.app_authorization.providers.notion_oauth import (
     NotionOAuthProvider,
 )
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -43,13 +41,11 @@ pytestmark = pytest.mark.asyncio
 TEST_CLIENT_ID = "test-notion-client-id"
 TEST_CLIENT_SECRET = "test-notion-client-secret"
 EXPECTED_BASIC_AUTH = "Basic " + base64.b64encode(
-    f"{TEST_CLIENT_ID}:{TEST_CLIENT_SECRET}".encode("utf-8")
+    f"{TEST_CLIENT_ID}:{TEST_CLIENT_SECRET}".encode()
 ).decode("ascii")
 
 
-def _make_provider(
-    *, transport: httpx.MockTransport
-) -> NotionOAuthProvider:
+def _make_provider(*, transport: httpx.MockTransport) -> NotionOAuthProvider:
     """构造一个注入 MockTransport 的 provider，避免真出网。"""
     client = httpx.AsyncClient(transport=transport)
     return NotionOAuthProvider(
@@ -134,9 +130,9 @@ async def test_exchange_code_returns_workspace_meta() -> None:
 
     # —— 返回 bundle ——
     assert bundle.access_token == "secret_xxx"
-    assert bundle.refresh_token is None       # Notion 不返回 refresh
-    assert bundle.expires_in is None          # access_token 永久有效
-    assert bundle.scope is None               # Notion 不用 scope
+    assert bundle.refresh_token is None  # Notion 不返回 refresh
+    assert bundle.expires_in is None  # access_token 永久有效
+    assert bundle.scope is None  # Notion 不用 scope
     # workspace 元信息全部留在 raw
     assert bundle.raw["workspace_name"] == "Acme Co"
     assert bundle.raw["workspace_id"] == "ws-456"

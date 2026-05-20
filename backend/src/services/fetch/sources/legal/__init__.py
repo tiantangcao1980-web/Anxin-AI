@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """法律数据源模块（P6-C）。
 
 合规底线（强制）:
@@ -8,20 +7,20 @@
 """
 
 from .base import (
+    BANNED_HOSTS,
     BaseLegalSource,
+    ComplianceError,
     LawSearchQuery,
     LawSearchResult,
-    LawType,
     LawStatus,
-    BANNED_HOSTS,
-    ComplianceError,
+    LawType,
     assert_url_compliant,
 )
-from .flk_npc_gov import FlkNpcGovSource
 from .credit_china import CreditChinaSource
+from .flk_npc_gov import FlkNpcGovSource
+from .historical_wenshu import HistoricalWenshuSource
 from .pkulaw import PkuLawSource
 from .wkinfo import WkInfoSource
-from .historical_wenshu import HistoricalWenshuSource
 
 __all__ = [
     "BaseLegalSource",

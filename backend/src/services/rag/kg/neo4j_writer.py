@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Neo4j KG 写入器
 
@@ -18,7 +17,9 @@ Neo4j KG 写入器
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, ContextManager, Iterable, Optional
+from collections.abc import Callable, Iterable
+from contextlib import AbstractContextManager as ContextManager
+from typing import Any
 
 from loguru import logger
 
@@ -28,7 +29,6 @@ from src.services.rag.kg.base import (
     Relation,
     RelationType,
 )
-
 
 SessionFactory = Callable[[], ContextManager[Any]]
 
@@ -73,7 +73,7 @@ class Neo4jKGWriter:
     def __init__(
         self,
         *,
-        session_factory: Optional[SessionFactory] = None,
+        session_factory: SessionFactory | None = None,
         driver: Any = None,
         batch_size: int = 200,
     ) -> None:
@@ -86,7 +86,7 @@ class Neo4jKGWriter:
             neo4j ``Driver`` 或 camel ``Neo4jGraph`` 实例（取后者的 ``.driver``）
         """
         if session_factory is not None:
-            self._session_factory: Optional[SessionFactory] = session_factory
+            self._session_factory: SessionFactory | None = session_factory
         elif driver is not None:
             real_driver = getattr(driver, "driver", driver)
             if real_driver is None or not hasattr(real_driver, "session"):
@@ -113,9 +113,7 @@ class Neo4jKGWriter:
             return {"nodes_written": 0, "rels_written": 0}
 
         # 跑测时拒绝真写
-        if os.environ.get("PYTEST_CURRENT_TEST") and not getattr(
-            self, "_force_in_pytest", False
-        ):
+        if os.environ.get("PYTEST_CURRENT_TEST") and not getattr(self, "_force_in_pytest", False):
             logger.info("PYTEST 环境，跳过真实 Neo4j 写入")
             return {"nodes_written": 0, "rels_written": 0}
 
@@ -132,13 +130,9 @@ class Neo4jKGWriter:
             # 2. 写关系（按 RelationType 分批 UNWIND）
             by_type: dict[RelationType, list[dict]] = {}
             for r in kg.relations:
-                by_type.setdefault(r.type, []).append(
-                    self._relation_to_payload(r, kg.document_id)
-                )
+                by_type.setdefault(r.type, []).append(self._relation_to_payload(r, kg.document_id))
             for rtype, payload in by_type.items():
-                cypher = self._MERGE_RELS_CYPHER_TEMPLATE.format(
-                    rel_label=_safe_label(rtype.value)
-                )
+                cypher = self._MERGE_RELS_CYPHER_TEMPLATE.format(rel_label=_safe_label(rtype.value))
                 for chunk in _chunks(payload, self.batch_size):
                     session.run(cypher, rels=chunk)
                     rels_written += len(chunk)
@@ -148,9 +142,7 @@ class Neo4jKGWriter:
     def delete_document_kg(self, document_id: str) -> int:
         if not self.is_available():
             return 0
-        if os.environ.get("PYTEST_CURRENT_TEST") and not getattr(
-            self, "_force_in_pytest", False
-        ):
+        if os.environ.get("PYTEST_CURRENT_TEST") and not getattr(self, "_force_in_pytest", False):
             return 0
         with self._session_factory() as session:  # type: ignore[misc]
             result = session.run(self._DELETE_DOC_CYPHER, document_id=document_id)

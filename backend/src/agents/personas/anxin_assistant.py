@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AnxinAssistantAgent —— 安心助理 通用入口 persona（P9-A）
 
@@ -36,7 +35,7 @@ import json
 import re
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -50,7 +49,6 @@ from src.agents.personas.orchestration_models import (
     RoutingDecision,
     SubTask,
 )
-
 
 # ---------------------------------------------------------------------------
 # System Prompt
@@ -104,47 +102,115 @@ SYSTEM_PROMPT = """你是「安心助理」🤖 —— 安心智能助手 V3 的
 # 关键词 → persona 映射（fast path）
 # ---------------------------------------------------------------------------
 
-INTENT_KEYWORDS: Dict[str, List[str]] = {
+INTENT_KEYWORDS: dict[str, list[str]] = {
     "legal_advisor": [
-        "法律咨询", "合规", "法规", "诉讼", "维权", "判例",
-        "起诉", "应诉", "侵权", "法条", "民法", "刑法",
+        "法律咨询",
+        "合规",
+        "法规",
+        "诉讼",
+        "维权",
+        "判例",
+        "起诉",
+        "应诉",
+        "侵权",
+        "法条",
+        "民法",
+        "刑法",
     ],
     "contract_steward": [
-        "合同", "协议", "条款", "起草", "审查", "nda", "保密协议",
-        "签约", "违约", "履约",
+        "合同",
+        "协议",
+        "条款",
+        "起草",
+        "审查",
+        "nda",
+        "保密协议",
+        "签约",
+        "违约",
+        "履约",
     ],
     "due_diligence_expert": [
-        "尽调", "调查", "背景", "工商信息", "信用",
-        "尽职调查", "公司核实", "天眼查", "企查查",
+        "尽调",
+        "调查",
+        "背景",
+        "工商信息",
+        "信用",
+        "尽职调查",
+        "公司核实",
+        "天眼查",
+        "企查查",
     ],
     "tax_finance_advisor": [
-        "税务", "财务", "报税", "vat", "财报",
-        "增值税", "个税", "发票", "记账", "审计",
+        "税务",
+        "财务",
+        "报税",
+        "vat",
+        "财报",
+        "增值税",
+        "个税",
+        "发票",
+        "记账",
+        "审计",
     ],
     "operations_manager": [
-        "okr", "审批", "会议纪要", "周报", "待办",
-        "kr", "纪要", "录音", "月报", "todo", "行动项",
+        "okr",
+        "审批",
+        "会议纪要",
+        "周报",
+        "待办",
+        "kr",
+        "纪要",
+        "录音",
+        "月报",
+        "todo",
+        "行动项",
     ],
     "market_researcher": [
-        "调研", "竞品", "趋势", "市场分析",
-        "行业", "市场规模", "用户画像",
+        "调研",
+        "竞品",
+        "趋势",
+        "市场分析",
+        "行业",
+        "市场规模",
+        "用户画像",
     ],
     "lead_hunter": [
-        "获客", "客户", "销售", "邮件", "linkedin",
-        "leads", "线索", "陌拜", "外贸客户",
+        "获客",
+        "客户",
+        "销售",
+        "邮件",
+        "linkedin",
+        "leads",
+        "线索",
+        "陌拜",
+        "外贸客户",
     ],
     "content_director": [
-        "公众号", "短视频", "海报", "文案",
-        "小红书", "抖音", "tiktok", "推文",
+        "公众号",
+        "短视频",
+        "海报",
+        "文案",
+        "小红书",
+        "抖音",
+        "tiktok",
+        "推文",
     ],
     "ecommerce_assistant": [
-        "选品", "供应商", "议价", "shopify", "amazon", "出海",
-        "跨境", "shopee", "lazada", "亚马逊",
+        "选品",
+        "供应商",
+        "议价",
+        "shopify",
+        "amazon",
+        "出海",
+        "跨境",
+        "shopee",
+        "lazada",
+        "亚马逊",
     ],
 }
 
 # 按 persona_id → display_name（系统提示与 guidance 用）
-PERSONA_DISPLAY_NAME: Dict[str, str] = {
+PERSONA_DISPLAY_NAME: dict[str, str] = {
     "anxin_assistant": "安心助理",
     "legal_advisor": "法律顾问",
     "contract_steward": "合同管家",
@@ -158,7 +224,7 @@ PERSONA_DISPLAY_NAME: Dict[str, str] = {
 }
 
 # 模糊问题样例
-PERSONA_SAMPLE_QUESTIONS: Dict[str, str] = {
+PERSONA_SAMPLE_QUESTIONS: dict[str, str] = {
     "legal_advisor": "员工泄露商业秘密我能怎么追责？",
     "contract_steward": "帮我起草一份采购合同模板",
     "due_diligence_expert": "对 XX 科技做一次工商背景核查",
@@ -185,7 +251,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
     description = "通用入口 + 任务编排 — 帮你找对的 agent 干对的活"
 
     backed_by_skills = ["docx", "xlsx", "pptx", "pdf"]
-    supported_apps: List[str] = []  # 通用，不绑特定 OAuth
+    supported_apps: list[str] = []  # 通用，不绑特定 OAuth
     capabilities = [
         "intent_routing",
         "multi_persona_orchestration",
@@ -207,10 +273,10 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def handle_message(
         self,
         message: str,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+        history: list[dict[str, Any]] | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> str:
         """处理用户消息 —— 默认行为：
         1. 先做意图分类
@@ -261,7 +327,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def classify_intent(
         self,
         user_message: str,
-        llm_config: Optional[Any] = None,
+        llm_config: Any | None = None,
     ) -> IntentClassification:
         """识别用户意图。
 
@@ -300,10 +366,10 @@ class AnxinAssistantAgent(BasePersonaAgent):
         return await self._classify_with_llm(msg, llm_config=llm_config)
 
     @staticmethod
-    def _fast_path_match(msg: str) -> List[Tuple[str, int]]:
+    def _fast_path_match(msg: str) -> list[tuple[str, int]]:
         """返回 [(persona_id, hit_count), ...]，按 hit_count 降序。"""
         msg_lower = msg.lower()
-        scores: Dict[str, int] = {}
+        scores: dict[str, int] = {}
         for persona_id, keys in INTENT_KEYWORDS.items():
             count = 0
             for k in keys:
@@ -315,10 +381,10 @@ class AnxinAssistantAgent(BasePersonaAgent):
         return ranked
 
     @staticmethod
-    def _matched_keywords(msg: str) -> List[Tuple[str, str]]:
+    def _matched_keywords(msg: str) -> list[tuple[str, str]]:
         """返回 [(persona_id, keyword), ...]，便于 reasoning 展示。"""
         msg_lower = msg.lower()
-        out: List[Tuple[str, str]] = []
+        out: list[tuple[str, str]] = []
         for persona_id, keys in INTENT_KEYWORDS.items():
             for k in keys:
                 if k.lower() in msg_lower:
@@ -326,15 +392,15 @@ class AnxinAssistantAgent(BasePersonaAgent):
         return out
 
     @staticmethod
-    def _extract_entities_lite(msg: str) -> Dict[str, List[str]]:
+    def _extract_entities_lite(msg: str) -> dict[str, list[str]]:
         """轻量实体抽取（不依赖 NER 模型，仅 regex）。"""
-        ents: Dict[str, List[str]] = {}
+        ents: dict[str, list[str]] = {}
         # 公司：《 》 包裹 或 「XX 集团 / 公司 / 科技」
         company_patterns = [
             r"《([^》]{2,40})》",
             r"([一-龥A-Za-z0-9·]{2,30}(?:集团|公司|科技|股份|有限|实业|工厂))",
         ]
-        companies: List[str] = []
+        companies: list[str] = []
         for pat in company_patterns:
             for m in re.findall(pat, msg):
                 if m and m not in companies:
@@ -342,7 +408,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
         if companies:
             ents["company"] = companies[:5]
         # 文档类型
-        doc_types: List[str] = []
+        doc_types: list[str] = []
         for kw in ["合同", "协议", "NDA", "周报", "月报", "纪要", "海报", "文案"]:
             if kw.lower() in msg.lower():
                 doc_types.append(kw)
@@ -353,7 +419,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def _classify_with_llm(
         self,
         msg: str,
-        llm_config: Optional[Any] = None,
+        llm_config: Any | None = None,
     ) -> IntentClassification:
         """LLM 兜底分类。返回 ```json``` 形式。"""
         choices = ", ".join(INTENT_KEYWORDS.keys()) + ", anxin_assistant"
@@ -372,9 +438,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
             content = await self.chat(
                 message=prompt,
                 llm_config=llm_config,
-                system_prompt_override=(
-                    "你是意图分类器。严格输出 JSON，不输出任何解释文字。"
-                ),
+                system_prompt_override=("你是意图分类器。严格输出 JSON，不输出任何解释文字。"),
             )
         except Exception as exc:
             logger.warning(f"AnxinAssistant.classify LLM 失败，回退到入口: {exc}")
@@ -439,7 +503,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def route_to_persona(
         self,
         intent: IntentClassification,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> RoutingDecision:
         """根据 IntentClassification 决定执行模式。
 
@@ -455,7 +519,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
 
         # 默认顺序
         mode = "sequential"
-        rationale_bits: List[str] = []
+        rationale_bits: list[str] = []
 
         ctx = context or {}
         raw = (ctx.get("user_message") or ctx.get("message") or "").lower()
@@ -492,8 +556,8 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def decompose_task(
         self,
         task: str,
-        decision: Optional[RoutingDecision] = None,
-        intent: Optional[IntentClassification] = None,
+        decision: RoutingDecision | None = None,
+        intent: IntentClassification | None = None,
     ) -> ExecutionPlan:
         """把用户任务拆成 SubTask 列表（含依赖关系）。
 
@@ -509,7 +573,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
         targets = [decision.primary_persona] + list(decision.supporting_personas)
         # 去重保持顺序
         seen: set[str] = set()
-        ordered: List[str] = []
+        ordered: list[str] = []
         for t in targets:
             if t and t not in seen:
                 seen.add(t)
@@ -518,7 +582,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
             ordered = ["anxin_assistant"]
 
         mode = decision.execution_mode
-        subtasks: List[SubTask] = []
+        subtasks: list[SubTask] = []
 
         if mode == "branching":
             cond_id = f"st-{uuid.uuid4().hex[:6]}"
@@ -556,7 +620,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
                     )
                 )
         else:  # sequential
-            prev_id: Optional[str] = None
+            prev_id: str | None = None
             for pid in ordered:
                 stid = f"st-{uuid.uuid4().hex[:6]}"
                 subtasks.append(
@@ -585,7 +649,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def orchestrate(
         self,
         plan: ExecutionPlan,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> OrchestrationResult:
         """按 plan.execution_mode 执行 SubTask。
 
@@ -595,14 +659,12 @@ class AnxinAssistantAgent(BasePersonaAgent):
             - 全失败 → status=failed，附「转人工」建议
         """
         ctx = context or {}
-        user_id = ctx.get("user_id")
         llm_config = ctx.get("llm_config")
-        history = ctx.get("history")
 
         t0 = time.time()
-        results: Dict[str, Dict[str, Any]] = {}
-        failed: List[str] = []
-        citations: List[Dict[str, Any]] = []
+        results: dict[str, dict[str, Any]] = {}
+        failed: list[str] = []
+        citations: list[dict[str, Any]] = []
 
         if not plan.subtasks:
             return OrchestrationResult(
@@ -647,9 +709,9 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def _run_sequential(
         self,
         plan: ExecutionPlan,
-        results: Dict[str, Dict[str, Any]],
-        failed: List[str],
-        ctx: Dict[str, Any],
+        results: dict[str, dict[str, Any]],
+        failed: list[str],
+        ctx: dict[str, Any],
     ) -> None:
         prev_output: str = ""
         for st in plan.subtasks:
@@ -677,11 +739,11 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def _run_parallel(
         self,
         plan: ExecutionPlan,
-        results: Dict[str, Dict[str, Any]],
-        failed: List[str],
-        ctx: Dict[str, Any],
+        results: dict[str, dict[str, Any]],
+        failed: list[str],
+        ctx: dict[str, Any],
     ) -> None:
-        async def _one(st: SubTask) -> Tuple[str, Dict[str, Any]]:
+        async def _one(st: SubTask) -> tuple[str, dict[str, Any]]:
             try:
                 msg = self._compose_subtask_message(st, prev_output="")
                 output = await self._dispatch_subtask(st, msg, ctx)
@@ -708,9 +770,9 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def _run_branching(
         self,
         plan: ExecutionPlan,
-        results: Dict[str, Dict[str, Any]],
-        failed: List[str],
-        ctx: Dict[str, Any],
+        results: dict[str, dict[str, Any]],
+        failed: list[str],
+        ctx: dict[str, Any],
     ) -> None:
         # 第一个 subtask（assigned=anxin_assistant）做条件判定
         if not plan.subtasks:
@@ -785,7 +847,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
         self,
         st: SubTask,
         message: str,
-        ctx: Dict[str, Any],
+        ctx: dict[str, Any],
     ) -> str:
         """把 subtask 派发给目标 persona。降级：persona 不存在 → 抛 KeyError。"""
         # 自己不能再调自己（避免递归），降级为 chat
@@ -803,9 +865,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
         registry = PersonaRegistry.instance()
         target = registry.get(st.assigned_persona)
         if target is None:
-            raise KeyError(
-                f"persona `{st.assigned_persona}` 未注册，可能 P9-B/C/D/E 还未交付"
-            )
+            raise KeyError(f"persona `{st.assigned_persona}` 未注册，可能 P9-B/C/D/E 还未交付")
         return await target.handle_message(
             message=message,
             user_id=ctx.get("user_id"),
@@ -815,9 +875,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
 
     def _parse_branch_choice(self, cond_output: str, plan: ExecutionPlan) -> str:
         """从条件判定输出里抽 `chosen_branch` 字段；抽不到时挑第一条分支。"""
-        candidates = [
-            st.assigned_persona for st in plan.subtasks[1:]
-        ]
+        candidates = [st.assigned_persona for st in plan.subtasks[1:]]
         if not candidates:
             return ""
         match = re.search(r"```json\s*(.+?)```", cond_output or "", re.DOTALL)
@@ -838,30 +896,26 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def _summarize(
         self,
         plan: ExecutionPlan,
-        results: Dict[str, Dict[str, Any]],
-        failed: List[str],
+        results: dict[str, dict[str, Any]],
+        failed: list[str],
         status: str,
-        llm_config: Optional[Any] = None,
+        llm_config: Any | None = None,
     ) -> str:
         """把所有成功子任务输出拼一段总结。
 
         全部失败 → 直接返回兜底文字（不再调用 LLM）。
         """
         if status == "failed":
-            persona_names = {
-                results[fid]["persona"] for fid in failed if fid in results
-            }
+            persona_names = {results[fid]["persona"] for fid in failed if fid in results}
             persona_names.discard(self.persona_id)
-            suggest = "、".join(
-                PERSONA_DISPLAY_NAME.get(p, p) for p in persona_names
-            ) or "对应专家"
+            suggest = "、".join(PERSONA_DISPLAY_NAME.get(p, p) for p in persona_names) or "对应专家"
             return (
                 f"很抱歉，本次编排全部子任务失败。建议直接联系 **{suggest}**，"
                 "或换种说法再问我一次（我会再帮你找一遍合适的 persona）。"
             )
 
         # 拼输出
-        sections: List[str] = []
+        sections: list[str] = []
         for st in plan.subtasks:
             r = results.get(st.task_id)
             if not r:
@@ -895,7 +949,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
     async def guide_user(
         self,
         vague_query: str,
-        llm_config: Optional[Any] = None,
+        llm_config: Any | None = None,
     ) -> GuidanceResponse:
         """用户问题模糊时，给出 persona 建议 + 跟进问题 + 快捷动作。"""
         text = (vague_query or "").strip()
@@ -954,7 +1008,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
         return mapping.get(persona_id, "可能与你的问题相关")
 
     @staticmethod
-    def _build_follow_up_questions(text: str) -> List[str]:
+    def _build_follow_up_questions(text: str) -> list[str]:
         # 不依赖 LLM，给一组通用追问
         return [
             "你希望最终交付物是什么？（合同 / 报告 / 邮件 / 表格 / 决策建议…）",
@@ -970,9 +1024,9 @@ class AnxinAssistantAgent(BasePersonaAgent):
         self,
         persona_id: str,
         message: str,
-        user_id: Optional[str] = None,
-        llm_config: Optional[Any] = None,
-        history: Optional[List[Dict[str, Any]]] = None,
+        user_id: str | None = None,
+        llm_config: Any | None = None,
+        history: list[dict[str, Any]] | None = None,
     ) -> str:
         """把消息直接转给单个 persona；persona 不存在时降级。"""
         from src.agents.personas.registry import PersonaRegistry
@@ -1012,7 +1066,7 @@ class AnxinAssistantAgent(BasePersonaAgent):
     # ------------------------------------------------------------------
     # 兼容 specialized agent 的 process()（覆盖父类，加 metadata）
     # ------------------------------------------------------------------
-    async def process(self, task: Dict[str, Any]) -> AgentResponse:
+    async def process(self, task: dict[str, Any]) -> AgentResponse:
         message = task.get("description") or task.get("message") or ""
         context = task.get("context") or {}
         content = await self.handle_message(

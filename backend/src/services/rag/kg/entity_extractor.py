@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 实体抽取器
 
@@ -17,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 
 from loguru import logger
 
@@ -39,7 +38,6 @@ from src.services.rag.kg.ontology import (
     MODALITY_DEFAULT_TYPE,
     classify_entity,
 )
-
 
 LLMCall = Callable[[str], Awaitable[str]]
 
@@ -400,7 +398,7 @@ class EntityExtractor:
 
 def _make_entity_id(name: str, etype: EntityType) -> str:
     """稳定 entity_id：md5(name + type) 取前 16 位。"""
-    digest = hashlib.md5(f"{etype.value}::{name}".encode("utf-8")).hexdigest()
+    digest = hashlib.md5(f"{etype.value}::{name}".encode()).hexdigest()
     return f"ent_{digest[:16]}"
 
 

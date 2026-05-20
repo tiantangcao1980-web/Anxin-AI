@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """飞书 OAuth Provider 单元测试（P4-B）。
 
 覆盖：
@@ -87,9 +86,7 @@ async def test_authorize_url_format() -> None:
     qs = parse_qs(parsed.query)
     assert qs["app_id"] == ["cli_test_app_id"]
     assert qs["state"] == ["csrf_state_xyz"]
-    assert qs["redirect_uri"] == [
-        "https://anxin.example.com/oauth/feishu/callback"
-    ]
+    assert qs["redirect_uri"] == ["https://anxin.example.com/oauth/feishu/callback"]
     # scope 用逗号拼接
     assert qs["scope"] == ["contact:user.id:readonly,calendar:calendar"]
     assert qs["response_type"] == ["code"]
@@ -160,9 +157,7 @@ async def test_exchange_code_success() -> None:
 @pytest.mark.asyncio
 async def test_exchange_code_business_error_raises_oauth_error() -> None:
     """飞书业务非 0 错误（非 token_expired）应抛 OAuthError。"""
-    fake_response = _mock_response(
-        {"code": 20002, "msg": "code expired"}
-    )
+    fake_response = _mock_response({"code": 20002, "msg": "code expired"})
     http_client = MagicMock()
     http_client.request = AsyncMock(return_value=fake_response)
     provider = _make_provider(http_client=http_client)
@@ -259,9 +254,7 @@ async def test_get_user_info_rejects_empty_token() -> None:
 @pytest.mark.parametrize("err_code", [99991663, 99991664])
 async def test_token_expired_raises_correct_error(err_code: int) -> None:
     """飞书错误码 99991663/99991664 → OAuthTokenExpiredError。"""
-    fake_response = _mock_response(
-        {"code": err_code, "msg": "access token expired"}
-    )
+    fake_response = _mock_response({"code": err_code, "msg": "access token expired"})
     http_client = MagicMock()
     http_client.request = AsyncMock(return_value=fake_response)
     provider = _make_provider(http_client=http_client)

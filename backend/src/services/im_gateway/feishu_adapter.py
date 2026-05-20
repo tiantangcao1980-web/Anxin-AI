@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 飞书（Lark）IM 适配器 — P3 真实现
 
@@ -80,9 +79,7 @@ class FeishuAdapter(BaseIMAdapter):
             self._settings = None
 
         self._app_id: str = self.config.get("app_id") or self._setting("FEISHU_APP_ID")
-        self._app_secret: str = self.config.get("app_secret") or self._setting(
-            "FEISHU_APP_SECRET"
-        )
+        self._app_secret: str = self.config.get("app_secret") or self._setting("FEISHU_APP_SECRET")
         self._encrypt_key: str = self.config.get("encrypt_key") or self._setting(
             "FEISHU_ENCRYPT_KEY"
         )
@@ -135,9 +132,7 @@ class FeishuAdapter(BaseIMAdapter):
     async def _get_tenant_access_token(self) -> str:
         """获取 ``tenant_access_token``（带 Redis 缓存 + 过期前续期）。"""
         if not self._app_id or not self._app_secret:
-            raise RuntimeError(
-                "飞书 app_id/app_secret 未配置，无法获取 tenant_access_token"
-            )
+            raise RuntimeError("飞书 app_id/app_secret 未配置，无法获取 tenant_access_token")
 
         cache_key = self._token_cache_key()
         redis = await self._get_redis()
@@ -184,8 +179,7 @@ class FeishuAdapter(BaseIMAdapter):
         data = resp.json()
         if data.get("code") != 0:
             raise RuntimeError(
-                f"飞书 tenant_access_token 失败: code={data.get('code')} "
-                f"msg={data.get('msg')}"
+                f"飞书 tenant_access_token 失败: code={data.get('code')} " f"msg={data.get('msg')}"
             )
         return data["tenant_access_token"], int(data.get("expire", 7200))
 
@@ -357,9 +351,7 @@ class FeishuAdapter(BaseIMAdapter):
         # v2: { "schema": "2.0", "header": {...}, "event": {...} }
         # v1: { "type": "event_callback", "event": {...} }
         header = body_obj.get("header") or {}
-        event_type = header.get("event_type") or body_obj.get("event", {}).get(
-            "type", "unknown"
-        )
+        event_type = header.get("event_type") or body_obj.get("event", {}).get("type", "unknown")
         event_data = body_obj.get("event", {})
 
         # 卡片回调（按钮点击）
@@ -374,9 +366,7 @@ class FeishuAdapter(BaseIMAdapter):
 
         # 普通消息
         sender = event_data.get("sender", {}) or {}
-        sender_id = (sender.get("sender_id") or {}).get("open_id") or sender.get(
-            "open_id"
-        )
+        sender_id = (sender.get("sender_id") or {}).get("open_id") or sender.get("open_id")
         return {
             "kind": "event",
             "channel_type": self.channel_type,
@@ -449,9 +439,7 @@ class FeishuAdapter(BaseIMAdapter):
             if page_token:
                 params["page_token"] = page_token
 
-            data = await self._request_with_retry(
-                "GET", LIST_CHATS_URL, params=params
-            )
+            data = await self._request_with_retry("GET", LIST_CHATS_URL, params=params)
             items = (data.get("data") or {}).get("items") or []
             for item in items:
                 groups.append(

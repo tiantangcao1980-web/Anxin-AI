@@ -34,6 +34,7 @@ ALLOWED_MESSAGE_TYPES = {"text", "image", "file", "system", "card"}  # 允许的
 
 class ConversationResponse(BaseModel):
     """对话响应模型"""
+
     id: str
     type: str
     title: str | None = None
@@ -45,6 +46,7 @@ class ConversationResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     """消息响应模型"""
+
     id: str
     conversation_id: str
     sender_id: str
@@ -60,6 +62,7 @@ class MessageResponse(BaseModel):
 
 class CreateConversationRequest(BaseModel):
     """创建对话请求"""
+
     type: str = Field(..., description="对话类型: private|group|case|contract")
     participant_ids: list[str] = Field(..., description="参与者用户 ID 列表")
     title: str | None = Field(None, description="对话标题（群聊时使用）")
@@ -84,25 +87,25 @@ async def search_users_for_im(
 
     if q.strip():
         pattern = f"%{q.strip()}%"
-        query = query.where(
-            or_(User.name.ilike(pattern), User.email.ilike(pattern))
-        )
+        query = query.where(or_(User.name.ilike(pattern), User.email.ilike(pattern)))
 
     query = query.order_by(User.name).limit(limit)
     result = await db.execute(query)
     users = result.scalars().all()
 
-    return UnifiedResponse.success(data=[
-        {
-            "id": str(u.id),
-            "name": u.name,
-            "email": u.email,
-            "avatar_url": u.avatar_url,
-            "department": u.department,
-            "role": u.role,
-        }
-        for u in users
-    ])
+    return UnifiedResponse.success(
+        data=[
+            {
+                "id": str(u.id),
+                "name": u.name,
+                "email": u.email,
+                "avatar_url": u.avatar_url,
+                "department": u.department,
+                "role": u.role,
+            }
+            for u in users
+        ]
+    )
 
 
 @router.get("/conversations")
@@ -222,7 +225,9 @@ async def im_websocket(
     try:
         init_msg = await asyncio.wait_for(websocket.receive_json(), timeout=10)
     except TimeoutError:
-        await websocket.send_json({"type": "error", "message": "认证超时，请在连接后 10s 内发送 auth 首包"})
+        await websocket.send_json(
+            {"type": "error", "message": "认证超时，请在连接后 10s 内发送 auth 首包"}
+        )
         await websocket.close(code=4001, reason="认证超时")
         return
     except WebSocketDisconnect:
@@ -279,9 +284,7 @@ async def im_websocket(
             elif msg_type == "recall":
                 await _handle_recall(db, user_id, data)
             else:
-                await websocket.send_json(
-                    {"type": "error", "message": f"未知消息类型: {msg_type}"}
-                )
+                await websocket.send_json({"type": "error", "message": f"未知消息类型: {msg_type}"})
 
     except WebSocketDisconnect:
         logger.info(f"[IM WS] 用户 {user_id} 断开连接")
@@ -320,7 +323,10 @@ async def _handle_message(
     # 消息类型白名单验证
     if message_type not in ALLOWED_MESSAGE_TYPES:
         await websocket.send_json(
-            {"type": "error", "message": f"不支持的消息类型: {message_type}，允许: {', '.join(sorted(ALLOWED_MESSAGE_TYPES))}"}
+            {
+                "type": "error",
+                "message": f"不支持的消息类型: {message_type}，允许: {', '.join(sorted(ALLOWED_MESSAGE_TYPES))}",
+            }
         )
         return
 
@@ -350,6 +356,7 @@ async def _handle_message(
     # AI 旁听钩子：异步触发，不阻塞消息流
     if message_type == "text":
         from src.services.meeting_assistant_service import meeting_assistant
+
         asyncio.create_task(
             meeting_assistant.on_message(
                 conversation_id=conversation_id,
@@ -359,9 +366,7 @@ async def _handle_message(
         )
 
 
-async def _handle_typing(
-    db: AsyncSession, user_id: str, data: dict[str, Any]
-) -> None:
+async def _handle_typing(db: AsyncSession, user_id: str, data: dict[str, Any]) -> None:
     """处理正在输入状态"""
     conversation_id = data.get("conversation_id")
     if not conversation_id:
@@ -397,9 +402,7 @@ async def _handle_ack(
     await websocket.send_json({"type": "ack_ok", "message_id": message_id})
 
 
-async def _handle_read_receipt(
-    db: AsyncSession, user_id: str, data: dict[str, Any]
-) -> None:
+async def _handle_read_receipt(db: AsyncSession, user_id: str, data: dict[str, Any]) -> None:
     """处理已读回执"""
     conversation_id = data.get("conversation_id")
     if not conversation_id:
@@ -420,9 +423,7 @@ async def _handle_read_receipt(
     )
 
 
-async def _handle_recall(
-    db: AsyncSession, user_id: str, data: dict[str, Any]
-) -> None:
+async def _handle_recall(db: AsyncSession, user_id: str, data: dict[str, Any]) -> None:
     """处理撤回消息"""
     message_id = data.get("message_id")
     if not message_id:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 L3 HeadlessXTier 接入测试。
 
@@ -40,6 +39,7 @@ def _bypass_ssrf(monkeypatch):
 
 # ============ 未配置 ============
 
+
 @pytest.mark.asyncio
 async def test_tier_disabled_when_no_base_url():
     tier = HeadlessXTier(base_url="", api_key="")
@@ -49,6 +49,7 @@ async def test_tier_disabled_when_no_base_url():
 
 
 # ============ 成功路径 ============
+
 
 @pytest.mark.asyncio
 async def test_tier_success_returns_fetch_response():
@@ -91,6 +92,7 @@ async def test_tier_success_returns_fetch_response():
 
 # ============ 401 → 直接抛 ============
 
+
 @pytest.mark.asyncio
 async def test_tier_auth_error_propagates():
     fake_client = AsyncMock(spec=HeadlessXClient)
@@ -102,6 +104,7 @@ async def test_tier_auth_error_propagates():
 
 
 # ============ 超时 / 5xx 重试耗尽 → None（fallback）============
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -122,12 +125,11 @@ async def test_tier_returns_none_on_recoverable_exhaustion(exc):
 
 # ============ 4xx 客户端错误 → success=False ============
 
+
 @pytest.mark.asyncio
 async def test_tier_4xx_returns_failed_response_for_audit():
     fake_client = AsyncMock(spec=HeadlessXClient)
-    fake_client.render.side_effect = HeadlessXClientError(
-        "bad url", status_code=400
-    )
+    fake_client.render.side_effect = HeadlessXClientError("bad url", status_code=400)
 
     tier = HeadlessXTier(client=fake_client)
     result = await tier.fetch(FetchRequest(url="not-a-url"))
@@ -140,6 +142,7 @@ async def test_tier_4xx_returns_failed_response_for_audit():
 
 
 # ============ bot_score 透传 ============
+
 
 @pytest.mark.asyncio
 async def test_tier_passes_bot_score_to_response():
@@ -162,6 +165,7 @@ async def test_tier_passes_bot_score_to_response():
 
 
 # ============ close 释放资源 ============
+
 
 @pytest.mark.asyncio
 async def test_tier_close_does_not_close_injected_client():

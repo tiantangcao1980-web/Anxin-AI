@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 skills 路由 —— P5-A 技能注册表 + 执行器对外 API
 

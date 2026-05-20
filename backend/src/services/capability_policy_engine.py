@@ -104,9 +104,13 @@ class CapabilityPolicyEngine:
 
         route_policy = route.policy if route is not None and isinstance(route.policy, dict) else {}
         route_type = (route.route_type if route is not None else "").strip().lower()
-        effective_risk = max(_risk_rank(risk_level), _risk_rank(route.risk_level if route else "l1"))
+        effective_risk = max(
+            _risk_rank(risk_level), _risk_rank(route.risk_level if route else "l1")
+        )
         required_feature = required_feature or _string_policy(route_policy, "required_feature")
-        required_permissions = tuple(required_permissions or route_policy.get("required_permissions") or ())
+        required_permissions = tuple(
+            required_permissions or route_policy.get("required_permissions") or ()
+        )
         allowed_roles = tuple(allowed_roles or route_policy.get("allowed_roles") or ())
 
         feature_denial = _feature_denial(
@@ -177,7 +181,9 @@ class CapabilityPolicyEngine:
                 now=checked_at,
             )
 
-        if _requires_trusted_device(route_policy=route_policy, route_type=route_type, risk_rank=effective_risk):
+        if _requires_trusted_device(
+            route_policy=route_policy, route_type=route_type, risk_rank=effective_risk
+        ):
             if not device_trusted:
                 return await self._deny(
                     org_id=org_id,
@@ -191,7 +197,9 @@ class CapabilityPolicyEngine:
                     now=checked_at,
                 )
 
-        if not _channel_allows(channel_policy=channel_policy, action=action, capability_key=normalized_capability):
+        if not _channel_allows(
+            channel_policy=channel_policy, action=action, capability_key=normalized_capability
+        ):
             return await self._deny(
                 org_id=org_id,
                 capability_key=normalized_capability,
@@ -204,7 +212,9 @@ class CapabilityPolicyEngine:
                 now=checked_at,
             )
 
-        requires_approval = effective_risk >= HIGH_RISK_LEVEL or bool(route_policy.get("requires_approval"))
+        requires_approval = effective_risk >= HIGH_RISK_LEVEL or bool(
+            route_policy.get("requires_approval")
+        )
         if requires_approval:
             if not approval_id:
                 return await self._deny(
@@ -532,7 +542,11 @@ def _channel_allows(
     if normalized_action in denied_actions or normalized_capability in denied_actions:
         return False
     allowed_actions = _normalized_set(channel_policy.get("allowed_actions"))
-    if allowed_actions and normalized_action not in allowed_actions and normalized_capability not in allowed_actions:
+    if (
+        allowed_actions
+        and normalized_action not in allowed_actions
+        and normalized_capability not in allowed_actions
+    ):
         return False
     return True
 

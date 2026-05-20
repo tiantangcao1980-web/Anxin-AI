@@ -59,23 +59,37 @@ class RemoteControlService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def status(self, *, org_id: str, user_id: str, desktop_device_id: str | None = None) -> dict[str, Any]:
+    async def status(
+        self, *, org_id: str, user_id: str, desktop_device_id: str | None = None
+    ) -> dict[str, Any]:
         query = select(RemoteControlPairing).where(
             RemoteControlPairing.org_id == org_id,
             RemoteControlPairing.user_id == user_id,
         )
         if desktop_device_id:
             query = query.where(RemoteControlPairing.desktop_device_id == desktop_device_id)
-        rows = (await self.db.execute(query.order_by(RemoteControlPairing.created_at.desc()).limit(20))).scalars().all()
+        rows = (
+            (
+                await self.db.execute(
+                    query.order_by(RemoteControlPairing.created_at.desc()).limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
         confirmed = [row for row in rows if row.status in REMOTE_CONTROL_ACTIVE_PAIRING_STATUSES]
         pending = [row for row in rows if row.status in REMOTE_CONTROL_PENDING_PAIRING_STATUSES]
         queued_count = 0
         if confirmed:
-            queued_count = await self._queued_command_count(org_id=org_id, pairing_ids=[row.id for row in confirmed])
+            queued_count = await self._queued_command_count(
+                org_id=org_id, pairing_ids=[row.id for row in confirmed]
+            )
 
         if confirmed:
             status = "queue_ready_execution_pending"
-            message = "远控控制面已具备已确认配对和命令队列；仍需桌面 host 拉取、执行状态回传和真机证据。"
+            message = (
+                "远控控制面已具备已确认配对和命令队列；仍需桌面 host 拉取、执行状态回传和真机证据。"
+            )
         elif pending:
             status = "pending_desktop_confirmation"
             message = "已有配对请求等待桌面端确认；确认前不会接受远控命令。"
@@ -118,7 +132,8 @@ class RemoteControlService:
             user_id=user_id,
             mobile_device_id=_required(mobile_device_id, "mobile_device_id"),
             desktop_device_id=_required(desktop_device_id, "desktop_device_id"),
-            requested_scopes=list(_normalize_values(requested_scopes)) or [REMOTE_CONTROL_REQUIRED_SCOPE],
+            requested_scopes=list(_normalize_values(requested_scopes))
+            or [REMOTE_CONTROL_REQUIRED_SCOPE],
             privacy_mode=(privacy_mode or "hybrid").strip().lower(),
             status="pending_desktop_confirmation",
             expires_at=created_at + timedelta(seconds=expires_in_seconds),
@@ -150,16 +165,22 @@ class RemoteControlService:
         confirmed_at = now or _now()
         pairing = await self._get_pairing(org_id=org_id, user_id=user_id, pairing_id=pairing_id)
         if pairing is None:
-            raise RemoteControlError("remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404)
+            raise RemoteControlError(
+                "remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404
+            )
         if pairing.desktop_device_id != desktop_device_id:
             self._audit_pairing_denial(pairing, user_id, "desktop_device_mismatch", confirmed_at)
             await self.db.flush()
-            raise RemoteControlError("remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403)
+            raise RemoteControlError(
+                "remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403
+            )
         self._ensure_pairing_live(pairing, checked_at=confirmed_at)
         if pairing.status != "pending_desktop_confirmation":
             self._audit_pairing_denial(pairing, user_id, "pairing_transition_denied", confirmed_at)
             await self.db.flush()
-            raise RemoteControlError("remote_control_pairing_transition_denied", "当前配对状态不能确认。", 409)
+            raise RemoteControlError(
+                "remote_control_pairing_transition_denied", "当前配对状态不能确认。", 409
+            )
 
         pairing.status = "confirmed"
         pairing.confirmed_at = confirmed_at
@@ -187,13 +208,17 @@ class RemoteControlService:
     ) -> RemoteControlRouteToken:
         pairing = await self._get_pairing(org_id=org_id, user_id=user_id, pairing_id=pairing_id)
         if pairing is None:
-            return RemoteControlRouteToken(False, "remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。")
+            return RemoteControlRouteToken(
+                False, "remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。"
+            )
         try:
             self._ensure_pairing_confirmed(pairing)
         except RemoteControlError as exc:
             self._audit_pairing_denial(pairing, user_id, exc.reason_code, _now())
             await self.db.flush()
-            return RemoteControlRouteToken(False, exc.reason_code, exc.human_message, pairing_id=pairing.id)
+            return RemoteControlRouteToken(
+                False, exc.reason_code, exc.human_message, pairing_id=pairing.id
+            )
 
         issued = await AgentGovernanceService(self.db).issue_route_token(
             org_id=org_id,
@@ -232,11 +257,15 @@ class RemoteControlService:
         queued_at = now or _now()
         pairing = await self._get_pairing(org_id=org_id, user_id=user_id, pairing_id=pairing_id)
         if pairing is None:
-            raise RemoteControlError("remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404)
+            raise RemoteControlError(
+                "remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404
+            )
         if pairing.desktop_device_id != desktop_device_id:
             self._audit_pairing_denial(pairing, user_id, "desktop_device_mismatch", queued_at)
             await self.db.flush()
-            raise RemoteControlError("remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403)
+            raise RemoteControlError(
+                "remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403
+            )
         self._ensure_pairing_confirmed(pairing, checked_at=queued_at)
 
         decision = await self._validate_pairing_route_token(
@@ -245,7 +274,10 @@ class RemoteControlService:
             pairing=pairing,
             route_token=route_token,
             action="remote_control.command.enqueue",
-            resource_snapshot={"desktop_device_id": desktop_device_id, "command_type": command_type},
+            resource_snapshot={
+                "desktop_device_id": desktop_device_id,
+                "command_type": command_type,
+            },
             now=queued_at,
         )
         normalized_command_type = _normalize_command_type(command_type)
@@ -320,11 +352,15 @@ class RemoteControlService:
         host_id = _required(host_instance_id, "host_instance_id")[:160]
         pairing = await self._get_pairing(org_id=org_id, user_id=user_id, pairing_id=pairing_id)
         if pairing is None:
-            raise RemoteControlError("remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404)
+            raise RemoteControlError(
+                "remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404
+            )
         if pairing.desktop_device_id != desktop_device_id:
             self._audit_pairing_denial(pairing, user_id, "desktop_device_mismatch", claimed_at)
             await self.db.flush()
-            raise RemoteControlError("remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403)
+            raise RemoteControlError(
+                "remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403
+            )
         self._ensure_pairing_confirmed(pairing, checked_at=claimed_at)
         await self._validate_pairing_route_token(
             org_id=org_id,
@@ -343,20 +379,24 @@ class RemoteControlService:
             now=claimed_at,
         )
         commands = (
-            await self.db.execute(
-                select(RemoteControlCommand)
-                .where(
-                    RemoteControlCommand.org_id == org_id,
-                    RemoteControlCommand.user_id == user_id,
-                    RemoteControlCommand.pairing_id == pairing.id,
-                    RemoteControlCommand.desktop_device_id == desktop_device_id,
-                    RemoteControlCommand.status == "queued",
-                    RemoteControlCommand.expires_at > claimed_at,
+            (
+                await self.db.execute(
+                    select(RemoteControlCommand)
+                    .where(
+                        RemoteControlCommand.org_id == org_id,
+                        RemoteControlCommand.user_id == user_id,
+                        RemoteControlCommand.pairing_id == pairing.id,
+                        RemoteControlCommand.desktop_device_id == desktop_device_id,
+                        RemoteControlCommand.status == "queued",
+                        RemoteControlCommand.expires_at > claimed_at,
+                    )
+                    .order_by(RemoteControlCommand.created_at.asc())
+                    .limit(limit)
                 )
-                .order_by(RemoteControlCommand.created_at.asc())
-                .limit(limit)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for command in commands:
             command.status = "claimed"
             command.claimed_at = claimed_at
@@ -394,18 +434,29 @@ class RemoteControlService:
         updated_at = now or _now()
         next_status = (status or "").strip().lower()
         if next_status not in REMOTE_CONTROL_EXECUTION_UPDATE_STATUSES:
-            raise RemoteControlError("remote_control_command_status_invalid", "远控命令状态回传值不受支持。", 400)
+            raise RemoteControlError(
+                "remote_control_command_status_invalid", "远控命令状态回传值不受支持。", 400
+            )
         host_id = _required(host_instance_id, "host_instance_id")[:160]
         pairing = await self._get_pairing(org_id=org_id, user_id=user_id, pairing_id=pairing_id)
         if pairing is None:
-            raise RemoteControlError("remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404)
+            raise RemoteControlError(
+                "remote_control_pairing_not_found", "远控配对不存在或不属于当前组织。", 404
+            )
         command = await self._get_command(org_id=org_id, user_id=user_id, command_id=command_id)
         if command is None or command.pairing_id != pairing.id:
-            raise RemoteControlError("remote_control_command_not_found", "远控命令不存在或不属于当前组织。", 404)
-        if pairing.desktop_device_id != desktop_device_id or command.desktop_device_id != desktop_device_id:
+            raise RemoteControlError(
+                "remote_control_command_not_found", "远控命令不存在或不属于当前组织。", 404
+            )
+        if (
+            pairing.desktop_device_id != desktop_device_id
+            or command.desktop_device_id != desktop_device_id
+        ):
             self._audit_pairing_denial(pairing, user_id, "desktop_device_mismatch", updated_at)
             await self.db.flush()
-            raise RemoteControlError("remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403)
+            raise RemoteControlError(
+                "remote_control_desktop_device_mismatch", "桌面设备与配对请求不匹配。", 403
+            )
         self._ensure_pairing_confirmed(pairing, checked_at=updated_at)
         await self._validate_pairing_route_token(
             org_id=org_id,
@@ -417,7 +468,11 @@ class RemoteControlService:
             now=updated_at,
         )
         if command.status in REMOTE_CONTROL_TERMINAL_COMMAND_STATUSES:
-            raise RemoteControlError("remote_control_command_transition_denied", "终态远控命令不能继续回传执行状态。", 409)
+            raise RemoteControlError(
+                "remote_control_command_transition_denied",
+                "终态远控命令不能继续回传执行状态。",
+                409,
+            )
         if _as_utc(command.expires_at) <= updated_at:
             command.status = "expired"
             self._audit(
@@ -433,15 +488,29 @@ class RemoteControlService:
                 now=updated_at,
             )
             await self.db.flush()
-            raise RemoteControlError("remote_control_command_expired", "远控命令已过期，不能继续回传执行状态。", 409)
+            raise RemoteControlError(
+                "remote_control_command_expired", "远控命令已过期，不能继续回传执行状态。", 409
+            )
         if command.claimed_by_host and command.claimed_by_host != host_id:
-            raise RemoteControlError("remote_control_command_host_mismatch", "远控命令已被其他桌面 host 领取。", 403)
+            raise RemoteControlError(
+                "remote_control_command_host_mismatch", "远控命令已被其他桌面 host 领取。", 403
+            )
         if command.status == "queued":
-            raise RemoteControlError("remote_control_command_not_claimed", "远控命令必须先被桌面 host 领取再回传状态。", 409)
+            raise RemoteControlError(
+                "remote_control_command_not_claimed",
+                "远控命令必须先被桌面 host 领取再回传状态。",
+                409,
+            )
         if next_status == "running" and command.status not in {"claimed", "running"}:
-            raise RemoteControlError("remote_control_command_transition_denied", "当前远控命令状态不能进入 running。", 409)
+            raise RemoteControlError(
+                "remote_control_command_transition_denied",
+                "当前远控命令状态不能进入 running。",
+                409,
+            )
         if next_status in {"completed", "failed"} and command.status not in {"claimed", "running"}:
-            raise RemoteControlError("remote_control_command_transition_denied", "当前远控命令状态不能结束。", 409)
+            raise RemoteControlError(
+                "remote_control_command_transition_denied", "当前远控命令状态不能结束。", 409
+            )
 
         command.status = next_status
         command.claimed_by_host = host_id
@@ -481,9 +550,15 @@ class RemoteControlService:
         cancelled_at = now or _now()
         command = await self._get_command(org_id=org_id, user_id=user_id, command_id=command_id)
         if command is None:
-            raise RemoteControlError("remote_control_command_not_found", "远控命令不存在或不属于当前组织。", 404)
+            raise RemoteControlError(
+                "remote_control_command_not_found", "远控命令不存在或不属于当前组织。", 404
+            )
         if command.status not in {"queued", "claimed"}:
-            raise RemoteControlError("remote_control_command_not_cancellable", "只有 queued/claimed 状态的远控命令可以取消。", 409)
+            raise RemoteControlError(
+                "remote_control_command_not_cancellable",
+                "只有 queued/claimed 状态的远控命令可以取消。",
+                409,
+            )
         command.status = "cancelled"
         command.cancelled_at = cancelled_at
         command.cancel_reason = (reason or "").strip()[:500]
@@ -501,28 +576,38 @@ class RemoteControlService:
         await self.db.flush()
         return command
 
-    async def get_command(self, *, org_id: str, user_id: str, command_id: str) -> RemoteControlCommand | None:
+    async def get_command(
+        self, *, org_id: str, user_id: str, command_id: str
+    ) -> RemoteControlCommand | None:
         return await self._get_command(org_id=org_id, user_id=user_id, command_id=command_id)
 
-    async def audit_events(self, *, org_id: str, user_id: str, limit: int = 50) -> list[RemoteControlAuditEvent]:
+    async def audit_events(
+        self, *, org_id: str, user_id: str, limit: int = 50
+    ) -> list[RemoteControlAuditEvent]:
         rows = (
-            await self.db.execute(
-                select(RemoteControlAuditEvent)
-                .where(
-                    RemoteControlAuditEvent.org_id == org_id,
-                    RemoteControlAuditEvent.user_id == user_id,
+            (
+                await self.db.execute(
+                    select(RemoteControlAuditEvent)
+                    .where(
+                        RemoteControlAuditEvent.org_id == org_id,
+                        RemoteControlAuditEvent.user_id == user_id,
+                    )
+                    .order_by(RemoteControlAuditEvent.created_at.desc())
+                    .limit(limit)
                 )
-                .order_by(RemoteControlAuditEvent.created_at.desc())
-                .limit(limit)
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     async def _queued_command_count(self, *, org_id: str, pairing_ids: list[str]) -> int:
         if not pairing_ids:
             return 0
         result = await self.db.execute(
-            select(func.count()).select_from(RemoteControlCommand).where(
+            select(func.count())
+            .select_from(RemoteControlCommand)
+            .where(
                 RemoteControlCommand.org_id == org_id,
                 RemoteControlCommand.pairing_id.in_(pairing_ids),
                 RemoteControlCommand.status == "queued",
@@ -575,17 +660,21 @@ class RemoteControlService:
         now: datetime,
     ) -> None:
         expired_commands = (
-            await self.db.execute(
-                select(RemoteControlCommand).where(
-                    RemoteControlCommand.org_id == org_id,
-                    RemoteControlCommand.user_id == user_id,
-                    RemoteControlCommand.pairing_id == pairing.id,
-                    RemoteControlCommand.desktop_device_id == desktop_device_id,
-                    RemoteControlCommand.status == "queued",
-                    RemoteControlCommand.expires_at <= now,
+            (
+                await self.db.execute(
+                    select(RemoteControlCommand).where(
+                        RemoteControlCommand.org_id == org_id,
+                        RemoteControlCommand.user_id == user_id,
+                        RemoteControlCommand.pairing_id == pairing.id,
+                        RemoteControlCommand.desktop_device_id == desktop_device_id,
+                        RemoteControlCommand.status == "queued",
+                        RemoteControlCommand.expires_at <= now,
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for command in expired_commands:
             command.status = "expired"
             self._audit(
@@ -600,7 +689,9 @@ class RemoteControlService:
                 now=now,
             )
 
-    async def _get_pairing(self, *, org_id: str, user_id: str, pairing_id: str) -> RemoteControlPairing | None:
+    async def _get_pairing(
+        self, *, org_id: str, user_id: str, pairing_id: str
+    ) -> RemoteControlPairing | None:
         if not _looks_like_uuid(pairing_id):
             return None
         return (
@@ -613,7 +704,9 @@ class RemoteControlService:
             )
         ).scalar_one_or_none()
 
-    async def _get_command(self, *, org_id: str, user_id: str, command_id: str) -> RemoteControlCommand | None:
+    async def _get_command(
+        self, *, org_id: str, user_id: str, command_id: str
+    ) -> RemoteControlCommand | None:
         if not _looks_like_uuid(command_id):
             return None
         return (
@@ -626,12 +719,18 @@ class RemoteControlService:
             )
         ).scalar_one_or_none()
 
-    def _ensure_pairing_confirmed(self, pairing: RemoteControlPairing, checked_at: datetime | None = None) -> None:
+    def _ensure_pairing_confirmed(
+        self, pairing: RemoteControlPairing, checked_at: datetime | None = None
+    ) -> None:
         self._ensure_pairing_live(pairing, checked_at=checked_at)
         if pairing.status != "confirmed":
-            raise RemoteControlError("remote_control_pairing_not_confirmed", "远控配对尚未完成桌面端确认。", 403)
+            raise RemoteControlError(
+                "remote_control_pairing_not_confirmed", "远控配对尚未完成桌面端确认。", 403
+            )
 
-    def _ensure_pairing_live(self, pairing: RemoteControlPairing, checked_at: datetime | None = None) -> None:
+    def _ensure_pairing_live(
+        self, pairing: RemoteControlPairing, checked_at: datetime | None = None
+    ) -> None:
         now = _as_utc(checked_at or _now())
         if pairing.revoked_at or pairing.status == "revoked":
             raise RemoteControlError("remote_control_pairing_revoked", "远控配对已撤销。", 403)
@@ -694,7 +793,9 @@ def _now() -> datetime:
 def _required(value: str | None, field_name: str) -> str:
     normalized = (value or "").strip()
     if not normalized:
-        raise RemoteControlError("remote_control_required_field_missing", f"{field_name} is required", 400)
+        raise RemoteControlError(
+            "remote_control_required_field_missing", f"{field_name} is required", 400
+        )
     return normalized
 
 
@@ -703,7 +804,9 @@ def _normalize_command_type(value: str | None) -> str:
 
 
 def _normalize_values(values: list[str] | set[str] | tuple[str, ...] | None) -> tuple[str, ...]:
-    return tuple(sorted({str(value).strip().lower() for value in values or [] if str(value).strip()}))
+    return tuple(
+        sorted({str(value).strip().lower() for value in values or [] if str(value).strip()})
+    )
 
 
 def _pairing_snapshot(pairing: RemoteControlPairing) -> dict[str, Any]:
@@ -756,10 +859,15 @@ def _scrub_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _scrub_value(key: str, value: Any) -> Any:
     lowered = key.lower()
-    if any(fragment in lowered for fragment in ("token", "secret", "password", "credential", "api_key")):
+    if any(
+        fragment in lowered for fragment in ("token", "secret", "password", "credential", "api_key")
+    ):
         return "[REDACTED]"
     if isinstance(value, dict):
-        return {str(child_key): _scrub_value(str(child_key), child_value) for child_key, child_value in value.items()}
+        return {
+            str(child_key): _scrub_value(str(child_key), child_value)
+            for child_key, child_value in value.items()
+        }
     if isinstance(value, list):
         return [_scrub_value(key, item) for item in value]
     return value

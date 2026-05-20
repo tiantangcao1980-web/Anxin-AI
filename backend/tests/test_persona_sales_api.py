@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """persona_sales 6 endpoint API 测试 (P7-C 获客猎手)。
 
 ⚠️ 设计说明：
@@ -37,6 +36,7 @@ from sqlalchemy.ext.compiler import compiles  # noqa: E402
 def _compile_jsonb_for_sqlite(type_, compiler, **kw):  # noqa: ARG001
     return "JSON"
 
+
 # ---------------------------------------------------------------------------
 # 临时 import shim
 # ---------------------------------------------------------------------------
@@ -56,7 +56,6 @@ if "src.api.routes.fetch" not in sys.modules:
 
 from src.api.routes.persona_sales import router as persona_sales_router  # noqa: E402
 from src.core.deps import get_current_user_required  # noqa: E402
-
 
 BASE = "/personas/sales"
 

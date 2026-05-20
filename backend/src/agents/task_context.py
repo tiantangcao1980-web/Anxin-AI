@@ -19,6 +19,7 @@ from src.core.config import settings
 
 # ========== 1. Agent 独立上下文 ==========
 
+
 @dataclass
 class AgentContext:
     """单个 Agent 的独立任务上下文"""
@@ -62,7 +63,7 @@ class AgentContext:
         }
 
     @classmethod
-    def from_snapshot(cls, snapshot: dict[str, Any]) -> 'AgentContext':
+    def from_snapshot(cls, snapshot: dict[str, Any]) -> "AgentContext":
         """从快照恢复（用于 Agent 重启/接管时继承前任的推理链）"""
         ctx = cls(
             agent_id=snapshot.get("agent_id", str(uuid.uuid4())[:8]),
@@ -81,21 +82,23 @@ class AgentContext:
 
 # ========== 2. 公共消息池 ==========
 
+
 @dataclass
 class PoolMessage:
     """消息池中的单条消息"""
+
     id: str
     sender: str
-    topic: str        # finding / alignment / dependency / warning / request
+    topic: str  # finding / alignment / dependency / warning / request
     content: Any
-    priority: str     # normal / high / critical
+    priority: str  # normal / high / critical
     timestamp: float
 
 
 class MessagePool:
     """
     多Agent公共消息池
-    
+
     Agent 通过直接通信和同步通信两种方式将关键信息发布到公共消息池。
     基于内存实现，可通过 MemoryIntegration 桥接到 Redis。
     """
@@ -107,10 +110,12 @@ class MessagePool:
         self._lock = asyncio.Lock()
         self._subscribers: dict[str, list[asyncio.Event]] = {}
 
-    async def publish(self, sender: str, topic: str, content: Any, priority: str = "normal") -> None:
+    async def publish(
+        self, sender: str, topic: str, content: Any, priority: str = "normal"
+    ) -> None:
         """
         Agent 发布消息到公共池（直接通信 — 立即写入，立即可见）
-        
+
         topic 类型:
         - "finding"    : 发现了关键信息
         - "alignment"  : 对齐信息（任务理解、方向确认）
@@ -136,7 +141,9 @@ class MessagePool:
 
         logger.debug(f"[MessagePool] {sender} -> {topic}: {str(content)[:80]}")
 
-    async def wait_for(self, topic: str, sender: str | None = None, timeout: float = 60) -> PoolMessage | None:
+    async def wait_for(
+        self, topic: str, sender: str | None = None, timeout: float = 60
+    ) -> PoolMessage | None:
         """同步通信 — 阻塞等待公共池中出现特定 topic 的消息（有超时保护）"""
         # 先检查已有消息
         existing = await self.get_messages(topic=topic, sender=sender)
@@ -160,7 +167,9 @@ class MessagePool:
             if event in self._subscribers.get(topic, []):
                 self._subscribers[topic].remove(event)
 
-    async def get_messages(self, topic: str | None = None, sender: str | None = None, since: float | None = None) -> list[PoolMessage]:
+    async def get_messages(
+        self, topic: str | None = None, sender: str | None = None, since: float | None = None
+    ) -> list[PoolMessage]:
         """查询消息"""
         async with self._lock:
             result = list(self.messages)
@@ -186,8 +195,11 @@ class MessagePool:
             "session_id": self.session_id,
             "messages": [
                 {
-                    "id": m.id, "sender": m.sender, "topic": m.topic,
-                    "content": m.content, "priority": m.priority,
+                    "id": m.id,
+                    "sender": m.sender,
+                    "topic": m.topic,
+                    "content": m.content,
+                    "priority": m.priority,
                     "timestamp": m.timestamp,
                 }
                 for m in self.messages
@@ -195,7 +207,7 @@ class MessagePool:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'MessagePool':
+    def from_dict(cls, data: dict[str, Any]) -> "MessagePool":
         """从 dict 恢复"""
         pool = cls(task_id=data.get("task_id", ""), session_id=data.get("session_id", ""))
         for m in data.get("messages", []):
@@ -205,8 +217,8 @@ class MessagePool:
 
 # ========== 3. Agent 生命周期管理器 ==========
 
-MAX_TASK_RETRIES = settings.AGENT_MAX_RETRIES            # 单任务最大重试次数（默认 2）
-TASK_TIMEOUT_SECONDS = settings.AGENT_TASK_TIMEOUT       # 单任务超时（默认 120s）
+MAX_TASK_RETRIES = settings.AGENT_MAX_RETRIES  # 单任务最大重试次数（默认 2）
+TASK_TIMEOUT_SECONDS = settings.AGENT_TASK_TIMEOUT  # 单任务超时（默认 120s）
 
 # Agent 能力映射表（某 Agent 失败后，可以被哪些替代）
 AGENT_REPLACEMENT_MAP: dict[str, list[str]] = {
@@ -228,7 +240,7 @@ AGENT_REPLACEMENT_MAP: dict[str, list[str]] = {
 class AgentLifecycleManager:
     """
     Agent 生命周期管理器
-    
+
     负责 Agent 的健康监控、故障检测和自动恢复。
     故障恢复策略（按优先级）：
     1. 重试同一 Agent（可恢复错误，最多 2 次，超时递增）
@@ -259,7 +271,7 @@ class AgentLifecycleManager:
     ) -> Any:
         """
         带生命周期管理的 Agent 执行
-        
+
         Returns:
             AgentResponse 或降级响应
         """
@@ -293,12 +305,14 @@ class AgentLifecycleManager:
                         raise Exception(f"未找到 Agent: {agent_name}")
 
                     result = await asyncio.wait_for(
-                        agent_obj.process({
-                            "description": task_info.get("instruction", ""),
-                            "context": context,
-                            "dependent_results": task_info.get("dependent_results", {}),
-                            "llm_config": llm_config,
-                        }),
+                        agent_obj.process(
+                            {
+                                "description": task_info.get("instruction", ""),
+                                "context": context,
+                                "dependent_results": task_info.get("dependent_results", {}),
+                                "llm_config": llm_config,
+                            }
+                        ),
                         timeout=timeout,
                     )
                 finally:
@@ -311,18 +325,24 @@ class AgentLifecycleManager:
                 if isinstance(result, AgentResponse) and not result.metadata.get("error"):
                     agent_context.status = "completed"
                     agent_context.add_reasoning("执行成功")
-                    agent_context.output_artifacts.append({
-                        "content": result.content[:500],
-                        "agent": result.agent_name,
-                    })
+                    agent_context.output_artifacts.append(
+                        {
+                            "content": result.content[:500],
+                            "agent": result.agent_name,
+                        }
+                    )
 
                     # 发布成果到消息池
                     await message_pool.publish(
-                        agent_name, "finding",
+                        agent_name,
+                        "finding",
                         {"summary": result.content[:200], "agent": agent_name},
                     )
 
-                    self.agent_health[agent_name] = {"status": "healthy", "last_success": time.time()}
+                    self.agent_health[agent_name] = {
+                        "status": "healthy",
+                        "last_success": time.time(),
+                    }
                     return result
 
                 # 有错误的响应
@@ -333,16 +353,20 @@ class AgentLifecycleManager:
                     agent_context.add_reasoning(f"可恢复错误，准备重试: {error_msg[:100]}")
 
                     await message_pool.publish(
-                        agent_name, "warning",
+                        agent_name,
+                        "warning",
                         f"执行出错，正在重试 ({attempt + 1}/{MAX_TASK_RETRIES})",
                     )
-                    await self._notify("agent_task_retry", {
-                        "task_id": task_info.get("id"),
-                        "agent": agent_name,
-                        "attempt": attempt + 1,
-                        "max_retries": MAX_TASK_RETRIES,
-                        "reason": error_msg[:100],
-                    })
+                    await self._notify(
+                        "agent_task_retry",
+                        {
+                            "task_id": task_info.get("id"),
+                            "agent": agent_name,
+                            "attempt": attempt + 1,
+                            "max_retries": MAX_TASK_RETRIES,
+                            "reason": error_msg[:100],
+                        },
+                    )
                     continue
 
                 # 不可恢复错误 → 尝试替换 Agent
@@ -356,15 +380,19 @@ class AgentLifecycleManager:
                     new_ctx.input_context["previous_reasoning"] = agent_context.reasoning_chain
 
                     await message_pool.publish(
-                        "system", "alignment",
+                        "system",
+                        "alignment",
                         f"{agent_name} 失败，由 {replacement} 接管",
                         priority="high",
                     )
-                    await self._notify("agent_replaced", {
-                        "task_id": task_info.get("id"),
-                        "failed_agent": agent_name,
-                        "replacement_agent": replacement,
-                    })
+                    await self._notify(
+                        "agent_replaced",
+                        {
+                            "task_id": task_info.get("id"),
+                            "failed_agent": agent_name,
+                            "replacement_agent": replacement,
+                        },
+                    )
 
                     # 执行替代 Agent（不递归 lifecycle，直接执行一次）
                     try:
@@ -372,7 +400,9 @@ class AgentLifecycleManager:
                         if replacement_obj:
                             token2 = _task_llm_config_var.set(llm_config)
                             token2_hist = _task_history_var.set(history)
-                            token2_mcp = _task_mcp_route_context_var.set(context.get("mcp_route_context"))
+                            token2_mcp = _task_mcp_route_context_var.set(
+                                context.get("mcp_route_context")
+                            )
                             try:
                                 takeover_instruction = (
                                     task_info.get("instruction", "")
@@ -380,12 +410,16 @@ class AgentLifecycleManager:
                                     f"推理链: {'; '.join(agent_context.reasoning_chain[-3:])}"
                                 )
                                 replacement_result = await asyncio.wait_for(
-                                    replacement_obj.process({
-                                        "description": takeover_instruction,
-                                        "context": context,
-                                        "dependent_results": task_info.get("dependent_results", {}),
-                                        "llm_config": llm_config,
-                                    }),
+                                    replacement_obj.process(
+                                        {
+                                            "description": takeover_instruction,
+                                            "context": context,
+                                            "dependent_results": task_info.get(
+                                                "dependent_results", {}
+                                            ),
+                                            "llm_config": llm_config,
+                                        }
+                                    ),
                                     timeout=self._get_timeout(replacement, 0),
                                 )
                                 return replacement_result
@@ -402,12 +436,15 @@ class AgentLifecycleManager:
             except TimeoutError:
                 agent_context.add_reasoning(f"超时 ({self._get_timeout(agent_name, attempt)}s)")
                 if attempt < MAX_TASK_RETRIES:
-                    await self._notify("agent_task_retry", {
-                        "task_id": task_info.get("id"),
-                        "agent": agent_name,
-                        "attempt": attempt + 1,
-                        "reason": "timeout",
-                    })
+                    await self._notify(
+                        "agent_task_retry",
+                        {
+                            "task_id": task_info.get("id"),
+                            "agent": agent_name,
+                            "attempt": attempt + 1,
+                            "reason": "timeout",
+                        },
+                    )
                     continue
 
                 self.agent_health[agent_name] = {"status": "failed", "last_failure": time.time()}
@@ -438,11 +475,12 @@ class AgentLifecycleManager:
 
     def _get_timeout(self, agent_name: str, attempt: int) -> float:
         """动态超时：每次重试增加 50%"""
-        return TASK_TIMEOUT_SECONDS * (1.5 ** attempt)
+        return TASK_TIMEOUT_SECONDS * (1.5**attempt)
 
     def _create_degraded_response(self, agent_name: str, error_msg: str) -> Any:
         """创建降级响应"""
         from src.agents.base import AgentResponse
+
         return AgentResponse(
             agent_name=agent_name,
             content=f"[降级输出] {agent_name} 执行失败: {error_msg[:200]}。建议稍后重试或换用其他方式。",
@@ -452,6 +490,7 @@ class AgentLifecycleManager:
     def _create_timeout_response(self, agent_name: str, attempt: int) -> Any:
         """创建超时响应"""
         from src.agents.base import AgentResponse
+
         return AgentResponse(
             agent_name=agent_name,
             content=f"[超时] {agent_name} 在 {MAX_TASK_RETRIES + 1} 次尝试后仍超时，请简化问题或稍后重试。",
@@ -461,10 +500,11 @@ class AgentLifecycleManager:
 
 # ========== 4. 三层记忆集成 ==========
 
+
 class MemoryIntegration:
     """
     记忆系统与多Agent协作的集成层
-    
+
     - L1 工作记忆 (Redis): Agent上下文持久化 + 消息池状态
     - L2 情景记忆 (Qdrant): 历史任务经验检索
     - L3 语义记忆 (Qdrant+PG): 法律知识增强
@@ -479,6 +519,7 @@ class MemoryIntegration:
         """持久化 AgentContext 到 WorkingMemory.agent_states"""
         try:
             from src.core.memory.working_memory import WorkingMemoryService
+
             wm = WorkingMemoryService()
             await wm.ensure_initialized()
             if wm.redis and self.session_id:
@@ -494,6 +535,7 @@ class MemoryIntegration:
         """从 WorkingMemory 恢复 AgentContext"""
         try:
             from src.core.memory.working_memory import WorkingMemoryService
+
             wm = WorkingMemoryService()
             await wm.ensure_initialized()
             if wm.redis and self.session_id:
@@ -508,6 +550,7 @@ class MemoryIntegration:
         """消息池状态同步到 shared_variables"""
         try:
             from src.core.memory.working_memory import WorkingMemoryService
+
             wm = WorkingMemoryService()
             await wm.ensure_initialized()
             if wm.redis and self.session_id:
@@ -520,10 +563,13 @@ class MemoryIntegration:
             logger.warning(f"保存 MessagePool 失败: {e}")
 
     # === L2 情景记忆：Agent 执行中按需查询历史经验 ===
-    async def query_similar_experience(self, agent_name: str, sub_task: str) -> list[dict[str, Any]]:
+    async def query_similar_experience(
+        self, agent_name: str, sub_task: str
+    ) -> list[dict[str, Any]]:
         """查询与当前子任务相似的历史经验"""
         try:
             from src.services.episodic_memory_service import episodic_memory
+
             results = await episodic_memory.retrieve_similar_cases(
                 f"Agent:{agent_name} 任务:{sub_task}",
                 top_k=3,
@@ -545,13 +591,17 @@ class MemoryIntegration:
         # L2: 情景记忆
         try:
             from src.services.episodic_memory_service import episodic_memory
-            result["similar_cases"] = await episodic_memory.retrieve_similar_cases(query, top_k=2) or []
+
+            result["similar_cases"] = (
+                await episodic_memory.retrieve_similar_cases(query, top_k=2) or []
+            )
         except Exception as e:
             logger.debug(f"情景记忆检索失败: {e}")
 
         # L3: 语义记忆
         try:
             from src.core.memory.semantic_memory import SemanticMemoryService
+
             sm = SemanticMemoryService()
             result["legal_knowledge"] = await sm.search(query, top_k=3) or []
         except Exception as e:
@@ -560,6 +610,7 @@ class MemoryIntegration:
         # L1: 工作记忆（当前会话上下文）
         try:
             from src.core.memory.working_memory import WorkingMemoryService
+
             wm = WorkingMemoryService()
             await wm.ensure_initialized()
             if wm.redis and self.session_id:
@@ -624,5 +675,5 @@ class MemoryIntegration:
 
 # ========== 5. DAG 执行保护常量（从 config.py 统一读取） ==========
 
-MAX_DAG_ROUNDS = settings.AGENT_MAX_DAG_ROUNDS           # DAG 最大执行轮次（默认 30）
-GLOBAL_TASK_TIMEOUT = settings.AGENT_GLOBAL_TIMEOUT      # 全局任务超时（默认 600s = 10 分钟）
+MAX_DAG_ROUNDS = settings.AGENT_MAX_DAG_ROUNDS  # DAG 最大执行轮次（默认 30）
+GLOBAL_TASK_TIMEOUT = settings.AGENT_GLOBAL_TIMEOUT  # 全局任务超时（默认 600s = 10 分钟）

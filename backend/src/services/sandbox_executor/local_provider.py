@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 sandbox_executor.local_provider —— LocalProvider（subprocess 实装）
 
@@ -27,8 +26,9 @@ import os
 import shutil
 import tempfile
 import time
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator, ClassVar, Optional
+from typing import ClassVar
 
 from loguru import logger
 
@@ -39,7 +39,6 @@ from src.services.sandbox_executor.models import (
     SandboxSpec,
     SandboxStatus,
 )
-
 
 # 限制 stdout/stderr 单次抓取上限，防止 OOM
 _MAX_OUTPUT_BYTES = 10 * 1024 * 1024  # 10MB
@@ -98,8 +97,8 @@ class LocalProvider(BaseSandboxProvider):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         """通过 ``asyncio.create_subprocess_exec`` 执行命令（无 shell）。"""
         self._validate_cmd(cmd)
@@ -126,7 +125,7 @@ class LocalProvider(BaseSandboxProvider):
                 proc.communicate(input=stdin),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             killed = True
             try:
                 proc.kill()
@@ -135,7 +134,7 @@ class LocalProvider(BaseSandboxProvider):
             # 收尾
             try:
                 stdout_b, stderr_b = await asyncio.wait_for(proc.communicate(), timeout=5)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 stdout_b, stderr_b = b"", b""
             logger.warning(
                 f"[LocalProvider] exec timeout killed sandbox={sandbox.id} cmd={cmd[:3]} timeout={timeout}s"

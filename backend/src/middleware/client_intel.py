@@ -121,8 +121,6 @@ class ClientIntelMiddleware(BaseHTTPMiddleware):
 
         except Exception as e:
             logger.debug(f"ClientIntel 中间件异常（已降级）: {e}")
-            request.state.intel_result = {
-                "risk_score": 0, "reasons": [], "degraded": True
-            }
+            request.state.intel_result = {"risk_score": 0, "reasons": [], "degraded": True}
 
         return await call_next(request)

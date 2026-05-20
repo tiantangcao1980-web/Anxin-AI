@@ -53,7 +53,9 @@ class LLMService:
             else:
                 # 自动生成（注意：重启后会变化，导致无法解密已保存的密钥）
                 cls._encryption_key = Fernet.generate_key().decode()
-                logger.warning("LLM_ENCRYPTION_KEY 未设置，已自动生成。生产环境建议在.env中设置固定密钥。")
+                logger.warning(
+                    "LLM_ENCRYPTION_KEY 未设置，已自动生成。生产环境建议在.env中设置固定密钥。"
+                )
         return cls._encryption_key
 
     @classmethod
@@ -269,9 +271,7 @@ class LLMService:
     @staticmethod
     async def get_config(db: AsyncSession, config_id: str) -> LLMConfig | None:
         """获取单个配置"""
-        result = await db.execute(
-            select(LLMConfig).where(LLMConfig.id == config_id)
-        )
+        result = await db.execute(select(LLMConfig).where(LLMConfig.id == config_id))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -336,10 +336,13 @@ class LLMService:
             query = query.where(LLMConfig.org_id == org_id)
 
         # 排序
-        query = query.order_by(LLMConfig.is_default.desc(), LLMConfig.priority.desc(), LLMConfig.created_at.desc())
+        query = query.order_by(
+            LLMConfig.is_default.desc(), LLMConfig.priority.desc(), LLMConfig.created_at.desc()
+        )
 
         # 分页（Harness优化: 用 count() 替代 len(all())，避免加载全部行到内存）
         from sqlalchemy import func as sa_func
+
         count_query = select(sa_func.count()).select_from(query.subquery())
         count_result = await db.execute(count_query)
         total = count_result.scalar() or 0
@@ -348,12 +351,7 @@ class LLMService:
         result = await db.execute(query)
         items = result.scalars().all()
 
-        return {
-            "items": items,
-            "total": total,
-            "page": page,
-            "page_size": page_size
-        }
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
 
     @staticmethod
     async def update_config(
@@ -404,9 +402,7 @@ class LLMService:
         if not config:
             return False
 
-        await db.execute(
-            delete(LLMConfig).where(LLMConfig.id == config_id)
-        )
+        await db.execute(delete(LLMConfig).where(LLMConfig.id == config_id))
         await db.commit()
         LLMService.invalidate_default_config_cache(config.config_type)
 
@@ -427,9 +423,7 @@ class LLMService:
             is_openai_compatible = bool(provider_config.get("openai_compatible", False))
 
             # 构建请求
-            headers: dict[str, str] = {
-                "Content-Type": "application/json"
-            }
+            headers: dict[str, str] = {"Content-Type": "application/json"}
 
             if api_key:
                 if provider == "anthropic":
@@ -445,20 +439,36 @@ class LLMService:
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 # 对于OpenAI兼容的API，使用标准的chat/completions接口
-                if is_openai_compatible or provider in ["openai", "deepseek", "qwen", "glm", "minimax", "moonshot", "baichuan", "doubao", "stepfun", "yi", "ollama", "localai", "vllm", "xinference", "custom"]:
+                if is_openai_compatible or provider in [
+                    "openai",
+                    "deepseek",
+                    "qwen",
+                    "glm",
+                    "minimax",
+                    "moonshot",
+                    "baichuan",
+                    "doubao",
+                    "stepfun",
+                    "yi",
+                    "ollama",
+                    "localai",
+                    "vllm",
+                    "xinference",
+                    "custom",
+                ]:
                     url = f"{api_base_url.rstrip('/')}/chat/completions"
                     payload = {
                         "model": model_name,
                         "messages": [{"role": "user", "content": "Hello"}],
                         "max_tokens": 10,
-                        "stream": False
+                        "stream": False,
                     }
                 elif provider == "anthropic":
                     url = f"{api_base_url.rstrip('/')}/messages"
                     payload = {
                         "model": model_name,
                         "max_tokens": 10,
-                        "messages": [{"role": "user", "content": "Hello"}]
+                        "messages": [{"role": "user", "content": "Hello"}],
                     }
                 else:
                     # 尝试通用的OpenAI格式
@@ -466,7 +476,7 @@ class LLMService:
                     payload = {
                         "model": model_name,
                         "messages": [{"role": "user", "content": "Hello"}],
-                        "max_tokens": 10
+                        "max_tokens": 10,
                     }
 
                 response = await client.post(url, json=payload, headers=headers)
@@ -475,7 +485,7 @@ class LLMService:
                     return {
                         "success": True,
                         "message": "连接成功",
-                        "response_time_ms": response.elapsed.total_seconds() * 1000
+                        "response_time_ms": response.elapsed.total_seconds() * 1000,
                     }
                 else:
                     error_detail = response.text
@@ -492,28 +502,20 @@ class LLMService:
                     return {
                         "success": False,
                         "message": f"API返回错误: {response.status_code}",
-                        "error": error_detail
+                        "error": error_detail,
                     }
 
         except httpx.TimeoutException:
             return {
                 "success": False,
                 "message": "连接超时",
-                "error": "请检查API地址是否正确，或者网络是否通畅"
+                "error": "请检查API地址是否正确，或者网络是否通畅",
             }
         except httpx.ConnectError as e:
-            return {
-                "success": False,
-                "message": "连接失败",
-                "error": f"无法连接到服务器: {str(e)}"
-            }
+            return {"success": False, "message": "连接失败", "error": f"无法连接到服务器: {str(e)}"}
         except Exception as e:
             logger.error(f"测试LLM连接失败: {e}")
-            return {
-                "success": False,
-                "message": "测试失败",
-                "error": str(e)
-            }
+            return {"success": False, "message": "测试失败", "error": str(e)}
 
     @staticmethod
     def get_provider_configs() -> dict[str, Any]:
@@ -571,10 +573,7 @@ class LLMService:
 
     @staticmethod
     async def update_usage_stats(
-        db: AsyncSession,
-        config_id: str,
-        tokens_used: int,
-        latency_ms: float
+        db: AsyncSession, config_id: str, tokens_used: int, latency_ms: float
     ) -> None:
         """更新使用统计"""
         config = await LLMService.get_config(db, config_id)

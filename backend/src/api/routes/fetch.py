@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 fetch 路由 — P6-A 信息获取栈对外 API。
 
@@ -55,9 +54,7 @@ def _to_request(payload: FetchRequestIn, user: User) -> FetchRequest:
             schema=payload.extract.schema_,
             format=ExtractFormat(payload.extract.format),
         )
-    tier_hint: FetchTier | None = (
-        FetchTier(payload.tier_hint) if payload.tier_hint else None
-    )
+    tier_hint: FetchTier | None = FetchTier(payload.tier_hint) if payload.tier_hint else None
     return FetchRequest(
         url=str(payload.url),
         method=payload.method,

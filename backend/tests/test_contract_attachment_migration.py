@@ -13,7 +13,9 @@ def test_contract_attachment_migration_creates_table_and_downgrades(monkeypatch)
         / "versions"
         / "037_add_contract_attachments.py"
     )
-    spec = importlib.util.spec_from_file_location("migration_037_contract_attachments", migration_path)
+    spec = importlib.util.spec_from_file_location(
+        "migration_037_contract_attachments", migration_path
+    )
     assert spec and spec.loader
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
@@ -36,7 +38,9 @@ def test_contract_attachment_migration_creates_table_and_downgrades(monkeypatch)
         migration.upgrade()
 
         assert sa.inspect(conn).has_table("contract_attachments")
-        columns = {column["name"] for column in sa.inspect(conn).get_columns("contract_attachments")}
+        columns = {
+            column["name"] for column in sa.inspect(conn).get_columns("contract_attachments")
+        }
         assert {
             "contract_id",
             "org_id",
@@ -52,9 +56,7 @@ def test_contract_attachment_migration_creates_table_and_downgrades(monkeypatch)
         conn.execute(sa.text("INSERT INTO organizations (id) VALUES ('org-1')"))
         conn.execute(sa.text("INSERT INTO users (id) VALUES ('user-1')"))
         conn.execute(sa.text("INSERT INTO contracts (id, org_id) VALUES ('contract-1', 'org-1')"))
-        conn.execute(
-            sa.text(
-                """
+        conn.execute(sa.text("""
                 INSERT INTO contract_attachments
                     (
                         id, contract_id, org_id, original_filename, content_type,
@@ -67,11 +69,11 @@ def test_contract_attachment_migration_creates_table_and_downgrades(monkeypatch)
                         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
                         'user-1'
                     )
-                """
-            )
-        )
+                """))
 
-        row = conn.execute(sa.text("SELECT original_filename FROM contract_attachments")).scalar_one()
+        row = conn.execute(
+            sa.text("SELECT original_filename FROM contract_attachments")
+        ).scalar_one()
         assert row == "附件.txt"
 
         migration.downgrade()

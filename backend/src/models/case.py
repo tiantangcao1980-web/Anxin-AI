@@ -4,8 +4,6 @@
 
 """
 
-
-
 import enum
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
@@ -22,11 +20,7 @@ if TYPE_CHECKING:
     from src.models.user import Organization, User
 
 
-
-
-
 class CaseStatus(str, enum.Enum):
-
     """????"""
 
     PENDING = "pending"
@@ -42,11 +36,7 @@ class CaseStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
-
-
-
 class CasePriority(str, enum.Enum):
-
     """?????"""
 
     LOW = "low"
@@ -58,11 +48,7 @@ class CasePriority(str, enum.Enum):
     URGENT = "urgent"
 
 
-
-
-
 class CaseType(str, enum.Enum):
-
     """????"""
 
     CONTRACT = "contract"  # ????
@@ -82,50 +68,28 @@ class CaseType(str, enum.Enum):
     OTHER = "other"  # ??
 
 
-
-
-
 class Case(Base, TimestampMixin):
-
     """????"""
 
-
-
     __tablename__ = "cases"
-
-
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
 
     case_number: Mapped[str | None] = mapped_column(String(50), unique=True)
 
-    case_type: Mapped[CaseType] = mapped_column(
+    case_type: Mapped[CaseType] = mapped_column(ValueEnum(CaseType), default=CaseType.OTHER)
 
-        ValueEnum(CaseType), default=CaseType.OTHER
-
-    )
-
-    status: Mapped[CaseStatus] = mapped_column(
-
-        ValueEnum(CaseStatus), default=CaseStatus.PENDING
-
-    )
+    status: Mapped[CaseStatus] = mapped_column(ValueEnum(CaseStatus), default=CaseStatus.PENDING)
 
     priority: Mapped[CasePriority] = mapped_column(
-
         ValueEnum(CasePriority), default=CasePriority.MEDIUM
-
     )
 
     description: Mapped[str | None] = mapped_column(Text)
 
-
-
     # ?????
 
     parties: Mapped[dict[str, Any] | None] = mapped_column(JSONB)  # ?????
-
-
 
     # AI????
 
@@ -133,83 +97,51 @@ class Case(Base, TimestampMixin):
 
     risk_score: Mapped[float | None] = mapped_column()
 
-
-
     # ????
 
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-
-
     # ??
 
     org_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("organizations.id", ondelete="CASCADE")
-
     )
 
     created_by: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
 
     assignee_id: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
-
-
 
     # ??
 
     organization: Mapped[Optional["Organization"]] = relationship(
-
         "Organization", back_populates="cases"
-
     )
 
     creator: Mapped[Optional["User"]] = relationship(
-
         "User", back_populates="created_cases", foreign_keys=[created_by]
-
     )
 
     assignee: Mapped[Optional["User"]] = relationship(
-
         "User", back_populates="assigned_cases", foreign_keys=[assignee_id]
-
     )
 
     events: Mapped[list["CaseEvent"]] = relationship(
-
         "CaseEvent", back_populates="case", cascade="all, delete-orphan"
-
     )
 
-    documents: Mapped[list["Document"]] = relationship(
-
-        "Document", back_populates="case"
-
-    )
-
-
-
+    documents: Mapped[list["Document"]] = relationship("Document", back_populates="case")
 
 
 class CaseEvent(Base, TimestampMixin):
-
     """????/???"""
 
-
-
     __tablename__ = "case_events"
-
-
 
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
 
@@ -219,29 +151,17 @@ class CaseEvent(Base, TimestampMixin):
 
     event_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
-    event_time: Mapped[datetime] = mapped_column(
-
-        DateTime(timezone=True), nullable=False
-
-    )
-
-
+    event_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # ??
 
     case_id: Mapped[str] = mapped_column(
-
         GUID(), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False
-
     )
 
     created_by: Mapped[str | None] = mapped_column(
-
         GUID(), ForeignKey("users.id", ondelete="SET NULL")
-
     )
-
-
 
     # ??
 

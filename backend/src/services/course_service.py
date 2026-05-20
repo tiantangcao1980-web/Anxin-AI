@@ -2,7 +2,6 @@
 司法学院课程服务
 """
 
-
 from typing import Any
 
 from sqlalchemy import func, select
@@ -31,7 +30,9 @@ class CourseService:
         count_query = select(func.count()).select_from(query.subquery())
         total = (await self.db.execute(count_query)).scalar() or 0
 
-        query = query.order_by(Course.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        query = (
+            query.order_by(Course.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all()), total
 
@@ -69,8 +70,7 @@ class CourseService:
     async def get_progress(self, user_id: str, course_id: str) -> CourseProgress | None:
         result = await self.db.execute(
             select(CourseProgress).where(
-                CourseProgress.user_id == user_id,
-                CourseProgress.course_id == course_id
+                CourseProgress.user_id == user_id, CourseProgress.course_id == course_id
             )
         )
         return result.scalar_one_or_none()
@@ -94,7 +94,7 @@ class CourseService:
                 user_id=user_id,
                 course_id=course_id,
                 progress=progress,
-                completed_lessons=completed_lessons or []
+                completed_lessons=completed_lessons or [],
             )
             self.db.add(cp)
             await self.db.flush()

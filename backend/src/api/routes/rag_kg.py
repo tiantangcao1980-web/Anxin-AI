@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 rag_kg 路由 —— P13-B 跨模态知识图谱对外 API
 
@@ -64,14 +63,10 @@ _KG_INDEX: dict[str, _IndexedKG] = {}
 def _get_kg_or_404(kg_id: str, user: User) -> _IndexedKG:
     item = _KG_INDEX.get(kg_id)
     if item is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"KG {kg_id} 不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"KG {kg_id} 不存在")
     # 简单按 owner 隔离（管理员场景留待后续 RBAC 细化）
     if item.owner_id != str(user.id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权访问该 KG"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问该 KG")
     return item
 
 

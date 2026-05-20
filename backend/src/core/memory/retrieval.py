@@ -16,6 +16,7 @@ from .working_memory import WorkingMemoryService
 
 class MemoryRetrievalResult(BaseModel):
     """记忆检索结果"""
+
     # 工作记忆 (最快)
     working: dict[str, Any] | None = None
 
@@ -49,17 +50,14 @@ class MultiTierMemoryRetrieval:
         self,
         semantic_memory: SemanticMemoryService,
         episodic_memory: EnhancedEpisodicMemoryService,
-        working_memory: WorkingMemoryService
+        working_memory: WorkingMemoryService,
     ):
         self.semantic_memory = semantic_memory
         self.episodic_memory = episodic_memory
         self.working_memory = working_memory
 
     async def retrieve(
-        self,
-        query: str,
-        session_id: str,
-        context: dict[str, Any] | None = None
+        self, query: str, session_id: str, context: dict[str, Any] | None = None
     ) -> MemoryRetrievalResult:
         """
         跨层检索
@@ -83,16 +81,10 @@ class MultiTierMemoryRetrieval:
             return result
 
         # 2️⃣ 情景记忆层 (中速)
-        result.episodic = await self._retrieve_episodic(
-            query=query,
-            context=context or {}
-        )
+        result.episodic = await self._retrieve_episodic(query=query, context=context or {})
 
         # 3️⃣ 语义记忆层 (慢速)
-        result.semantic = await self._retrieve_semantic(
-            query=query,
-            context=context or {}
-        )
+        result.semantic = await self._retrieve_semantic(query=query, context=context or {})
 
         # 4️⃣ 跨层融合与排序
         result = await self._fuse_and_rank(result, query)
@@ -106,17 +98,14 @@ class MultiTierMemoryRetrieval:
         result.source_counts = {
             "working": 1 if result.working else 0,
             "episodic": len(result.episodic),
-            "semantic": len(result.semantic)
+            "semantic": len(result.semantic),
         }
 
         self._log_retrieval(result, query)
 
         return result
 
-    async def _retrieve_working(
-        self,
-        session_id: str
-    ) -> dict[str, Any] | None:
+    async def _retrieve_working(self, session_id: str) -> dict[str, Any] | None:
         """
         从工作记忆检索
 
@@ -131,11 +120,7 @@ class MultiTierMemoryRetrieval:
             logger.error(f"[记忆检索] 工作记忆检索失败: {e}")
             return None
 
-    async def _retrieve_episodic(
-        self,
-        query: str,
-        context: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    async def _retrieve_episodic(self, query: str, context: dict[str, Any]) -> list[dict[str, Any]]:
         """
         从情景记忆检索
 
@@ -154,9 +139,7 @@ class MultiTierMemoryRetrieval:
 
             # 执行搜索
             episodes = await self.episodic_memory.search(
-                query=query,
-                top_k=context.get("episodic_top_k", 3),
-                filters=filters
+                query=query, top_k=context.get("episodic_top_k", 3), filters=filters
             )
 
             logger.debug(f"[记忆检索] 情景记忆命中: {len(episodes)} 个案例")
@@ -166,11 +149,7 @@ class MultiTierMemoryRetrieval:
             logger.error(f"[记忆检索] 情景记忆检索失败: {e}")
             return []
 
-    async def _retrieve_semantic(
-        self,
-        query: str,
-        context: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    async def _retrieve_semantic(self, query: str, context: dict[str, Any]) -> list[dict[str, Any]]:
         """
         从语义记忆检索
 
@@ -185,9 +164,7 @@ class MultiTierMemoryRetrieval:
 
             # 执行搜索
             knowledges = await self.semantic_memory.search(
-                query=query,
-                top_k=context.get("semantic_top_k", 5),
-                filters=filters
+                query=query, top_k=context.get("semantic_top_k", 5), filters=filters
             )
 
             logger.debug(f"[记忆检索] 语义记忆命中: {len(knowledges)} 条知识")
@@ -198,9 +175,7 @@ class MultiTierMemoryRetrieval:
             return []
 
     async def _fuse_and_rank(
-        self,
-        result: MemoryRetrievalResult,
-        query: str
+        self, result: MemoryRetrievalResult, query: str
     ) -> MemoryRetrievalResult:
         """
         跨层融合与排序
@@ -229,18 +204,11 @@ class MultiTierMemoryRetrieval:
                                 k["similarity_score"] = min(k["similarity_score"] * 1.2, 1.0)
 
             # 重新排序语义记忆
-            result.semantic.sort(
-                key=lambda k: k.get("similarity_score", 0),
-                reverse=True
-            )
+            result.semantic.sort(key=lambda k: k.get("similarity_score", 0), reverse=True)
 
         return result
 
-    async def _cache_to_working(
-        self,
-        session_id: str,
-        result: MemoryRetrievalResult
-    ) -> None:
+    async def _cache_to_working(self, session_id: str, result: MemoryRetrievalResult) -> None:
         """
         缓存检索结果到工作记忆
 
@@ -256,7 +224,7 @@ class MultiTierMemoryRetrieval:
             retrieved = {
                 "episodic_ids": [e["episode_id"] for e in result.episodic],
                 "semantic_ids": [s["knowledge_id"] for s in result.semantic],
-                "cached_at": datetime.now().isoformat()
+                "cached_at": datetime.now().isoformat(),
             }
 
             session["retrieved_memories"] = retrieved
@@ -265,11 +233,7 @@ class MultiTierMemoryRetrieval:
         except Exception as e:
             logger.warning(f"[记忆检索] 缓存到工作记忆失败: {e}")
 
-    def _is_sufficient(
-        self,
-        working: dict[str, Any] | None,
-        query: str
-    ) -> bool:
+    def _is_sufficient(self, working: dict[str, Any] | None, query: str) -> bool:
         """
         判断工作记忆是否足够
 
@@ -292,11 +256,7 @@ class MultiTierMemoryRetrieval:
 
         return False
 
-    def _log_retrieval(
-        self,
-        result: MemoryRetrievalResult,
-        query: str
-    ) -> None:
+    def _log_retrieval(self, result: MemoryRetrievalResult, query: str) -> None:
         """记录检索日志"""
         logger.info(
             f"[记忆检索] 查询: {query[:50]}... "
@@ -312,7 +272,7 @@ async def retrieve_memories(
     retrieval: MultiTierMemoryRetrieval,
     query: str,
     session_id: str,
-    context: dict[str, Any] | None = None
+    context: dict[str, Any] | None = None,
 ) -> MemoryRetrievalResult:
     """
     便捷的跨层检索函数

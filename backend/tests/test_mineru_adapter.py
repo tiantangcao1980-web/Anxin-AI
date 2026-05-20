@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """MinerU 适配器单测（P13-A）。
 
 覆盖：
@@ -63,9 +62,7 @@ async def test_supports_rejects_unknown(adapter: MinerUIngestor, tmp_path: Path)
 
 
 @pytest.mark.asyncio
-async def test_ingest_missing_file_returns_warning(
-    adapter: MinerUIngestor, tmp_path: Path
-) -> None:
+async def test_ingest_missing_file_returns_warning(adapter: MinerUIngestor, tmp_path: Path) -> None:
     result = await adapter.ingest(tmp_path / "no-such.pdf")
     assert isinstance(result, IngestResult)
     assert result.segments == []
@@ -73,9 +70,7 @@ async def test_ingest_missing_file_returns_warning(
 
 
 @pytest.mark.asyncio
-async def test_ingest_pdf_returns_contract_mock(
-    adapter: MinerUIngestor, tmp_pdf: Path
-) -> None:
+async def test_ingest_pdf_returns_contract_mock(adapter: MinerUIngestor, tmp_pdf: Path) -> None:
     result = await adapter.ingest(tmp_pdf, doc_type="contract")
     assert result.document_id == tmp_pdf.stem
     modalities = {seg.modality for seg in result.segments}
@@ -91,9 +86,7 @@ async def test_ingest_pdf_returns_contract_mock(
 
 
 @pytest.mark.asyncio
-async def test_ingest_scan_returns_image_and_seal(
-    adapter: MinerUIngestor, tmp_scan: Path
-) -> None:
+async def test_ingest_scan_returns_image_and_seal(adapter: MinerUIngestor, tmp_scan: Path) -> None:
     result = await adapter.ingest(tmp_scan, doc_type="scan")
     modalities = [seg.modality for seg in result.segments]
     assert Modality.IMAGE.value in modalities
@@ -118,9 +111,7 @@ async def test_ingest_xlsx_returns_table_and_formula(
 
 
 @pytest.mark.asyncio
-async def test_ingest_statistics_populated(
-    adapter: MinerUIngestor, tmp_pdf: Path
-) -> None:
+async def test_ingest_statistics_populated(adapter: MinerUIngestor, tmp_pdf: Path) -> None:
     result = await adapter.ingest(tmp_pdf)
     stats = result.statistics
     assert stats["doc_type"] == "auto"

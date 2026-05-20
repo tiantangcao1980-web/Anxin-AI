@@ -41,13 +41,15 @@ class PrivateLLMService:
                     resp = await client.get(health_url)
                     if resp.status_code < 400:
                         models = self._extract_models(provider_key, resp)
-                        detected.append({
-                            "provider": provider_key,
-                            "name": info["name"],
-                            "endpoint": endpoint,
-                            "status": "running",
-                            "models": models,
-                        })
+                        detected.append(
+                            {
+                                "provider": provider_key,
+                                "name": info["name"],
+                                "endpoint": endpoint,
+                                "status": "running",
+                                "models": models,
+                            }
+                        )
                 except httpx.ConnectError:
                     pass
                 except Exception as e:
@@ -59,9 +61,7 @@ class PrivateLLMService:
     # 连接测试
     # ------------------------------------------------------------------
 
-    async def test_connection(
-        self, endpoint: str, model: str | None = None
-    ) -> dict[str, Any]:
+    async def test_connection(self, endpoint: str, model: str | None = None) -> dict[str, Any]:
         """
         测试连接 + 简单推理测试。
 
@@ -83,8 +83,7 @@ class PrivateLLMService:
                     models_list = data.get("data", [])
                     model_info = {
                         "available_models": [
-                            m.get("id", m.get("name", "unknown"))
-                            for m in models_list[:20]
+                            m.get("id", m.get("name", "unknown")) for m in models_list[:20]
                         ]
                     }
             except Exception:
@@ -310,9 +309,7 @@ class PrivateLLMService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _extract_models(
-        provider_key: str, resp: httpx.Response
-    ) -> list[str]:
+    def _extract_models(provider_key: str, resp: httpx.Response) -> list[str]:
         """从健康检查响应中提取模型列表"""
         try:
             data = resp.json()
@@ -324,8 +321,5 @@ class PrivateLLMService:
             return [m.get("name", "") for m in data.get("models", [])]
         elif provider_key in ("lmstudio", "vllm", "localai"):
             # /v1/models 返回 { data: [{ id, ... }] }
-            return [
-                m.get("id", m.get("name", ""))
-                for m in data.get("data", [])
-            ]
+            return [m.get("id", m.get("name", "")) for m in data.get("data", [])]
         return []

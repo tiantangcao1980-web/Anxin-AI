@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P19-A ObservabilityMiddleware 测试
 
@@ -14,7 +13,6 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import patch
 
-import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
@@ -84,6 +82,7 @@ async def test_slow_request_emits_warn(caplog):
         captured.append(str(message))
 
     from loguru import logger as loguru_logger
+
     handler_id = loguru_logger.add(capture, level="WARNING")
     try:
         transport = ASGITransport(app=app)
@@ -100,8 +99,10 @@ async def test_slow_request_emits_warn(caplog):
 async def test_sentry_breadcrumb_added():
     """断言 sentry_sdk.add_breadcrumb 被调用（不需要真 SDK 启用）。"""
     app = _build_app()
-    with patch("sentry_sdk.add_breadcrumb") as mock_breadcrumb, \
-         patch("sentry_sdk.set_tag") as _mock_tag:
+    with (
+        patch("sentry_sdk.add_breadcrumb") as mock_breadcrumb,
+        patch("sentry_sdk.set_tag") as _mock_tag,
+    ):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             await ac.get("/fast")

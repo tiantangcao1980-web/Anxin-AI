@@ -46,9 +46,7 @@ class IMService:
 
         # private 类型：检查是否已存在
         if type == "private" and len(participant_ids) == 2:
-            existing = await self._find_private_conversation(
-                participant_ids[0], participant_ids[1]
-            )
+            existing = await self._find_private_conversation(participant_ids[0], participant_ids[1])
             if existing:
                 return existing
 
@@ -147,9 +145,7 @@ class IMService:
         for conv, unread_count in rows:
             # 获取参与者列表
             p_result = await self.db.execute(
-                select(IMParticipant).where(
-                    IMParticipant.conversation_id == conv.id
-                )
+                select(IMParticipant).where(IMParticipant.conversation_id == conv.id)
             )
             participants = p_result.scalars().all()
 
@@ -181,9 +177,7 @@ class IMService:
 
         return conversations
 
-    async def get_conversation(
-        self, conversation_id: str, user_id: str
-    ) -> dict[str, Any] | None:
+    async def get_conversation(self, conversation_id: str, user_id: str) -> dict[str, Any] | None:
         """获取单个对话详情（验证用户是参与者）"""
         result = await self.db.execute(
             select(IMConversation, IMParticipant.unread_count)
@@ -203,9 +197,7 @@ class IMService:
         conv, unread_count = row
 
         p_result = await self.db.execute(
-            select(IMParticipant).where(
-                IMParticipant.conversation_id == conv.id
-            )
+            select(IMParticipant).where(IMParticipant.conversation_id == conv.id)
         )
         participants = p_result.scalars().all()
 
@@ -215,9 +207,7 @@ class IMService:
             "title": conv.title,
             "avatar_url": conv.avatar_url,
             "is_active": conv.is_active,
-            "last_message_at": (
-                conv.last_message_at.isoformat() if conv.last_message_at else None
-            ),
+            "last_message_at": (conv.last_message_at.isoformat() if conv.last_message_at else None),
             "last_message_preview": conv.last_message_preview,
             "unread_count": unread_count or 0,
             "case_id": conv.case_id,
@@ -236,9 +226,7 @@ class IMService:
     async def get_participant_ids(self, conversation_id: str) -> list[str]:
         """获取对话所有参与者 ID"""
         result = await self.db.execute(
-            select(IMParticipant.user_id).where(
-                IMParticipant.conversation_id == conversation_id
-            )
+            select(IMParticipant.user_id).where(IMParticipant.conversation_id == conversation_id)
         )
         return [row[0] for row in result.all()]
 
@@ -272,9 +260,7 @@ class IMService:
         if not await self.is_participant(conversation_id, user_id):
             return []
 
-        query = select(IMMessage).where(
-            IMMessage.conversation_id == conversation_id
-        )
+        query = select(IMMessage).where(IMMessage.conversation_id == conversation_id)
 
         # 游标分页
         if before_id:
@@ -457,9 +443,7 @@ class IMService:
 
     async def ack_message(self, message_id: str, user_id: str) -> bool:
         """确认客户端已收到某条消息，并推进该会话的已读游标。"""
-        result = await self.db.execute(
-            select(IMMessage).where(IMMessage.id == message_id)
-        )
+        result = await self.db.execute(select(IMMessage).where(IMMessage.id == message_id))
         message = result.scalar_one_or_none()
         if not message:
             return False
@@ -497,18 +481,14 @@ class IMService:
         await self.db.commit()
         return True
 
-    async def recall_message(
-        self, message_id: str, user_id: str
-    ) -> dict[str, Any] | None:
+    async def recall_message(self, message_id: str, user_id: str) -> dict[str, Any] | None:
         """
         撤回消息
 
         - 只能撤回自己发送的消息
         - 发送后 2 分钟内可撤回
         """
-        result = await self.db.execute(
-            select(IMMessage).where(IMMessage.id == message_id)
-        )
+        result = await self.db.execute(select(IMMessage).where(IMMessage.id == message_id))
         message = result.scalar_one_or_none()
 
         if not message:

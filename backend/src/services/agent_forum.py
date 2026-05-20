@@ -28,6 +28,7 @@ from loguru import logger
 @dataclass
 class AgentSpeech:
     """Agent 发言"""
+
     agent_name: str
     agent_role: str
     content: str
@@ -53,6 +54,7 @@ class AgentSpeech:
 @dataclass
 class DebateConflict:
     """辩论冲突"""
+
     topic: str
     agents_involved: list[str]
     positions: dict[str, str]
@@ -72,6 +74,7 @@ class DebateConflict:
 @dataclass
 class ForumConsensus:
     """论坛共识结论"""
+
     risk_level: str
     confidence: float
     key_conclusions: list[str]
@@ -97,6 +100,7 @@ class ForumConsensus:
 
 
 # ===== Agent 角色定义 =====
+
 
 class ForumAgentDefinition(TypedDict):
     name: str
@@ -164,12 +168,16 @@ class AgentForum:
         if self._llm_agent is None:
             try:
                 from src.agents.workforce import get_workforce
+
                 wf = get_workforce()
-                self._llm_agent = cast(ForumChatAgent | None, (
-                    wf.agents.get("due_diligence")
-                    or wf.agents.get("legal_advisor")
-                    or (list(wf.agents.values())[0] if wf.agents else None)
-                ))
+                self._llm_agent = cast(
+                    ForumChatAgent | None,
+                    (
+                        wf.agents.get("due_diligence")
+                        or wf.agents.get("legal_advisor")
+                        or (list(wf.agents.values())[0] if wf.agents else None)
+                    ),
+                )
             except Exception as e:
                 logger.warning(f"无法加载 LLM Agent: {e}")
         return self._llm_agent
@@ -230,9 +238,7 @@ class AgentForum:
             "message": "主持人正在综合分析各方观点...",
         }
 
-        host_result = await self._host_synthesize(
-            company_name, speeches, investigation_data
-        )
+        host_result = await self._host_synthesize(company_name, speeches, investigation_data)
         conflicts = host_result["conflicts"]
         follow_up_questions = host_result.get("follow_up_questions", [])
 
@@ -345,9 +351,9 @@ class AgentForum:
                 system_prompt_override=f"你是{agent_def['role']}。请以专业视角分析并直接返回 JSON。",
             )
 
-            cleaned = re.sub(r'```(?:json)?\s*', '', response).strip()
-            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
-            json_match = re.search(r'\{[\s\S]*\}', cleaned)
+            cleaned = re.sub(r"```(?:json)?\s*", "", response).strip()
+            cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+            json_match = re.search(r"\{[\s\S]*\}", cleaned)
 
             if json_match:
                 parsed = json.loads(json_match.group())
@@ -419,9 +425,9 @@ class AgentForum:
                 system_prompt_override="你是多专家辩论论坛的主持人。请综合分析并直接返回 JSON。",
             )
 
-            cleaned = re.sub(r'```(?:json)?\s*', '', response).strip()
-            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
-            json_match = re.search(r'\{[\s\S]*\}', cleaned)
+            cleaned = re.sub(r"```(?:json)?\s*", "", response).strip()
+            cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+            json_match = re.search(r"\{[\s\S]*\}", cleaned)
 
             if json_match:
                 parsed = json.loads(json_match.group())
@@ -519,10 +525,14 @@ class AgentForum:
             for s in speeches
         )
 
-        conflicts_summary = "\n".join(
-            f"- {c.topic}: {'已解决 — ' + c.resolution if c.resolved else '未解决'}"
-            for c in conflicts
-        ) if conflicts else "无冲突"
+        conflicts_summary = (
+            "\n".join(
+                f"- {c.topic}: {'已解决 — ' + c.resolution if c.resolved else '未解决'}"
+                for c in conflicts
+            )
+            if conflicts
+            else "无冲突"
+        )
 
         prompt = f"""请综合以下多专家论坛讨论，形成对「{company_name}」的最终共识结论。
 
@@ -551,9 +561,9 @@ class AgentForum:
                 system_prompt_override="你是尽职调查结论综合专家。请基于多方分析形成最终共识并直接返回 JSON。",
             )
 
-            cleaned = re.sub(r'```(?:json)?\s*', '', response).strip()
-            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
-            json_match = re.search(r'\{[\s\S]*\}', cleaned)
+            cleaned = re.sub(r"```(?:json)?\s*", "", response).strip()
+            cleaned = re.sub(r"```\s*$", "", cleaned).strip()
+            json_match = re.search(r"\{[\s\S]*\}", cleaned)
 
             if json_match:
                 parsed = json.loads(json_match.group())

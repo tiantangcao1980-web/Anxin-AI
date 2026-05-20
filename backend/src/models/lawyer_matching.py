@@ -24,47 +24,53 @@ from src.models.base import GUID, Base, TimestampMixin
 
 # ===== 枚举定义 =====
 
+
 class ConsultationStatus(str, PyEnum):
     """咨询状态"""
-    PENDING = "pending"              # 待匹配
-    MATCHING = "matching"            # 匹配中
-    MATCHED = "matched"              # 已匹配，等待律师接单
-    IN_PROGRESS = "in_progress"      # 咨询进行中
-    DELEGATION = "delegation"        # 委托签约中
-    COMPLETED = "completed"          # 已完成
-    CANCELLED = "cancelled"          # 已取消
-    EXPIRED = "expired"              # 已过期
+
+    PENDING = "pending"  # 待匹配
+    MATCHING = "matching"  # 匹配中
+    MATCHED = "matched"  # 已匹配，等待律师接单
+    IN_PROGRESS = "in_progress"  # 咨询进行中
+    DELEGATION = "delegation"  # 委托签约中
+    COMPLETED = "completed"  # 已完成
+    CANCELLED = "cancelled"  # 已取消
+    EXPIRED = "expired"  # 已过期
 
 
 class UrgencyLevel(str, PyEnum):
     """紧急程度"""
-    LOW = "low"                # 一般咨询
-    MEDIUM = "medium"          # 需要尽快处理
-    HIGH = "high"              # 紧急
-    URGENT = "urgent"          # 非常紧急（3分钟匹配）
+
+    LOW = "low"  # 一般咨询
+    MEDIUM = "medium"  # 需要尽快处理
+    HIGH = "high"  # 紧急
+    URGENT = "urgent"  # 非常紧急（3分钟匹配）
 
 
 class PrivacyLevel(int, PyEnum):
     """信息揭示级别"""
-    ANONYMOUS = 0              # 完全匿名
-    PARTIAL = 1                # 部分信息（行业、城市）
-    DELEGATED = 2              # 正式委托（必要信息）
-    FULL = 3                   # 深度合作（全部材料）
+
+    ANONYMOUS = 0  # 完全匿名
+    PARTIAL = 1  # 部分信息（行业、城市）
+    DELEGATED = 2  # 正式委托（必要信息）
+    FULL = 3  # 深度合作（全部材料）
 
 
 class DelegationStatus(str, PyEnum):
     """委托状态"""
-    DRAFT = "draft"            # 草稿
+
+    DRAFT = "draft"  # 草稿
     PENDING_SIGN = "pending_sign"  # 待签署
-    SIGNED = "signed"          # 已签署
-    PAID = "paid"              # 已支付
+    SIGNED = "signed"  # 已签署
+    PAID = "paid"  # 已支付
     IN_PROGRESS = "in_progress"  # 服务中
-    COMPLETED = "completed"    # 已完成
-    DISPUTED = "disputed"      # 争议中
-    REFUNDED = "refunded"      # 已退款
+    COMPLETED = "completed"  # 已完成
+    DISPUTED = "disputed"  # 争议中
+    REFUNDED = "refunded"  # 已退款
 
 
 # ===== 数据模型 =====
+
 
 class LawyerProfile(Base, TimestampMixin):
     """入驻律师档案"""
@@ -118,9 +124,7 @@ class Consultation(Base, TimestampMixin):
     __tablename__ = "consultations"
 
     # 发起人
-    user_id: Mapped[str] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE")
-    )
+    user_id: Mapped[str] = mapped_column(GUID(), ForeignKey("users.id", ondelete="CASCADE"))
 
     # AI 生成的匿名案情摘要（脱敏后）
     anonymous_summary: Mapped[str | None] = mapped_column(Text)
@@ -132,14 +136,10 @@ class Consultation(Base, TimestampMixin):
     legal_tags: Mapped[list[str] | None] = mapped_column(JSON, default=list)
 
     # 紧急程度
-    urgency: Mapped[str] = mapped_column(
-        String(20), default=UrgencyLevel.MEDIUM.value
-    )
+    urgency: Mapped[str] = mapped_column(String(20), default=UrgencyLevel.MEDIUM.value)
 
     # 咨询状态
-    status: Mapped[str] = mapped_column(
-        String(20), default=ConsultationStatus.PENDING.value
-    )
+    status: Mapped[str] = mapped_column(String(20), default=ConsultationStatus.PENDING.value)
 
     # 信息揭示级别
     privacy_level: Mapped[int] = mapped_column(Integer, default=0)
@@ -173,12 +173,8 @@ class Delegation(Base, TimestampMixin):
     )
 
     # 委托双方
-    client_id: Mapped[str] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE")
-    )
-    lawyer_id: Mapped[str] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE")
-    )
+    client_id: Mapped[str] = mapped_column(GUID(), ForeignKey("users.id", ondelete="CASCADE"))
+    lawyer_id: Mapped[str] = mapped_column(GUID(), ForeignKey("users.id", ondelete="CASCADE"))
 
     # 委托内容
     title: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -186,15 +182,13 @@ class Delegation(Base, TimestampMixin):
     service_type: Mapped[str | None] = mapped_column(String(50))  # 即时咨询/预约咨询/案件委托
 
     # 状态
-    status: Mapped[str] = mapped_column(
-        String(20), default=DelegationStatus.DRAFT.value
-    )
+    status: Mapped[str] = mapped_column(String(20), default=DelegationStatus.DRAFT.value)
 
     # 费用
     quoted_amount: Mapped[float | None] = mapped_column(Float)  # 报价金额
-    platform_fee: Mapped[float | None] = mapped_column(Float)   # 平台服务费
-    total_amount: Mapped[float | None] = mapped_column(Float)   # 总金额
-    paid_amount: Mapped[float | None] = mapped_column(Float)    # 已支付金额
+    platform_fee: Mapped[float | None] = mapped_column(Float)  # 平台服务费
+    total_amount: Mapped[float | None] = mapped_column(Float)  # 总金额
+    paid_amount: Mapped[float | None] = mapped_column(Float)  # 已支付金额
 
     # 签署
     contract_url: Mapped[str | None] = mapped_column(String(500))  # 委托协议文件

@@ -74,12 +74,15 @@ class EntityExtractionService:
                 relations = result.get("relations", [])
                 # 验证格式
                 valid_entities = [
-                    e for e in entities
-                    if isinstance(e, dict) and e.get("name") and e.get("type")
+                    e for e in entities if isinstance(e, dict) and e.get("name") and e.get("type")
                 ]
                 valid_relations = [
-                    r for r in relations
-                    if isinstance(r, dict) and r.get("subject") and r.get("predicate") and r.get("object")
+                    r
+                    for r in relations
+                    if isinstance(r, dict)
+                    and r.get("subject")
+                    and r.get("predicate")
+                    and r.get("object")
                 ]
                 return {"entities": valid_entities, "relations": valid_relations}
         except (json.JSONDecodeError, ValueError) as e:
@@ -89,26 +92,27 @@ class EntityExtractionService:
     def _rule_based_extract(self, text: str) -> dict[str, Any]:
         """基于规则的简单实体抽取（回退方案）"""
         import re
+
         entities: list[dict[str, Any]] = []
         relations: list[dict[str, Any]] = []
 
         # 法院
-        courts = re.findall(r'[\u4e00-\u9fa5]+(?:人民法院|仲裁委员会)', text)
+        courts = re.findall(r"[\u4e00-\u9fa5]+(?:人民法院|仲裁委员会)", text)
         for court in set(courts):
             entities.append({"name": court, "type": "Court", "properties": {}})
 
         # 法律法规
-        laws = re.findall(r'《([\u4e00-\u9fa5]+(?:法|典|条例|规定|办法|细则))》', text)
+        laws = re.findall(r"《([\u4e00-\u9fa5]+(?:法|典|条例|规定|办法|细则))》", text)
         for law in set(laws):
             entities.append({"name": law, "type": "Law", "properties": {}})
 
         # 法律条文
-        provisions = re.findall(r'第[\u4e00-\u9fa5零一二三四五六七八九十百千\d]+条', text)
+        provisions = re.findall(r"第[\u4e00-\u9fa5零一二三四五六七八九十百千\d]+条", text)
         for p in set(provisions):
             entities.append({"name": p, "type": "Provision", "properties": {}})
 
         # 公司
-        companies = re.findall(r'[\u4e00-\u9fa5]+(?:有限公司|股份有限公司|集团|公司)', text)
+        companies = re.findall(r"[\u4e00-\u9fa5]+(?:有限公司|股份有限公司|集团|公司)", text)
         for c in set(companies):
             if len(c) > 4:
                 entities.append({"name": c, "type": "Company", "properties": {}})

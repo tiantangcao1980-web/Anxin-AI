@@ -1,4 +1,3 @@
-
 import hashlib
 import time
 from datetime import UTC, datetime
@@ -30,9 +29,7 @@ class FeatureFlagService:
         now = time.monotonic()
         if self._cache is not None and (now - self._cache_ts) < self._CACHE_TTL:
             return self._cache
-        result = await self.db.execute(
-            select(FeatureFlag).order_by(FeatureFlag.created_at.desc())
-        )
+        result = await self.db.execute(select(FeatureFlag).order_by(FeatureFlag.created_at.desc()))
         flags = list(result.scalars().all())
         # 写入缓存
         FeatureFlagService._cache = flags
@@ -40,9 +37,7 @@ class FeatureFlagService:
         return flags
 
     async def get_by_key(self, key: str) -> FeatureFlag | None:
-        result = await self.db.execute(
-            select(FeatureFlag).where(FeatureFlag.key == key)
-        )
+        result = await self.db.execute(select(FeatureFlag).where(FeatureFlag.key == key))
         return result.scalar_one_or_none()
 
     async def get_flags_for_user(
@@ -88,7 +83,9 @@ class FeatureFlagService:
         if flag.target_org_ids and (not org_id or org_id not in flag.target_org_ids):
             return False
 
-        rollout_percentage = flag.rollout_percentage if flag.rollout_percentage is not None else 10000
+        rollout_percentage = (
+            flag.rollout_percentage if flag.rollout_percentage is not None else 10000
+        )
         if rollout_percentage < 10000:
             hash_val = int(hashlib.md5(f"{user_id}:{flag.key}".encode()).hexdigest(), 16)
             if hash_val % 10000 >= rollout_percentage:
@@ -187,7 +184,9 @@ class FeatureFlagService:
         if created > 0:
             await self.db.flush()
             self._invalidate_cache()
-            logger.info(f"预置功能开关: 新建 {created} 个，跳过 {len(preset_flags) - created} 个已有记录")
+            logger.info(
+                f"预置功能开关: 新建 {created} 个，跳过 {len(preset_flags) - created} 个已有记录"
+            )
         else:
             logger.debug("预置功能开关: 全部已存在，无需创建")
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P5-A: SkillRegistry validators 单元测试
 

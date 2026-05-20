@@ -43,10 +43,7 @@ class AcquisitionAnalyticsService:
             if row["stage"] is not None
         }
 
-        return [
-            {"stage": s, "count": stage_counts.get(s, 0)}
-            for s in stages
-        ]
+        return [{"stage": s, "count": stage_counts.get(s, 0)} for s in stages]
 
     async def get_conversion_rates(
         self,
@@ -65,13 +62,15 @@ class AcquisitionAnalyticsService:
             from_count = stage_map.get(from_stage, 0)
             to_count = stage_map.get(to_stage, 0)
             rate = round(to_count / from_count, 4) if from_count > 0 else 0.0
-            conversions.append({
-                "from_stage": from_stage,
-                "to_stage": to_stage,
-                "from_count": from_count,
-                "to_count": to_count,
-                "rate": rate,
-            })
+            conversions.append(
+                {
+                    "from_stage": from_stage,
+                    "to_stage": to_stage,
+                    "from_count": from_count,
+                    "to_count": to_count,
+                    "rate": rate,
+                }
+            )
 
         return conversions
 
@@ -147,15 +146,17 @@ class AcquisitionAnalyticsService:
             )
             revenue = float((await self.db.execute(revenue_q)).scalar() or 0)
 
-            performances.append({
-                "lawyer_profile_id": profile.id,
-                "lawyer_name": profile.real_name,
-                "law_firm": profile.law_firm,
-                "total_consultations": total_consultations,
-                "total_delegations": total_delegations,
-                "revenue": revenue,
-                "avg_rating": profile.rating,
-            })
+            performances.append(
+                {
+                    "lawyer_profile_id": profile.id,
+                    "lawyer_name": profile.real_name,
+                    "law_firm": profile.law_firm,
+                    "total_consultations": total_consultations,
+                    "total_delegations": total_delegations,
+                    "revenue": revenue,
+                    "avg_rating": profile.rating,
+                }
+            )
 
         # 按委托量降序排序
         performances.sort(key=lambda x: int(x["total_delegations"]), reverse=True)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P5-A: SkillExecutor 单元测试
 
@@ -91,9 +90,7 @@ class TestExecute:
     async def test_skill_not_found(
         self, registry: SkillRegistry, context: ExecutionContext
     ) -> None:
-        executor = SkillExecutor(
-            registry=registry, llm_callable=lambda s, u: "x"
-        )
+        executor = SkillExecutor(registry=registry, llm_callable=lambda s, u: "x")
         result = await executor.execute("nope", {}, context)
         assert result.status == SkillExecutionStatus.FAILED
         assert "不存在" in (result.error or "")
@@ -111,9 +108,7 @@ class TestExecute:
     async def test_persona_not_allowed(
         self, registry: SkillRegistry, context: ExecutionContext
     ) -> None:
-        registry.register(
-            Skill(name="lawyer-only", description="x", personas=["lawyer"])
-        )
+        registry.register(Skill(name="lawyer-only", description="x", personas=["lawyer"]))
         executor = SkillExecutor(registry=registry, llm_callable=lambda s, u: "x")
         # context.persona = "default"
         result = await executor.execute("lawyer-only", {}, context)
@@ -137,9 +132,7 @@ class TestExecute:
         assert result.metadata.get("missing_apps") == ["dingtalk"]
 
     @pytest.mark.asyncio
-    async def test_app_authorization_ok(
-        self, registry: SkillRegistry
-    ) -> None:
+    async def test_app_authorization_ok(self, registry: SkillRegistry) -> None:
         registry.register(
             Skill(
                 name="dingtalk-skill",
@@ -147,12 +140,8 @@ class TestExecute:
                 requires_apps=["dingtalk"],
             )
         )
-        ctx = ExecutionContext(
-            user_id="u1", persona="default", app_authorizations=["dingtalk"]
-        )
-        executor = SkillExecutor(
-            registry=registry, llm_callable=lambda s, u: "OK"
-        )
+        ctx = ExecutionContext(user_id="u1", persona="default", app_authorizations=["dingtalk"])
+        executor = SkillExecutor(registry=registry, llm_callable=lambda s, u: "OK")
         result = await executor.execute("dingtalk-skill", {}, ctx)
         assert result.ok
 
@@ -206,16 +195,12 @@ class TestExecuteBatch:
         registry.register(Skill(name="ok", description="x"))
         # "missing" 不注册，应返回 FAILED 而不抛
         executor = SkillExecutor(registry=registry, llm_callable=lambda s, u: "OK")
-        results = await executor.execute_batch(
-            [("ok", {}), ("missing", {})], context
-        )
+        results = await executor.execute_batch([("ok", {}), ("missing", {})], context)
         assert results[0].ok
         assert results[1].status == SkillExecutionStatus.FAILED
 
     @pytest.mark.asyncio
-    async def test_empty_batch(
-        self, registry: SkillRegistry, context: ExecutionContext
-    ) -> None:
+    async def test_empty_batch(self, registry: SkillRegistry, context: ExecutionContext) -> None:
         executor = SkillExecutor(registry=registry, llm_callable=lambda s, u: "x")
         assert await executor.execute_batch([], context) == []
 
@@ -226,7 +211,7 @@ class TestRequiresSkillDecorator:
         def f():
             return "x"
 
-        assert getattr(f, "__required_skills__") == ["foo", "bar"]
+        assert f.__required_skills__ == ["foo", "bar"]
 
     def test_dedupes_when_stacked(self) -> None:
         @requires_skill("foo")
@@ -234,7 +219,7 @@ class TestRequiresSkillDecorator:
         def f():
             return "x"
 
-        attrs = getattr(f, "__required_skills__")
+        attrs = f.__required_skills__
         assert "foo" in attrs and "bar" in attrs
 
     def test_call_passthrough(self) -> None:

@@ -13,14 +13,15 @@ from typing import Any
 @dataclass
 class LegalCitation:
     """法律引用结构"""
-    law_name: str           # 法律名称，如"中华人民共和国民法典"
-    article: str            # 条文编号，如"第496条"
+
+    law_name: str  # 法律名称，如"中华人民共和国民法典"
+    article: str  # 条文编号，如"第496条"
     paragraph: str | None = None  # 款，如"第二款"
-    item: str | None = None       # 项，如"第（三）项"
+    item: str | None = None  # 项，如"第（三）项"
     content_preview: str | None = None  # 条文内容摘要
-    url: str | None = None         # 国家法律数据库链接
-    verified: bool = False             # 是否验证通过
-    confidence: float = 0.0            # 引用置信度
+    url: str | None = None  # 国家法律数据库链接
+    verified: bool = False  # 是否验证通过
+    confidence: float = 0.0  # 引用置信度
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -70,13 +71,13 @@ FLKG_BASE_URL = "https://flk.npc.gov.cn/detail2.html"
 # 引用模式正则（覆盖常见格式）
 CITATION_PATTERNS = [
     # 《法律名称》第XXX条（第X款/第X项）
-    r'《([^》]+)》第(\d+)条(?:第([一二三四五六七八九十\d]+)款)?(?:第[（(]([一二三四五六七八九十\d]+)[)）]项)?',
+    r"《([^》]+)》第(\d+)条(?:第([一二三四五六七八九十\d]+)款)?(?:第[（(]([一二三四五六七八九十\d]+)[)）]项)?",
     # 法律简称第XXX条
-    r'(?:依据|根据|参照|依照)?\s*(?:《([^》]+)》|([^\s，。,\.]+?法[^，。,\.\s]*?))\s*第(\d+)[-至到]?(\d*)条',
+    r"(?:依据|根据|参照|依照)?\s*(?:《([^》]+)》|([^\s，。,\.]+?法[^，。,\.\s]*?))\s*第(\d+)[-至到]?(\d*)条",
     # 民法典第XXX-XXX条
-    r'(民法典|劳动合同法|公司法|消费者权益保护法|数据安全法|个人信息保护法)\s*第(\d+)[-至到](\d+)条',
+    r"(民法典|劳动合同法|公司法|消费者权益保护法|数据安全法|个人信息保护法)\s*第(\d+)[-至到](\d+)条",
     # 第XXX条规定
-    r'第(\d+)条(?:之(\d+))?(?:的?规定)?',
+    r"第(\d+)条(?:之(\d+))?(?:的?规定)?",
 ]
 
 
@@ -99,8 +100,8 @@ class LegalCitationService:
 
         # Pattern 1: 《法律名称》第XXX条（带款项）
         for match in re.finditer(
-            r'《([^》]+)》\s*第(\d+)条(?:\s*第([一二三四五六七八九十百零\d]+)款)?(?:\s*第[（(]([一二三四五六七八九十\d]+)[)）]项)?',
-            text
+            r"《([^》]+)》\s*第(\d+)条(?:\s*第([一二三四五六七八九十百零\d]+)款)?(?:\s*第[（(]([一二三四五六七八九十\d]+)[)）]项)?",
+            text,
         ):
             law_name = match.group(1).strip()
             article = f"第{match.group(2)}条"
@@ -111,19 +112,21 @@ class LegalCitationService:
             if key not in seen:
                 seen.add(key)
                 full_name = LAW_NAME_MAP.get(law_name, law_name)
-                citations.append(LegalCitation(
-                    law_name=full_name,
-                    article=article,
-                    paragraph=paragraph,
-                    item=item,
-                    url=cls._generate_law_url(full_name, match.group(2)),
-                    confidence=0.9,
-                ))
+                citations.append(
+                    LegalCitation(
+                        law_name=full_name,
+                        article=article,
+                        paragraph=paragraph,
+                        item=item,
+                        url=cls._generate_law_url(full_name, match.group(2)),
+                        confidence=0.9,
+                    )
+                )
 
         # Pattern 2: 法律简称 + 第XXX条（无书名号）
         for match in re.finditer(
-            r'(?:依据|根据|参照|依照|参见)\s*(民法典|劳动合同法|劳动法|公司法|刑法|消费者权益保护法|数据安全法|个人信息保护法|网络安全法|招标投标法|保险法|证券法|专利法|商标法|著作权法)\s*第(\d+)(?:[-至到](\d+))?条',
-            text
+            r"(?:依据|根据|参照|依照|参见)\s*(民法典|劳动合同法|劳动法|公司法|刑法|消费者权益保护法|数据安全法|个人信息保护法|网络安全法|招标投标法|保险法|证券法|专利法|商标法|著作权法)\s*第(\d+)(?:[-至到](\d+))?条",
+            text,
         ):
             law_short = match.group(1).strip()
             article_num = match.group(2)
@@ -139,28 +142,29 @@ class LegalCitationService:
             key = f"{full_name}_{article}"
             if key not in seen:
                 seen.add(key)
-                citations.append(LegalCitation(
-                    law_name=full_name,
-                    article=article,
-                    url=cls._generate_law_url(full_name, article_num),
-                    confidence=0.85,
-                ))
+                citations.append(
+                    LegalCitation(
+                        law_name=full_name,
+                        article=article,
+                        url=cls._generate_law_url(full_name, article_num),
+                        confidence=0.85,
+                    )
+                )
 
         # Pattern 3: 最高法司法解释
-        for match in re.finditer(
-            r'《(最高人民法院关于[^》]+)》\s*第(\d+)条',
-            text
-        ):
+        for match in re.finditer(r"《(最高人民法院关于[^》]+)》\s*第(\d+)条", text):
             interp_name = match.group(1).strip()
             article = f"第{match.group(2)}条"
             key = f"{interp_name}_{article}"
             if key not in seen:
                 seen.add(key)
-                citations.append(LegalCitation(
-                    law_name=interp_name,
-                    article=article,
-                    confidence=0.8,
-                ))
+                citations.append(
+                    LegalCitation(
+                        law_name=interp_name,
+                        article=article,
+                        confidence=0.8,
+                    )
+                )
 
         return citations
 
@@ -182,11 +186,16 @@ class LegalCitationService:
 
         for risk in risks:
             # 从description和legal_basis中提取引用
-            text_to_scan = " ".join(filter(None, [
-                risk.get("description", ""),
-                risk.get("legal_basis", ""),
-                risk.get("suggestion", ""),
-            ]))
+            text_to_scan = " ".join(
+                filter(
+                    None,
+                    [
+                        risk.get("description", ""),
+                        risk.get("legal_basis", ""),
+                        risk.get("suggestion", ""),
+                    ],
+                )
+            )
 
             citations = cls.extract_citations(text_to_scan)
             if citations:

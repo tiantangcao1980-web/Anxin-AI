@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """法律顾问（legal_advisor）persona 路由 —— P9-B。
 
 挂载点（在 ``api/routes/__init__.py`` 用 ``prefix="/personas/legal"`` 注册）::
@@ -40,8 +39,8 @@ from src.api.routes.schemas.persona_legal import (
     CitationOut,
     ComplianceIssueOut,
     ComplianceReportOut,
-    ConsultIn,
     ConsultationResultOut,
+    ConsultIn,
     LawSearchQueryOut,
     LegalBasisExplainOut,
     RegulatoryUpdateOut,
@@ -261,7 +260,9 @@ async def check_compliance(
     summary="法规更新监控（按领域 + 时间窗口）",
 )
 async def regulatory_updates(
-    domain: str = Query(..., min_length=1, max_length=100, description="法律领域，如 '劳动法' / '数据合规'"),
+    domain: str = Query(
+        ..., min_length=1, max_length=100, description="法律领域，如 '劳动法' / '数据合规'"
+    ),
     since_days: int = Query(30, ge=1, le=365, description="向前回溯天数"),
     _user: User = Depends(get_current_user_required),
 ) -> RegulatoryUpdatesOut:
@@ -281,7 +282,9 @@ async def regulatory_updates(
     summary="法条解释（输入法条 ID → 通俗解释 + 相关引用）",
 )
 async def legal_basis_explain(
-    law_id: str = Query(..., min_length=1, max_length=200, description="法条标识，如 '劳动合同法#46'"),
+    law_id: str = Query(
+        ..., min_length=1, max_length=200, description="法条标识，如 '劳动合同法#46'"
+    ),
     _user: User = Depends(get_current_user_required),
 ) -> LegalBasisExplainOut:
     """法条解释 —— 复用 ``consult()`` 通道（用「请解释 X」作为问题）。

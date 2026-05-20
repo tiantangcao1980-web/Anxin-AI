@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Shopify 数据源 — 真实 HTTP 调用结构验证（mock httpx）。
 
 不依赖网络：注入 mock ``httpx.AsyncClient``，验证：
@@ -13,7 +12,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -29,11 +28,11 @@ def _compile_jsonb_for_sqlite(type_, compiler, **kw):  # noqa: ARG001
     return "JSON"
 
 
-from src.services.fetch.sources.ecommerce.shopify import (  # noqa: E402
-    ShopifyEcommerceSource,
-)
 from src.services.fetch.sources.ecommerce.base import (  # noqa: E402
     ProductSearchQuery,
+)
+from src.services.fetch.sources.ecommerce.shopify import (  # noqa: E402
+    ShopifyEcommerceSource,
 )
 
 
@@ -96,9 +95,7 @@ SAMPLE_PRODUCTS = {
 @pytest.mark.asyncio
 async def test_search_products_hits_correct_url_and_headers():
     client = _make_client(get_payload=SAMPLE_PRODUCTS)
-    src = ShopifyEcommerceSource(
-        shop="acme.myshopify.com", http_client=client
-    )
+    src = ShopifyEcommerceSource(shop="acme.myshopify.com", http_client=client)
 
     results = await src.search_products(
         ProductSearchQuery(keyword="hoodie", limit=10),
@@ -132,9 +129,7 @@ async def test_search_products_hits_correct_url_and_headers():
 @pytest.mark.asyncio
 async def test_search_products_client_side_price_filter():
     client = _make_client(get_payload=SAMPLE_PRODUCTS)
-    src = ShopifyEcommerceSource(
-        shop="acme.myshopify.com", http_client=client
-    )
+    src = ShopifyEcommerceSource(shop="acme.myshopify.com", http_client=client)
     results = await src.search_products(
         ProductSearchQuery(keyword="hoodie", price_min=50.0),
         oauth_token="shpat_xxx",
@@ -147,9 +142,7 @@ async def test_search_products_client_side_price_filter():
 @pytest.mark.asyncio
 async def test_search_products_client_side_sort_asc():
     client = _make_client(get_payload=SAMPLE_PRODUCTS)
-    src = ShopifyEcommerceSource(
-        shop="acme.myshopify.com", http_client=client
-    )
+    src = ShopifyEcommerceSource(shop="acme.myshopify.com", http_client=client)
     results = await src.search_products(
         ProductSearchQuery(keyword="hoodie", sort_by="price_asc"),
         oauth_token="shpat_xxx",
@@ -178,11 +171,9 @@ async def test_list_orders_includes_updated_at_min_param():
     }
     client = _make_client(get_payload=payload)
     src = ShopifyEcommerceSource(shop="acme.myshopify.com", http_client=client)
-    since = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    since = datetime(2026, 4, 10, 12, 0, tzinfo=UTC)
 
-    orders = await src.list_orders(
-        oauth_token="shpat_xxx", since=since, limit=20
-    )
+    orders = await src.list_orders(oauth_token="shpat_xxx", since=since, limit=20)
 
     args, kwargs = client.get.call_args
     assert (args[0] if args else kwargs.get("url")).endswith("/orders.json")

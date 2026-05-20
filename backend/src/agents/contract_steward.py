@@ -12,6 +12,7 @@ from src.prompts import load_prompt
 
 _FALLBACK_PROMPT = "你是一位细致入微的合同管家（Contract Steward）。"
 
+
 class ContractStewardAgent(BaseLegalAgent):
     """合同管家智能体"""
 
@@ -27,7 +28,7 @@ class ContractStewardAgent(BaseLegalAgent):
 
     async def process(self, task: dict[str, Any]) -> AgentResponse:
         """处理合同管理任务"""
-        action = task.get("action", "archive") # archive, check_status, analyze_risk
+        action = task.get("action", "archive")  # archive, check_status, analyze_risk
         context = task.get("context", {})
         contract_text = context.get("contract_text", "")
         contract_id = context.get("contract_id", "unknown")
@@ -63,9 +64,7 @@ class ContractStewardAgent(BaseLegalAgent):
             agent_name=self.name,
             content=response,
             reasoning="已完成合同关键要素提取，准备存入结构化数据库",
-            actions=[
-                {"type": "db_save", "data": "extracted_json"} # 模拟存库
-            ]
+            actions=[{"type": "db_save", "data": "extracted_json"}],  # 模拟存库
         )
 
     async def _check_contract_status(self, metadata: dict[str, Any]) -> AgentResponse:
@@ -100,9 +99,9 @@ class ContractStewardAgent(BaseLegalAgent):
                     "target": "user",
                     "title": "合同状态预警",
                     "message": "检测到合同关键节点或风险，请查看详细报告。",
-                    "level": "warning"
+                    "level": "warning",
                 }
-            ]
+            ],
         )
 
     async def _general_management(self, query: str) -> AgentResponse:

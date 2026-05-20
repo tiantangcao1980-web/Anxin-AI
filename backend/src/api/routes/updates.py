@@ -34,7 +34,12 @@ router = APIRouter()
 _DEFAULT_MANIFEST_PATH = os.environ.get(
     "UPDATER_MANIFEST_PATH",
     os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..", "updater-latest.json",
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "..",
+        "..",
+        "updater-latest.json",
     ),
 )
 
@@ -131,12 +136,8 @@ def _compare_versions(v1: str, v2: str) -> int:
     },
 )
 async def check_update(
-    target: str = Path(
-        ..., pattern="^(darwin|windows|linux)$", description="目标平台"
-    ),
-    arch: str = Path(
-        ..., pattern="^(x86_64|aarch64|arm64|i686)$", description="CPU 架构"
-    ),
+    target: str = Path(..., pattern="^(darwin|windows|linux)$", description="目标平台"),
+    arch: str = Path(..., pattern="^(x86_64|aarch64|arm64|i686)$", description="CPU 架构"),
     current_version: str = Path(..., min_length=1, max_length=32),
 ) -> UpdateManifest | Response:
     """Tauri Updater 插件定期调用此端点检查更新。

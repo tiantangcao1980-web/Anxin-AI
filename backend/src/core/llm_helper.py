@@ -19,6 +19,7 @@ from src.core.config import settings
 @dataclass
 class LLMConfigResult:
     """LLM配置结果"""
+
     provider: str
     api_key: str
     api_base_url: str
@@ -36,15 +37,15 @@ async def get_llm_config(
 ) -> LLMConfigResult:
     """
     获取LLM配置
-    
+
     优先级:
     1. 数据库中的默认配置（通过LLM管理页面设置）
     2. 环境变量配置（.env文件）
-    
+
     Args:
         config_type: 配置类型 - "llm", "embedding", "reranker"
         db_session: 数据库会话（可选）
-        
+
     Returns:
         LLMConfigResult: LLM配置
     """
@@ -52,13 +53,16 @@ async def get_llm_config(
     if db_session:
         try:
             from src.services.llm_service import LLMService
+
             config = await LLMService.get_default_config(db_session, config_type)
 
             if config and config.is_active:
                 # 解密API密钥
                 api_key = LLMService.decrypt_api_key(config.api_key) if config.api_key else ""
 
-                logger.debug(f"使用数据库LLM配置: {config.name} ({config.provider}/{config.model_name})")
+                logger.debug(
+                    f"使用数据库LLM配置: {config.name} ({config.provider}/{config.model_name})"
+                )
 
                 return LLMConfigResult(
                     provider=config.provider,

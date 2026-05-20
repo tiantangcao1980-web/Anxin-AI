@@ -72,11 +72,14 @@ class TaskService:
 
         # 统计总数
         from sqlalchemy import func
+
         count_query = select(func.count()).select_from(query.subquery())
         total = (await self.db.execute(count_query)).scalar() or 0
 
         # 分页
-        query = query.order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        query = (
+            query.order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all()), total
 
@@ -149,9 +152,9 @@ class TaskService:
     # ===== 看板拖拽批量更新 =====
 
     VALID_STATUS_TRANSITIONS = {
-        'todo': ['in_progress'],
-        'in_progress': ['done', 'todo'],
-        'done': ['todo'],
+        "todo": ["in_progress"],
+        "in_progress": ["done", "todo"],
+        "done": ["todo"],
     }
 
     def _normalize_status(self, status: str | None) -> str:
@@ -180,14 +183,12 @@ class TaskService:
         target = self._normalize_status(new_status)
         allowed = self.VALID_STATUS_TRANSITIONS.get(current, [])
         if target not in allowed:
-            raise ValueError(
-                f"无效状态转换: {current} → {target}，允许的目标状态: {allowed}"
-            )
+            raise ValueError(f"无效状态转换: {current} → {target}，允许的目标状态: {allowed}")
 
         task.status = target
 
         # 自动设置完成时间
-        if target == 'done' and hasattr(task, 'completed_at'):
+        if target == "done" and hasattr(task, "completed_at"):
             from datetime import datetime
 
             task.completed_at = datetime.now(UTC)
@@ -237,7 +238,7 @@ class TaskService:
                     errors.append({"task_id": task_id, "error": "任务不存在"})
                     continue
 
-                if sort_order is not None and hasattr(task, 'sort_order'):
+                if sort_order is not None and hasattr(task, "sort_order"):
                     task.sort_order = sort_order
                 success += 1
             except ValueError as e:

@@ -34,18 +34,19 @@ RateLimitDependency = Callable[..., Awaitable[None]]
 
 class UserRole(str, Enum):
     """用户角色 — 企业微信/飞书式多层级权限体系"""
+
     # 平台层
-    SUPER_ADMIN = "super_admin"      # 超级管理员：平台级全局配置
-    ADMIN = "admin"                  # 管理员（兼容旧角色，等同 org_admin）
+    SUPER_ADMIN = "super_admin"  # 超级管理员：平台级全局配置
+    ADMIN = "admin"  # 管理员（兼容旧角色，等同 org_admin）
 
     # 租户层
-    ORG_ADMIN = "org_admin"          # 企业/律所管理员
-    DEPT_ADMIN = "dept_admin"        # 部门管理员
+    ORG_ADMIN = "org_admin"  # 企业/律所管理员
+    DEPT_ADMIN = "dept_admin"  # 部门管理员
 
     # 业务层
-    PARTNER = "partner"              # 合伙人：全面访问+数据分析
-    LAWYER = "lawyer"                # 律师：案件管理、合同审查
-    PARALEGAL = "paralegal"          # 助理（兼容旧 paralegal）
+    PARTNER = "partner"  # 合伙人：全面访问+数据分析
+    LAWYER = "lawyer"  # 律师：案件管理、合同审查
+    PARALEGAL = "paralegal"  # 助理（兼容旧 paralegal）
     ENTERPRISE_USER = "enterprise_user"  # 企业用户：法务/HR/经营者
     INDIVIDUAL_USER = "individual_user"  # 个人用户：法律咨询
 
@@ -53,9 +54,9 @@ class UserRole(str, Enum):
     PLATFORM_LAWYER = "platform_lawyer"  # 入驻律师：接单、计费、评价
 
     # 兼容旧角色
-    MEMBER = "member"                # 普通成员（映射为 enterprise_user）
-    CLIENT = "client"                # 客户（映射为 individual_user）
-    VIEWER = "viewer"                # 访客：只读权限
+    MEMBER = "member"  # 普通成员（映射为 enterprise_user）
+    CLIENT = "client"  # 客户（映射为 individual_user）
+    VIEWER = "viewer"  # 访客：只读权限
 
 
 # ========== 权限枚举 ==========
@@ -63,6 +64,7 @@ class UserRole(str, Enum):
 
 class Permission(str, Enum):
     """权限定义"""
+
     # 案件权限
     READ_CASES = "read:cases"
     WRITE_CASES = "write:cases"
@@ -115,9 +117,9 @@ class Permission(str, Enum):
 
     # 找律师/委托权限
     FIND_LAWYER = "find:lawyer"
-    ACCEPT_CASE = "accept:case"           # 入驻律师接单
+    ACCEPT_CASE = "accept:case"  # 入驻律师接单
     CREATE_DELEGATION = "create:delegation"  # 一键委托
-    MANAGE_PAYMENTS = "manage:payments"    # 支付/收款
+    MANAGE_PAYMENTS = "manage:payments"  # 支付/收款
 
     # 审批权限
     CREATE_APPROVAL = "create:approval"
@@ -134,14 +136,14 @@ class Permission(str, Enum):
     MANAGE_CRM = "manage:crm"
 
     # 律师入驻管理
-    VERIFY_LAWYER = "verify:lawyer"        # 审核律师认证
+    VERIFY_LAWYER = "verify:lawyer"  # 审核律师认证
     MANAGE_ONBOARDING = "manage:onboarding"  # 管理入驻流程
 
     # 计费管理
-    MANAGE_PLANS = "manage:plans"           # 管理计费方案
+    MANAGE_PLANS = "manage:plans"  # 管理计费方案
     MANAGE_SUBSCRIPTIONS = "manage:subscriptions"  # 管理订阅
-    MANAGE_REFUNDS = "manage:refunds"       # 管理退款
-    VIEW_REPORTS = "view:reports"           # 查看报表
+    MANAGE_REFUNDS = "manage:refunds"  # 管理退款
+    VIEW_REPORTS = "view:reports"  # 查看报表
 
     # AI 助手管理
     MANAGE_AI_ASSISTANT = "manage:ai_assistant"  # 管理 AI 私有助手配置
@@ -153,126 +155,189 @@ class Permission(str, Enum):
 ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # ===== 平台层 =====
     UserRole.SUPER_ADMIN.value: set(Permission),  # 超管拥有所有权限
-
     UserRole.ADMIN.value: set(Permission),  # 管理员（兼容旧角色）
-
     # ===== 租户层 =====
     UserRole.ORG_ADMIN.value: {
         # 除平台级系统管理外的所有权限
-        p for p in Permission if p not in {Permission.MANAGE_SYSTEM}
+        p
+        for p in Permission
+        if p not in {Permission.MANAGE_SYSTEM}
     },
-
     UserRole.DEPT_ADMIN.value: {
-        Permission.READ_CASES, Permission.WRITE_CASES, Permission.ASSIGN_CASES,
-        Permission.READ_DOCUMENTS, Permission.WRITE_DOCUMENTS, Permission.DELETE_DOCUMENTS, Permission.DOWNLOAD_DOCUMENTS,
-        Permission.READ_CONTRACTS, Permission.WRITE_CONTRACTS, Permission.REVIEW_CONTRACTS,
-        Permission.READ_USERS, Permission.READ_ORGANIZATION,
-        Permission.READ_KNOWLEDGE, Permission.WRITE_KNOWLEDGE,
-        Permission.USE_CHAT, Permission.VIEW_ALL_CHATS,
-        Permission.READ_ASSETS, Permission.WRITE_ASSETS,
-        Permission.VIEW_AUDIT_LOGS, Permission.EXPORT_DATA,
-        Permission.CREATE_APPROVAL, Permission.REVIEW_APPROVAL,
+        Permission.READ_CASES,
+        Permission.WRITE_CASES,
+        Permission.ASSIGN_CASES,
+        Permission.READ_DOCUMENTS,
+        Permission.WRITE_DOCUMENTS,
+        Permission.DELETE_DOCUMENTS,
+        Permission.DOWNLOAD_DOCUMENTS,
+        Permission.READ_CONTRACTS,
+        Permission.WRITE_CONTRACTS,
+        Permission.REVIEW_CONTRACTS,
+        Permission.READ_USERS,
+        Permission.READ_ORGANIZATION,
+        Permission.READ_KNOWLEDGE,
+        Permission.WRITE_KNOWLEDGE,
+        Permission.USE_CHAT,
+        Permission.VIEW_ALL_CHATS,
+        Permission.READ_ASSETS,
+        Permission.WRITE_ASSETS,
+        Permission.VIEW_AUDIT_LOGS,
+        Permission.EXPORT_DATA,
+        Permission.CREATE_APPROVAL,
+        Permission.REVIEW_APPROVAL,
         Permission.VIEW_ANALYTICS,
         Permission.MANAGE_AI_ASSISTANT,
     },
-
     # ===== 业务层 =====
     UserRole.PARTNER.value: {
         # 合伙人：全面访问+数据分析+计费
-        Permission.READ_CASES, Permission.WRITE_CASES, Permission.DELETE_CASES, Permission.ASSIGN_CASES,
-        Permission.READ_DOCUMENTS, Permission.WRITE_DOCUMENTS, Permission.DELETE_DOCUMENTS, Permission.DOWNLOAD_DOCUMENTS,
-        Permission.READ_CONTRACTS, Permission.WRITE_CONTRACTS, Permission.DELETE_CONTRACTS,
-        Permission.REVIEW_CONTRACTS, Permission.SIGN_CONTRACTS,
-        Permission.READ_USERS, Permission.WRITE_USERS, Permission.READ_ORGANIZATION, Permission.WRITE_ORGANIZATION,
-        Permission.READ_KNOWLEDGE, Permission.WRITE_KNOWLEDGE, Permission.DELETE_KNOWLEDGE,
-        Permission.USE_CHAT, Permission.VIEW_ALL_CHATS,
-        Permission.READ_ASSETS, Permission.WRITE_ASSETS, Permission.DELETE_ASSETS,
-        Permission.VIEW_AUDIT_LOGS, Permission.EXPORT_DATA, Permission.MANAGE_LLM_CONFIG,
-        Permission.CREATE_APPROVAL, Permission.REVIEW_APPROVAL, Permission.MANAGE_APPROVALS,
-        Permission.VIEW_ANALYTICS, Permission.MANAGE_TIMESHEET, Permission.MANAGE_BILLING, Permission.MANAGE_CRM,
+        Permission.READ_CASES,
+        Permission.WRITE_CASES,
+        Permission.DELETE_CASES,
+        Permission.ASSIGN_CASES,
+        Permission.READ_DOCUMENTS,
+        Permission.WRITE_DOCUMENTS,
+        Permission.DELETE_DOCUMENTS,
+        Permission.DOWNLOAD_DOCUMENTS,
+        Permission.READ_CONTRACTS,
+        Permission.WRITE_CONTRACTS,
+        Permission.DELETE_CONTRACTS,
+        Permission.REVIEW_CONTRACTS,
+        Permission.SIGN_CONTRACTS,
+        Permission.READ_USERS,
+        Permission.WRITE_USERS,
+        Permission.READ_ORGANIZATION,
+        Permission.WRITE_ORGANIZATION,
+        Permission.READ_KNOWLEDGE,
+        Permission.WRITE_KNOWLEDGE,
+        Permission.DELETE_KNOWLEDGE,
+        Permission.USE_CHAT,
+        Permission.VIEW_ALL_CHATS,
+        Permission.READ_ASSETS,
+        Permission.WRITE_ASSETS,
+        Permission.DELETE_ASSETS,
+        Permission.VIEW_AUDIT_LOGS,
+        Permission.EXPORT_DATA,
+        Permission.MANAGE_LLM_CONFIG,
+        Permission.CREATE_APPROVAL,
+        Permission.REVIEW_APPROVAL,
+        Permission.MANAGE_APPROVALS,
+        Permission.VIEW_ANALYTICS,
+        Permission.MANAGE_TIMESHEET,
+        Permission.MANAGE_BILLING,
+        Permission.MANAGE_CRM,
         Permission.MANAGE_AI_ASSISTANT,
         Permission.VIEW_REPORTS,
     },
-
     UserRole.LAWYER.value: {
-        Permission.READ_CASES, Permission.WRITE_CASES, Permission.DELETE_CASES, Permission.ASSIGN_CASES,
-        Permission.READ_DOCUMENTS, Permission.WRITE_DOCUMENTS, Permission.DELETE_DOCUMENTS, Permission.DOWNLOAD_DOCUMENTS,
-        Permission.READ_CONTRACTS, Permission.WRITE_CONTRACTS, Permission.DELETE_CONTRACTS,
-        Permission.REVIEW_CONTRACTS, Permission.SIGN_CONTRACTS,
-        Permission.READ_KNOWLEDGE, Permission.WRITE_KNOWLEDGE,
-        Permission.READ_USERS, Permission.READ_ORGANIZATION,
-        Permission.USE_CHAT, Permission.VIEW_ALL_CHATS,
-        Permission.READ_ASSETS, Permission.WRITE_ASSETS, Permission.DELETE_ASSETS,
+        Permission.READ_CASES,
+        Permission.WRITE_CASES,
+        Permission.DELETE_CASES,
+        Permission.ASSIGN_CASES,
+        Permission.READ_DOCUMENTS,
+        Permission.WRITE_DOCUMENTS,
+        Permission.DELETE_DOCUMENTS,
+        Permission.DOWNLOAD_DOCUMENTS,
+        Permission.READ_CONTRACTS,
+        Permission.WRITE_CONTRACTS,
+        Permission.DELETE_CONTRACTS,
+        Permission.REVIEW_CONTRACTS,
+        Permission.SIGN_CONTRACTS,
+        Permission.READ_KNOWLEDGE,
+        Permission.WRITE_KNOWLEDGE,
+        Permission.READ_USERS,
+        Permission.READ_ORGANIZATION,
+        Permission.USE_CHAT,
+        Permission.VIEW_ALL_CHATS,
+        Permission.READ_ASSETS,
+        Permission.WRITE_ASSETS,
+        Permission.DELETE_ASSETS,
         Permission.EXPORT_DATA,
         Permission.CREATE_APPROVAL,
         Permission.MANAGE_TIMESHEET,
     },
-
     UserRole.PARALEGAL.value: {
-        Permission.READ_CASES, Permission.WRITE_CASES,
-        Permission.READ_DOCUMENTS, Permission.WRITE_DOCUMENTS, Permission.DOWNLOAD_DOCUMENTS,
-        Permission.READ_CONTRACTS, Permission.REVIEW_CONTRACTS,
+        Permission.READ_CASES,
+        Permission.WRITE_CASES,
+        Permission.READ_DOCUMENTS,
+        Permission.WRITE_DOCUMENTS,
+        Permission.DOWNLOAD_DOCUMENTS,
+        Permission.READ_CONTRACTS,
+        Permission.REVIEW_CONTRACTS,
         Permission.READ_KNOWLEDGE,
-        Permission.READ_USERS, Permission.READ_ORGANIZATION,
+        Permission.READ_USERS,
+        Permission.READ_ORGANIZATION,
         Permission.USE_CHAT,
-        Permission.READ_ASSETS, Permission.WRITE_ASSETS,
+        Permission.READ_ASSETS,
+        Permission.WRITE_ASSETS,
         Permission.CREATE_APPROVAL,
     },
-
     UserRole.ENTERPRISE_USER.value: {
         # 企业用户：合规管理+法律咨询+合同审查+找律师
         Permission.USE_CHAT,
-        Permission.READ_CASES, Permission.READ_DOCUMENTS, Permission.READ_CONTRACTS,
-        Permission.WRITE_CONTRACTS, Permission.REVIEW_CONTRACTS,
+        Permission.READ_CASES,
+        Permission.READ_DOCUMENTS,
+        Permission.READ_CONTRACTS,
+        Permission.WRITE_CONTRACTS,
+        Permission.REVIEW_CONTRACTS,
         Permission.DOWNLOAD_DOCUMENTS,
         Permission.READ_KNOWLEDGE,
-        Permission.FIND_LAWYER, Permission.CREATE_DELEGATION, Permission.MANAGE_PAYMENTS,
+        Permission.FIND_LAWYER,
+        Permission.CREATE_DELEGATION,
+        Permission.MANAGE_PAYMENTS,
         Permission.CREATE_APPROVAL,
         Permission.READ_ASSETS,
     },
-
     UserRole.INDIVIDUAL_USER.value: {
         # 个人用户：AI咨询+找律师（限次）
         Permission.USE_CHAT,
         Permission.READ_CONTRACTS,
         Permission.READ_KNOWLEDGE,
-        Permission.FIND_LAWYER, Permission.CREATE_DELEGATION, Permission.MANAGE_PAYMENTS,
+        Permission.FIND_LAWYER,
+        Permission.CREATE_DELEGATION,
+        Permission.MANAGE_PAYMENTS,
     },
-
     # ===== 入驻律师 =====
     UserRole.PLATFORM_LAWYER.value: {
         Permission.USE_CHAT,
         Permission.ACCEPT_CASE,
-        Permission.READ_CASES, Permission.WRITE_CASES,
-        Permission.READ_CONTRACTS, Permission.WRITE_CONTRACTS, Permission.REVIEW_CONTRACTS,
-        Permission.READ_DOCUMENTS, Permission.WRITE_DOCUMENTS, Permission.DOWNLOAD_DOCUMENTS,
+        Permission.READ_CASES,
+        Permission.WRITE_CASES,
+        Permission.READ_CONTRACTS,
+        Permission.WRITE_CONTRACTS,
+        Permission.REVIEW_CONTRACTS,
+        Permission.READ_DOCUMENTS,
+        Permission.WRITE_DOCUMENTS,
+        Permission.DOWNLOAD_DOCUMENTS,
         Permission.READ_KNOWLEDGE,
         Permission.MANAGE_PAYMENTS,
         Permission.MANAGE_TIMESHEET,
         Permission.MANAGE_ONBOARDING,
     },
-
     # ===== 兼容旧角色 =====
     UserRole.MEMBER.value: {
         # member 映射为 enterprise_user 级别
         Permission.USE_CHAT,
-        Permission.READ_CASES, Permission.WRITE_CASES,
-        Permission.READ_DOCUMENTS, Permission.WRITE_DOCUMENTS, Permission.DOWNLOAD_DOCUMENTS,
+        Permission.READ_CASES,
+        Permission.WRITE_CASES,
+        Permission.READ_DOCUMENTS,
+        Permission.WRITE_DOCUMENTS,
+        Permission.DOWNLOAD_DOCUMENTS,
         Permission.READ_CONTRACTS,
         Permission.READ_KNOWLEDGE,
         Permission.READ_ASSETS,
         Permission.CREATE_APPROVAL,
     },
-
     UserRole.CLIENT.value: {
         # client 映射为 individual_user 级别
         Permission.USE_CHAT,
         Permission.READ_CASES,
-        Permission.READ_DOCUMENTS, Permission.DOWNLOAD_DOCUMENTS,
+        Permission.READ_DOCUMENTS,
+        Permission.DOWNLOAD_DOCUMENTS,
         Permission.READ_CONTRACTS,
         Permission.FIND_LAWYER,
     },
-
     UserRole.VIEWER.value: {
         Permission.READ_CASES,
         Permission.READ_DOCUMENTS,
@@ -319,9 +384,7 @@ async def get_current_user(
     if not user_id:
         return None
 
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.is_active == True)
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
     user = result.scalar_one_or_none()
 
     return user
@@ -357,9 +420,7 @@ async def get_current_user_required(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.is_active == True)
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -393,16 +454,16 @@ async def get_admin_user(
 def require_permission(*permissions: Permission) -> UserDependency:
     """
     创建权限检查依赖
-    
+
     可以检查单个或多个权限，用户需要拥有所有指定权限
-    
+
     Example:
         @router.get("/cases")
         async def list_cases(
             user: User = Depends(require_permission(Permission.READ_CASES))
         ):
             ...
-            
+
         @router.delete("/cases/{case_id}")
         async def delete_case(
             case_id: str,
@@ -413,6 +474,7 @@ def require_permission(*permissions: Permission) -> UserDependency:
         ):
             ...
     """
+
     async def dependency(
         user: User = Depends(get_current_user_required),
     ) -> User:
@@ -425,8 +487,7 @@ def require_permission(*permissions: Permission) -> UserDependency:
 
         if missing_permissions:
             logger.warning(
-                f"权限不足: user={user.email}, role={user.role}, "
-                f"missing={missing_permissions}"
+                f"权限不足: user={user.email}, role={user.role}, " f"missing={missing_permissions}"
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -441,7 +502,7 @@ def require_permission(*permissions: Permission) -> UserDependency:
 def require_any_permission(*permissions: Permission) -> UserDependency:
     """
     创建权限检查依赖（满足任一权限即可）
-    
+
     Example:
         @router.get("/cases/{case_id}")
         async def get_case(
@@ -452,6 +513,7 @@ def require_any_permission(*permissions: Permission) -> UserDependency:
         ):
             ...
     """
+
     async def dependency(
         user: User = Depends(get_current_user_required),
     ) -> User:
@@ -463,8 +525,7 @@ def require_any_permission(*permissions: Permission) -> UserDependency:
 
         permission_names = [p.value for p in permissions]
         logger.warning(
-            f"权限不足: user={user.email}, role={user.role}, "
-            f"required_any={permission_names}"
+            f"权限不足: user={user.email}, role={user.role}, " f"required_any={permission_names}"
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -477,7 +538,7 @@ def require_any_permission(*permissions: Permission) -> UserDependency:
 def require_role(*roles: UserRole) -> UserDependency:
     """
     创建角色检查依赖
-    
+
     Example:
         @router.post("/admin/users")
         async def create_user(
@@ -485,6 +546,7 @@ def require_role(*roles: UserRole) -> UserDependency:
         ):
             ...
     """
+
     async def dependency(
         user: User = Depends(get_current_user_required),
     ) -> User:
@@ -517,14 +579,14 @@ def rate_limit(
 ) -> RateLimitDependency:
     """
     创建频率限制依赖
-    
+
     Args:
         limit: 限制次数
         window: 时间窗口（秒）
         endpoint: 端点标识（默认使用路由路径）
         by_user: 是否按用户限制（否则按IP）
         fail_closed: Redis 后端不可用时是否拒绝服务（认证敏感入口使用）
-        
+
     Example:
         @router.post("/chat")
         async def chat(
@@ -533,6 +595,7 @@ def rate_limit(
         ):
             ...
     """
+
     async def dependency(
         request: Request,
         user: User | None = Depends(get_current_user),
@@ -626,7 +689,7 @@ rate_limit_upload = rate_limit(
 def authenticated_with_permission(*permissions: Permission) -> UserDependency:
     """
     组合认证和权限检查
-    
+
     Example:
         @router.delete("/cases/{case_id}")
         async def delete_case(
@@ -644,9 +707,10 @@ def rate_limited_user(
 ) -> UserDependency:
     """
     组合认证和频率限制
-    
+
     返回已认证的用户，同时应用频率限制
     """
+
     async def dependency(
         request: Request,
         user: User = Depends(get_current_user_required),
@@ -676,6 +740,7 @@ def rate_limited_user(
 
 class TenantContext:
     """租户上下文"""
+
     def __init__(self, org_id: str, user: User):
         self.org_id = org_id
         self.user = user
@@ -686,7 +751,7 @@ async def get_tenant_context(
 ) -> TenantContext:
     """
     获取当前用户的租户上下文
-    
+
     自动从用户信息中提取 org_id，确保多租户数据隔离
     """
     if not user.org_id:

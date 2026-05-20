@@ -169,12 +169,14 @@ class TemplateLirarianAgent:
 
         if matched:
             # 构建友好的回复
-            template_list = "\n".join([
-                f"📄 **{t['name']}**\n"
-                f"   {t['description']}\n"
-                f"   类型: {t['category']}/{t['sub_category']} | 格式: {t['format'].upper()}"
-                for t in matched
-            ])
+            template_list = "\n".join(
+                [
+                    f"📄 **{t['name']}**\n"
+                    f"   {t['description']}\n"
+                    f"   类型: {t['category']}/{t['sub_category']} | 格式: {t['format'].upper()}"
+                    for t in matched
+                ]
+            )
 
             content = (
                 f"为您找到 {len(matched)} 个相关模板：\n\n"
@@ -193,7 +195,11 @@ class TemplateLirarianAgent:
                     "has_ai_fallback": True,
                 },
                 actions=[
-                    {"type": "navigate", "label": "前往法律智库", "url": "/knowledge-base?tab=templates"},
+                    {
+                        "type": "navigate",
+                        "label": "前往法律智库",
+                        "url": "/knowledge-base?tab=templates",
+                    },
                     {"type": "action", "label": "AI 定制生成", "action": "switch_to_generation"},
                 ],
             )
@@ -217,7 +223,11 @@ class TemplateLirarianAgent:
                     "has_ai_fallback": True,
                 },
                 actions=[
-                    {"type": "navigate", "label": "浏览法律智库", "url": "/knowledge-base?tab=templates"},
+                    {
+                        "type": "navigate",
+                        "label": "浏览法律智库",
+                        "url": "/knowledge-base?tab=templates",
+                    },
                     {"type": "action", "label": "AI 定制生成", "action": "switch_to_generation"},
                 ],
             )

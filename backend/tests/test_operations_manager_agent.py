@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P7-A: OperationsManagerAgent 单元测试
 
@@ -171,7 +170,9 @@ class TestWeeklyReport:
 class TestMeetingMinutes:
     @pytest.mark.asyncio
     async def test_pending_when_only_audio_url(self, agent):
-        with patch.object(agent, "chat", new=AsyncMock(return_value="should not call")) as mock_chat:
+        with patch.object(
+            agent, "chat", new=AsyncMock(return_value="should not call")
+        ) as mock_chat:
             result = await agent.transcribe_and_summarize(
                 audio_url="https://example.com/audio.mp3",
                 meeting_topic="V3.2 评审",

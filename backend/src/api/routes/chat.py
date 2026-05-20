@@ -58,7 +58,9 @@ def _as_str(value: Any, default: str = "") -> str:
 
 
 def _as_float(value: Any, default: float = 0.0) -> float:
-    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else default
+    return (
+        float(value) if isinstance(value, int | float) and not isinstance(value, bool) else default
+    )
 
 
 def _as_list_of_dicts(value: Any) -> list[dict[str, Any]]:
@@ -116,16 +118,20 @@ async def _consume_streaming_tokens(
         if token is None:
             break
         response_text += token
-        await ctx.send("content_token", {
-            "token": token,
-            "accumulated": response_text,
-            "agent": agent_name,
-        })
+        await ctx.send(
+            "content_token",
+            {
+                "token": token,
+                "accumulated": response_text,
+                "agent": agent_name,
+            },
+        )
     return response_text
 
 
 class ChatMessage(BaseModel):
     """聊天消息"""
+
     content: str = Field(..., min_length=1, max_length=MAX_CHAT_MESSAGE_LENGTH)
     conversation_id: str | None = None
     case_id: str | None = None
@@ -148,6 +154,7 @@ class ChatMessage(BaseModel):
 
 class ChatResponse(BaseModel):
     """聊天响应"""
+
     conversation_id: str
     message_id: str
     content: str
@@ -160,6 +167,7 @@ class ChatResponse(BaseModel):
 
 class ChatRouteTokenRequest(BaseModel):
     """签发聊天/LLM runtime route token"""
+
     route_key: str = DEFAULT_LLM_ROUTE_KEY
     scope: str = LLM_ROUTE_SCOPE
     consumer_id: str | None = None
@@ -178,6 +186,7 @@ class ChatRouteTokenResponse(BaseModel):
 
 class MessageItem(BaseModel):
     """消息项"""
+
     id: str
     role: str
     content: str
@@ -313,7 +322,7 @@ async def send_message(
             extra_data={
                 "message_length": len(message.content),
                 "agent": result.get("agent"),
-            }
+            },
         )
 
     return UnifiedResponse.success(data=ChatResponse(**result))
@@ -346,12 +355,12 @@ async def get_chat_history(
                     agent_name=m.agent_name,
                     created_at=m.created_at.isoformat(),
                     sources=m.citations or [],
-                    msg_metadata=getattr(m, 'msg_metadata', None),
-                    reasoning=getattr(m, 'reasoning', None),
+                    msg_metadata=getattr(m, "msg_metadata", None),
+                    reasoning=getattr(m, "reasoning", None),
                 )
                 for m in messages
             ],
-            "total": len(messages)
+            "total": len(messages),
         }
         return UnifiedResponse.success(data=data)
     else:
@@ -374,7 +383,7 @@ async def get_chat_history(
                 }
                 for c in conversations
             ],
-            "total": len(conversations)
+            "total": len(conversations),
         }
         return UnifiedResponse.success(data=data)
 
@@ -464,9 +473,7 @@ async def delete_conversation(
         return UnifiedResponse.error(message="对话不存在", code=404)
 
     # 验证对话存在
-    result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     if not conversation:
         return UnifiedResponse.error(message="对话不存在", code=404)
@@ -481,6 +488,7 @@ async def delete_conversation(
 
 class BatchDeleteRequest(BaseModel):
     """批量删除对话请求"""
+
     conversation_ids: list[str]
 
 
@@ -502,12 +510,8 @@ async def batch_delete_conversations(
 
     try:
         # 先删除消息（子表），再删除对话（主表）
-        await db.execute(
-            sa_delete(MessageModel).where(MessageModel.conversation_id.in_(ids))
-        )
-        await db.execute(
-            sa_delete(Conversation).where(Conversation.id.in_(ids))
-        )
+        await db.execute(sa_delete(MessageModel).where(MessageModel.conversation_id.in_(ids)))
+        await db.execute(sa_delete(Conversation).where(Conversation.id.in_(ids)))
         await db.commit()
         logger.info(f"批量删除对话成功: {len(ids)} 个")
         return UnifiedResponse.success(data={"deleted": True, "count": len(ids)})
@@ -535,17 +539,13 @@ async def update_conversation(
     if not title:
         return UnifiedResponse.error(message="标题不能为空")
 
-    result = await db.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     if not conversation:
         return UnifiedResponse.error(message="对话不存在", code=404)
 
     await db.execute(
-        sa_update(Conversation)
-        .where(Conversation.id == conversation_id)
-        .values(title=title)
+        sa_update(Conversation).where(Conversation.id == conversation_id).values(title=title)
     )
     await db.commit()
 
@@ -580,7 +580,7 @@ async def stream_chat_endpoint(
 ) -> StreamingResponse:
     """
     流式对话响应 (Server-Sent Events)
-    
+
     返回SSE格式的流式响应，支持以下事件类型：
     - start: 开始处理
     - thinking: 思考中
@@ -625,7 +625,7 @@ async def stream_chat_endpoint(
                             extra_data={
                                 "stream": True,
                                 "agent": event.get("agent"),
-                            }
+                            },
                         )
                         await db.commit()
                     except Exception as log_err:
@@ -643,7 +643,7 @@ async def stream_chat_endpoint(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
             "Content-Type": "text/event-stream; charset=utf-8",
-        }
+        },
     )
 
 
@@ -659,9 +659,10 @@ async def stream_chat_v2(
 ) -> StreamingResponse:
     """
     增强版流式对话（需要认证）
-    
+
     与/stream接口相同，但需要用户登录
     """
+
     async def generate_stream() -> AsyncGenerator[str, None]:
         service = ChatService(db)
 
@@ -696,7 +697,7 @@ async def stream_chat_v2(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
             "Content-Type": "text/event-stream; charset=utf-8",
-        }
+        },
     )
 
 
@@ -736,6 +737,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
     try:
         from src.services.a2ui_builder import build_response_a2ui
     except ImportError:
+
         def build_response_a2ui(
             agent_name: str,
             content: str,
@@ -748,7 +750,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
     try:
         init_msg = await asyncio.wait_for(websocket.receive_json(), timeout=10)
     except TimeoutError:
-        await websocket.send_json({"type": "error", "data": {"message": "认证超时，请在连接后 10s 内发送 auth 首包"}})
+        await websocket.send_json(
+            {"type": "error", "data": {"message": "认证超时，请在连接后 10s 内发送 auth 首包"}}
+        )
         await websocket.close(code=4401)
         logger.warning(f"WebSocket 认证超时: session={session_id}")
         return
@@ -831,7 +835,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
         conversation_id = session_id  # 即使数据库操作失败也保持 session_id
 
     # 创建 WebSocket 上下文对象（封装所有共享状态和辅助方法）
-    ctx = WebSocketContext(websocket, session_id, conversation_id, workforce, user_id=authenticated_user_id)
+    ctx = WebSocketContext(
+        websocket, session_id, conversation_id, workforce, user_id=authenticated_user_id
+    )
 
     # 订阅 EventBus
     async def event_handler(event_data: dict[str, Any]) -> None:
@@ -902,15 +908,31 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                 content = inject_template_context(processed_content, template_id)
 
                 if sensitivity == SensitivityLevel.CONFIDENTIAL:
-                    await ctx.send("agent_thinking", {"agent": "\u672c\u5730\u5b89\u5168\u82af\u7247", "message": "\u6b63\u5728\u672c\u5730\u786c\u4ef6\u5b89\u5168\u533a\u8fdb\u884c\u63a8\u7406..."})
-                    await ctx.send("agent_response", {"agent": "AI\u79c1\u6709\u52a9\u624b(Local)", "content": processed_content})
+                    await ctx.send(
+                        "agent_thinking",
+                        {
+                            "agent": "\u672c\u5730\u5b89\u5168\u82af\u7247",
+                            "message": "\u6b63\u5728\u672c\u5730\u786c\u4ef6\u5b89\u5168\u533a\u8fdb\u884c\u63a8\u7406...",
+                        },
+                    )
+                    await ctx.send(
+                        "agent_response",
+                        {
+                            "agent": "AI\u79c1\u6709\u52a9\u624b(Local)",
+                            "content": processed_content,
+                        },
+                    )
                     await ctx.save_message("user", content)
-                    await ctx.save_message("assistant", processed_content, "AI\u79c1\u6709\u52a9\u624b(Local)")
+                    await ctx.save_message(
+                        "assistant", processed_content, "AI\u79c1\u6709\u52a9\u624b(Local)"
+                    )
                     continue
 
             except Exception as e:
                 logger.error(f"\u7b97\u529b\u8def\u7531\u5931\u8d25: {e}")
-                await ctx.send("error", {"content": f"\u5b89\u5168\u68c0\u67e5\u5931\u8d25: {str(e)}"})
+                await ctx.send(
+                    "error", {"content": f"\u5b89\u5168\u68c0\u67e5\u5931\u8d25: {str(e)}"}
+                )
                 continue
 
             # === \u6301\u4e45\u5316\u7528\u6237\u6d88\u606f & \u66f4\u65b0\u4f1a\u8bdd\u8ba1\u6570\u5668 ===
@@ -923,9 +945,12 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
             _document_id = data.get("document_id")
             if _document_id:
                 try:
-                    await ctx.send("agent_thinking", {"agent": "文档解析", "message": "正在提取附件内容..."})
+                    await ctx.send(
+                        "agent_thinking", {"agent": "文档解析", "message": "正在提取附件内容..."}
+                    )
                     async with async_session_maker() as _doc_db:
                         from src.services.document_service import DocumentService
+
                         _doc_svc = DocumentService(_doc_db)
                         _doc = await _doc_svc.get_document(_document_id)
                         if _doc:
@@ -933,6 +958,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                             # 如果文档没有已提取的文本，实时解析
                             if not _extracted.strip() and _doc.file_path:
                                 from src.services.document_parser import DocumentParser
+
                                 _parser = cast(Any, DocumentParser)()
                                 _parse_result = await _parser.parse_file(file_path=_doc.file_path)
                                 _extracted = _parse_result.get("text", "")
@@ -948,21 +974,29 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                                 # V2 修复：标记附件已成功提取，供后续需求分析/路由使用
                                 data["has_attachments"] = True
                                 data["_attachment_name"] = _doc.name
-                                await ctx.send("file_parsed", {
-                                    "document_id": _document_id,
-                                    "file_name": _doc.name,
-                                    "char_count": len(_extracted),
-                                    "truncated": len(_extracted) > _max_chars,
-                                })
+                                await ctx.send(
+                                    "file_parsed",
+                                    {
+                                        "document_id": _document_id,
+                                        "file_name": _doc.name,
+                                        "char_count": len(_extracted),
+                                        "truncated": len(_extracted) > _max_chars,
+                                    },
+                                )
                             else:
-                                await ctx.send("file_parsed", {
-                                    "document_id": _document_id,
-                                    "file_name": getattr(_doc, 'name', ''),
-                                    "error": "无法提取文件内容",
-                                })
+                                await ctx.send(
+                                    "file_parsed",
+                                    {
+                                        "document_id": _document_id,
+                                        "file_name": getattr(_doc, "name", ""),
+                                        "error": "无法提取文件内容",
+                                    },
+                                )
                 except Exception as _doc_err:
                     logger.warning(f"文件内容注入失败: {_doc_err}")
-                    await ctx.send("file_parsed", {"document_id": _document_id, "error": str(_doc_err)})
+                    await ctx.send(
+                        "file_parsed", {"document_id": _document_id, "error": str(_doc_err)}
+                    )
 
             # === 企业调查强路由 ===
             dd_result = await handle_due_diligence(ctx, content, agent_name, recovery_map)
@@ -987,6 +1021,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
             _intent_hint = None
             try:
                 from src.services.a2ui_intent_handler import detect_intent
+
                 _intent_hint = detect_intent(content)
                 if _intent_hint:
                     logger.info(f"[A2UI] 意图提示(非拦截): {_intent_hint}")
@@ -1003,15 +1038,19 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
             if msg_type != "clarification_response" and recent_history and len(recent_history) >= 2:
                 try:
                     from src.services.prompt_assembler import prompt_assembler
+
                     _repair = prompt_assembler.detect_contradiction(content, recent_history)
                     if _repair:
                         logger.info(f"对话修复检测: {_repair['type']}")
-                        await ctx.send("conversation_repair", {
-                            "repair_type": _repair["type"],
-                            "message": _repair["message"],
-                            "options": _repair.get("options", []),
-                            "original_content": content,
-                        })
+                        await ctx.send(
+                            "conversation_repair",
+                            {
+                                "repair_type": _repair["type"],
+                                "message": _repair["message"],
+                                "options": _repair.get("options", []),
+                                "original_content": content,
+                            },
+                        )
                         await ctx.save_message("assistant", _repair["message"], "需求分析Agent")
                         continue
                 except Exception as _repair_err:
@@ -1020,36 +1059,103 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
             # === 2. 快速路径判断 — 简单消息直接回复，跳过需求分析 ===
 
             # 规则引擎：判断是否是简单消息（无需 LLM 调用）
-            _simple_greetings = {'你好', '您好', 'hi', 'hello', '嗨', '在吗', '你好啊', '您好啊', '早上好', '下午好', '晚上好'}
-            _content_stripped = content.strip().lower().rstrip('。！？!?.~')
+            _simple_greetings = {
+                "你好",
+                "您好",
+                "hi",
+                "hello",
+                "嗨",
+                "在吗",
+                "你好啊",
+                "您好啊",
+                "早上好",
+                "下午好",
+                "晚上好",
+            }
+            _content_stripped = content.strip().lower().rstrip("。！？!?.~")
             _is_simple = (
-                len(content) < 15 and not any(kw in content for kw in ['合同', '审查', '风险', '诉讼', '起草', '文书', '律师函', '律师', '员工', '辞退', '税', '签约', '侵权'])
+                len(content) < 15
+                and not any(
+                    kw in content
+                    for kw in [
+                        "合同",
+                        "审查",
+                        "风险",
+                        "诉讼",
+                        "起草",
+                        "文书",
+                        "律师函",
+                        "律师",
+                        "员工",
+                        "辞退",
+                        "税",
+                        "签约",
+                        "侵权",
+                    ]
+                )
             ) or _content_stripped in _simple_greetings
 
             # 复杂任务关键词（覆盖所有 Coordinator 支持的意图场景，确保进入渐进式策略评估）
             _complex_keywords = [
                 # 合同相关
-                '合同', '审查', '协议', '条款', '签约', '归档',
+                "合同",
+                "审查",
+                "协议",
+                "条款",
+                "签约",
+                "归档",
                 # 诉讼/仲裁
-                '诉讼', '仲裁', '起诉', '胜诉', '败诉', '判决',
+                "诉讼",
+                "仲裁",
+                "起诉",
+                "胜诉",
+                "败诉",
+                "判决",
                 # 尽职调查
-                '尽职调查', '尽调', '背景调查',
+                "尽职调查",
+                "尽调",
+                "背景调查",
                 # 风险/合规
-                '风险', '合规', '监管', '政策', '新规',
+                "风险",
+                "合规",
+                "监管",
+                "政策",
+                "新规",
                 # 文书/方案
-                '方案', '起草', '文书', '律师函',
+                "方案",
+                "起草",
+                "文书",
+                "律师函",
                 # 知识产权
-                '侵权', '专利', '商标', '知识产权', '版权',
+                "侵权",
+                "专利",
+                "商标",
+                "知识产权",
+                "版权",
                 # 劳动/人事
-                '员工', '辞退', '劳动', '入职', '赔偿',
+                "员工",
+                "辞退",
+                "劳动",
+                "入职",
+                "赔偿",
                 # 财税
-                '税', '财务', '发票', '报销',
+                "税",
+                "财务",
+                "发票",
+                "报销",
                 # 律师/服务匹配
-                '律师', '法律顾问', '律所',
+                "律师",
+                "法律顾问",
+                "律所",
                 # 证据
-                '证据', '录音', '鉴定',
+                "证据",
+                "录音",
+                "鉴定",
                 # 制度/公告
-                '制度', '公告', '手册', '通知',
+                "制度",
+                "公告",
+                "手册",
+                "通知",
             ]
             _is_complex_by_keyword = any(kw in content for kw in _complex_keywords)
 
@@ -1072,6 +1178,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
 
                 try:
                     from src.services.scenario_templates import reassess_after_clarification
+
                     reassessment = reassess_after_clarification(
                         user_input=original,
                         intent=_prev_intent,
@@ -1087,30 +1194,38 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                             f"[Harness] 补充后仍不完整 (round {reassessment['round']})，"
                             f"继续追问（缺失: {reassessment['missing_summary']}）"
                         )
-                        await ctx.send("clarification_request", {
-                            "message": "感谢补充！还需要以下信息才能为您提供准确的分析：",
-                            "questions": reassessment["questions"],
-                            "original_content": original,
-                            "readiness_score": reassessment["score"],
-                            "filled_slots": reassessment["filled_slots"],
-                            "missing_elements": [s["label"] for s in reassessment["missing_slots"]],
-                            "_prev_assessment": reassessment,
-                            "_prev_intent": _prev_intent,
-                            "_prev_round": reassessment["round"],
-                        })
+                        await ctx.send(
+                            "clarification_request",
+                            {
+                                "message": "感谢补充！还需要以下信息才能为您提供准确的分析：",
+                                "questions": reassessment["questions"],
+                                "original_content": original,
+                                "readiness_score": reassessment["score"],
+                                "filled_slots": reassessment["filled_slots"],
+                                "missing_elements": [
+                                    s["label"] for s in reassessment["missing_slots"]
+                                ],
+                                "_prev_assessment": reassessment,
+                                "_prev_intent": _prev_intent,
+                                "_prev_round": reassessment["round"],
+                            },
+                        )
                         continue
 
                     if not reassessment["is_complete"] and reassessment.get("round", 1) >= 3:
                         # 3轮后仍不完整 → 告知用户缺什么，让用户决定
                         logger.info("[Harness] 已追问3轮仍不完整，让用户选择是否继续")
-                        await ctx.send("completeness_warning", {
-                            "message": f"目前仍缺少以下信息：{reassessment['missing_summary']}。\n\n"
-                                       f"您可以继续补充，或使用当前信息生成（结果可能不够完整）。",
-                            "missing_summary": reassessment["missing_summary"],
-                            "score": reassessment["score"],
-                            "options": ["继续补充", "使用当前信息"],
-                            "original_content": original,
-                        })
+                        await ctx.send(
+                            "completeness_warning",
+                            {
+                                "message": f"目前仍缺少以下信息：{reassessment['missing_summary']}。\n\n"
+                                f"您可以继续补充，或使用当前信息生成（结果可能不够完整）。",
+                                "missing_summary": reassessment["missing_summary"],
+                                "score": reassessment["score"],
+                                "options": ["继续补充", "使用当前信息"],
+                                "original_content": original,
+                            },
+                        )
                         continue
 
                 except Exception as _reassess_err:
@@ -1121,7 +1236,9 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                     "is_complete": True,
                     "summary": content[:100],
                     "complexity": "moderate",
-                    "filled_slots": _prev_assessment.get("filled_slots", []) if _prev_assessment else [],
+                    "filled_slots": (
+                        _prev_assessment.get("filled_slots", []) if _prev_assessment else []
+                    ),
                 }
                 _is_simple = False
                 _is_complex_by_keyword = True
@@ -1145,14 +1262,16 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
             elif not _is_simple:
                 # === 所有非简单消息统一走合并需求分析+意图识别 ===
                 # （修复"中间层黑洞"：原来没命中关键词的消息被跳过分析）
-                await ctx.send("agent_thinking", {"agent": "需求分析Agent", "message": "正在分析您的需求..."})
+                await ctx.send(
+                    "agent_thinking", {"agent": "需求分析Agent", "message": "正在分析您的需求..."}
+                )
 
                 try:
                     token = _task_llm_config_var.set(llm_config)
                     token_llm = _task_llm_route_context_var.set(llm_route_context)
                     try:
                         # V2 修复：用原始文本做需求分析（避免 [AMOUNT_1] 等占位符干扰 pattern 匹配）
-                        _analysis_text = locals().get('original_content') or content
+                        _analysis_text = locals().get("original_content") or content
                         req_analysis = await workforce.coordinator.analyze_and_classify(
                             _analysis_text,
                             has_attachments=bool(data.get("has_attachments")),
@@ -1169,49 +1288,76 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                     _completeness_score = req_analysis.get("completeness_score", 1.0)
                     _filled_slots = req_analysis.get("filled_slots", [])
                     _missing_elements = req_analysis.get("missing_elements", [])
-                    await ctx.send("thinking_content", {
-                        "agent": "需求分析Agent",
-                        "content": (
-                            f"**需求摘要**: {req_analysis.get('summary', '')}\n\n"
-                            f"**复杂度**: {req_analysis.get('complexity', 'simple')}\n\n"
-                            f"**信息就绪度**: {int(_completeness_score * 100)}%"
-                            + (f"\n\n**已收集**: {', '.join(s.get('label', '') for s in _filled_slots)}" if _filled_slots else "")
-                            + (f"\n\n**待补充**: {', '.join(_missing_elements)}" if _missing_elements else "")
-                        ),
-                        "phase": "requirement",
-                        "readiness_score": _completeness_score,
-                        "filled_slots": _filled_slots,
-                        "missing_elements": _missing_elements,
-                    })
+                    await ctx.send(
+                        "thinking_content",
+                        {
+                            "agent": "需求分析Agent",
+                            "content": (
+                                f"**需求摘要**: {req_analysis.get('summary', '')}\n\n"
+                                f"**复杂度**: {req_analysis.get('complexity', 'simple')}\n\n"
+                                f"**信息就绪度**: {int(_completeness_score * 100)}%"
+                                + (
+                                    f"\n\n**已收集**: {', '.join(s.get('label', '') for s in _filled_slots)}"
+                                    if _filled_slots
+                                    else ""
+                                )
+                                + (
+                                    f"\n\n**待补充**: {', '.join(_missing_elements)}"
+                                    if _missing_elements
+                                    else ""
+                                )
+                            ),
+                            "phase": "requirement",
+                            "readiness_score": _completeness_score,
+                            "filled_slots": _filled_slots,
+                            "missing_elements": _missing_elements,
+                        },
+                    )
 
                     # 如果需求不完整且有追问问题，必须展示 ClarificationBubble
-                    if not req_analysis.get("is_complete", True) and req_analysis.get("guidance_questions"):
+                    if not req_analysis.get("is_complete", True) and req_analysis.get(
+                        "guidance_questions"
+                    ):
                         guidance_qs = req_analysis.get("guidance_questions", [])
 
                         # 只要有追问问题，统一使用结构化 ClarificationBubble
                         # （之前的"自然追问"分支会导致 is_complete=True 跳过澄清，
                         #   造成用户得到低质量输出，图2-3的好效果全靠这个 UI 实现）
-                        await ctx.send("clarification_request", {
-                            "message": f"为了更好地帮助您，请补充以下信息：\n\n需求摘要：{req_analysis.get('summary', '')}",
-                            "questions": guidance_qs,
-                            "original_content": content,
-                            "requirement_summary": req_analysis.get("summary", ""),
-                            "readiness_score": _completeness_score,
-                            "filled_slots": _filled_slots,
-                            "missing_elements": _missing_elements,
-                        })
-                        await ctx.save_message("assistant", req_analysis.get("summary", ""), "需求分析Agent")
+                        await ctx.send(
+                            "clarification_request",
+                            {
+                                "message": f"为了更好地帮助您，请补充以下信息：\n\n需求摘要：{req_analysis.get('summary', '')}",
+                                "questions": guidance_qs,
+                                "original_content": content,
+                                "requirement_summary": req_analysis.get("summary", ""),
+                                "readiness_score": _completeness_score,
+                                "filled_slots": _filled_slots,
+                                "missing_elements": _missing_elements,
+                            },
+                        )
+                        await ctx.save_message(
+                            "assistant", req_analysis.get("summary", ""), "需求分析Agent"
+                        )
                         continue
 
                 except Exception as e:
                     logger.warning(f"需求分析失败，继续处理: {e}")
-                    req_analysis = {"is_complete": True, "summary": content[:100], "complexity": "simple"}
+                    req_analysis = {
+                        "is_complete": True,
+                        "summary": content[:100],
+                        "complexity": "simple",
+                    }
 
             try:
                 # 判断是否需要多智能体协作
                 complexity = req_analysis.get("complexity", "simple")
-                _has_legal_intent = req_analysis.get("intent") not in (None, "", "QA_CONSULTATION") or _is_complex_by_keyword
-                is_complex = (complexity in ("moderate", "complex") or _has_legal_intent) and not _is_simple
+                _has_legal_intent = (
+                    req_analysis.get("intent") not in (None, "", "QA_CONSULTATION")
+                    or _is_complex_by_keyword
+                )
+                is_complex = (
+                    complexity in ("moderate", "complex") or _has_legal_intent
+                ) and not _is_simple
 
                 memory_id = None
                 # 默认响应策略 — 简单路径为 chat_only，复杂路径由 Coordinator 决定
@@ -1221,9 +1367,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                     # 执行任务上下文准备
                     _has_attachments = bool(data.get("has_attachments"))
                     _has_sufficient_info = (
-                        _has_attachments
-                        or len(content) > 80
-                        or ctx.session_message_count > 1
+                        _has_attachments or len(content) > 80 or ctx.session_message_count > 1
                     )
                     _task_content = content
                     _natural_followup = _as_str(req_analysis.get("natural_followup"))
@@ -1258,22 +1402,33 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                         "REAL_ESTATE": "legal_advisor",
                         "CRIMINAL": "legal_advisor",
                     }
-                    _fast_agent = _single_agent_intents.get(_merged_intent) if _merged_confidence >= 0.7 else None
+                    _fast_agent = (
+                        _single_agent_intents.get(_merged_intent)
+                        if _merged_confidence >= 0.7
+                        else None
+                    )
 
                     if _fast_agent and _fast_agent in workforce.agents:
                         # 真流式：单 Agent 直接 stream_chat，首 token 延迟最低
-                        logger.info(f"⚡ 真流式快速路径: intent={_merged_intent}, agent={_fast_agent}")
-                        await ctx.send("agent_start", {
-                            "agent": workforce.agents[_fast_agent].name,
-                            "message": f"{workforce.agents[_fast_agent].name} 正在处理...",
-                        })
+                        logger.info(
+                            f"⚡ 真流式快速路径: intent={_merged_intent}, agent={_fast_agent}"
+                        )
+                        await ctx.send(
+                            "agent_start",
+                            {
+                                "agent": workforce.agents[_fast_agent].name,
+                                "message": f"{workforce.agents[_fast_agent].name} 正在处理...",
+                            },
+                        )
 
                         try:
                             _agent_obj = workforce.agents[_fast_agent]
                             token_var = _task_llm_config_var.set(llm_config)
                             try:
                                 _dynamic_max_tokens = ctx.estimate_max_tokens(
-                                    content, _as_str(req_analysis.get("complexity"), "moderate"), _merged_intent
+                                    content,
+                                    _as_str(req_analysis.get("complexity"), "moderate"),
+                                    _merged_intent,
                                 )
                                 token_queue = await _agent_obj.stream_chat(
                                     _task_content,
@@ -1299,28 +1454,59 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                             # V2 修复：单 Agent 快速路径的 Canvas 自动触发
                             # 文书类意图（DOCUMENT_DRAFTING/合同/律师函等）生成内容 > 100 字自动打开 Canvas
                             # 让用户看到"可编辑的文档"而不是聊天气泡里的 Markdown 文字
-                            _fp_is_doc_task = _merged_intent in ("DOCUMENT_DRAFTING", "CONTRACT_REVIEW",
-                                                                 "CONTRACT_MANAGEMENT", "DEBT_COLLECTION") or \
-                                any(kw in content for kw in ['起草', '草拟', '协议', '合同', '文书', '方案',
-                                                             '律师函', '通知书', '答辩状', '起诉状', '申请书'])
-                            if _fp_is_doc_task and len((response_text or '').strip()) > 100:
-                                _fp_canvas_type = "contract" if any(kw in content for kw in ['合同', '协议', '合伙']) else "document"
-                                await ctx.send("canvas_open", {
-                                    "type": _fp_canvas_type,
-                                    "title": (_as_str(req_analysis.get("summary")) or content[:30])[:50],
-                                    "content": response_text,
-                                })
-                                logger.info(f"🎨 单Agent快速路径自动打开Canvas: intent={_merged_intent}, type={_fp_canvas_type}")
+                            _fp_is_doc_task = _merged_intent in (
+                                "DOCUMENT_DRAFTING",
+                                "CONTRACT_REVIEW",
+                                "CONTRACT_MANAGEMENT",
+                                "DEBT_COLLECTION",
+                            ) or any(
+                                kw in content
+                                for kw in [
+                                    "起草",
+                                    "草拟",
+                                    "协议",
+                                    "合同",
+                                    "文书",
+                                    "方案",
+                                    "律师函",
+                                    "通知书",
+                                    "答辩状",
+                                    "起诉状",
+                                    "申请书",
+                                ]
+                            )
+                            if _fp_is_doc_task and len((response_text or "").strip()) > 100:
+                                _fp_canvas_type = (
+                                    "contract"
+                                    if any(kw in content for kw in ["合同", "协议", "合伙"])
+                                    else "document"
+                                )
+                                await ctx.send(
+                                    "canvas_open",
+                                    {
+                                        "type": _fp_canvas_type,
+                                        "title": (
+                                            _as_str(req_analysis.get("summary")) or content[:30]
+                                        )[:50],
+                                        "content": response_text,
+                                    },
+                                )
+                                logger.info(
+                                    f"🎨 单Agent快速路径自动打开Canvas: intent={_merged_intent}, type={_fp_canvas_type}"
+                                )
                         except Exception as fast_err:
                             logger.warning(f"真流式快速路径失败，降级到 process_task: {fast_err}")
                             _fast_agent = None  # 标记降级
 
                     if not _fast_agent:
                         # --- 完整 DAG 路径：多 Agent 协作 ---
-                        await ctx.send("agent_start", {
-                            "agent": "协调调度Agent",
-                            "message": "正在分配最佳智能体处理您的需求...",
-                        })
+                        await ctx.send(
+                            "agent_start",
+                            {
+                                "agent": "协调调度Agent",
+                                "message": "正在分配最佳智能体处理您的需求...",
+                            },
+                        )
 
                         _task_context = {
                             "llm_config": llm_config,
@@ -1343,9 +1529,13 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                         memory_id = task_result.get("memory_id")
 
                         # 根据 response_strategy 决定是否触发右侧面板
-                        _response_strategy = task_result.get("analysis", {}).get("response_strategy", "chat_only")
+                        _response_strategy = task_result.get("analysis", {}).get(
+                            "response_strategy", "chat_only"
+                        )
                         if _response_strategy == "workspace":
-                            await ctx.send("panel_trigger", {"reason": "complex_task", "tab": "smart"})
+                            await ctx.send(
+                                "panel_trigger", {"reason": "complex_task", "tab": "smart"}
+                            )
 
                         # 提取 A2UI 数据
                         a2ui_data = None
@@ -1356,9 +1546,15 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                                 a2ui_data = res["metadata"]["a2ui"]
                                 if isinstance(a2ui_data, dict) and a2ui_data.get("components"):
                                     a2ui_components.extend(a2ui_data["components"])
-                                elif isinstance(a2ui_data, dict) and a2ui_data.get("a2ui", {}).get("components"):
+                                elif isinstance(a2ui_data, dict) and a2ui_data.get("a2ui", {}).get(
+                                    "components"
+                                ):
                                     a2ui_components.extend(a2ui_data["a2ui"]["components"])
-                            if isinstance(res, dict) and res.get("metadata") and not canvas_metadata:
+                            if (
+                                isinstance(res, dict)
+                                and res.get("metadata")
+                                and not canvas_metadata
+                            ):
                                 candidate = res["metadata"]
                                 if candidate.get("draft_mode") or candidate.get("missing_fields"):
                                     canvas_metadata = {
@@ -1388,34 +1584,65 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
 
                         # 根据 response_strategy 控制 A2UI 发送
                         if _response_strategy != "chat_only":
-                            if a2ui_components and _response_strategy in ("chat_with_a2ui", "chat_with_streaming_a2ui"):
+                            if a2ui_components and _response_strategy in (
+                                "chat_with_a2ui",
+                                "chat_with_streaming_a2ui",
+                            ):
                                 await ctx.stream_a2ui_components(
                                     a2ui_components,
                                     agent=used_agent,
                                     delay=0.04,
                                 )
                             elif a2ui_data:
-                                await ctx.send("context_update", {"context_type": "a2ui", "data": a2ui_data})
+                                await ctx.send(
+                                    "context_update", {"context_type": "a2ui", "data": a2ui_data}
+                                )
 
                         # 伪流式推送多智能体汇总结果
                         await ctx.stream_response_tokens(response_text, used_agent)
 
                         # === 智能 Canvas 自动打开 — V2 放宽：文书类意图或关键词即触发 ===
                         intent = task_result.get("analysis", {}).get("intent", "")
-                        _is_doc_task = intent in ("DOCUMENT_DRAFTING", "CONTRACT_REVIEW", "CONTRACT_MANAGEMENT", "DEBT_COLLECTION") or \
-                            any(kw in content for kw in ['起草', '草拟', '协议', '合同', '文书', '方案', '律师函',
-                                                         '通知书', '答辩状', '起诉状', '申请书', '意见书'])
+                        _is_doc_task = intent in (
+                            "DOCUMENT_DRAFTING",
+                            "CONTRACT_REVIEW",
+                            "CONTRACT_MANAGEMENT",
+                            "DEBT_COLLECTION",
+                        ) or any(
+                            kw in content
+                            for kw in [
+                                "起草",
+                                "草拟",
+                                "协议",
+                                "合同",
+                                "文书",
+                                "方案",
+                                "律师函",
+                                "通知书",
+                                "答辩状",
+                                "起诉状",
+                                "申请书",
+                                "意见书",
+                            ]
+                        )
 
                         # V2 修复：降低触发门槛 — 只要是文书类意图或关键词 + 响应有实质内容（>100字）就打开 Canvas
                         # 不再强制 workspace 策略（大量文书任务走的是 chat_only 策略）
                         if _is_doc_task and len(response_text) > 100:
-                            canvas_type = "contract" if any(kw in content for kw in ['合同', '协议', '合伙']) else "document"
-                            await ctx.send("canvas_open", {
-                                "type": canvas_type,
-                                "title": _as_str(req_analysis.get("summary"), "文档")[:50],
-                                "content": response_text,
-                                "metadata": canvas_metadata,
-                            })
+                            canvas_type = (
+                                "contract"
+                                if any(kw in content for kw in ["合同", "协议", "合伙"])
+                                else "document"
+                            )
+                            await ctx.send(
+                                "canvas_open",
+                                {
+                                    "type": canvas_type,
+                                    "title": _as_str(req_analysis.get("summary"), "文档")[:50],
+                                    "content": response_text,
+                                    "metadata": canvas_metadata,
+                                },
+                            )
 
                 else:
                     # 单智能体对话 — 直接回复，无需多余的思考事件
@@ -1432,9 +1659,12 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                     try:
                         token_var = _task_llm_config_var.set(llm_config)
                         try:
-                            agent_obj = workforce.agents.get(target_agent, workforce.agents["legal_advisor"])
+                            agent_obj = workforce.agents.get(
+                                target_agent, workforce.agents["legal_advisor"]
+                            )
                             _simple_max_tokens = ctx.estimate_max_tokens(
-                                content, _as_str(req_analysis.get("complexity"), "simple"),
+                                content,
+                                _as_str(req_analysis.get("complexity"), "simple"),
                             )
                             token_queue = await agent_obj.stream_chat(
                                 _agent_input,
@@ -1452,11 +1682,14 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                                 if tok.startswith("[Error]"):
                                     raise Exception(tok)
                                 accumulated += tok
-                                await ctx.send("content_token", {
-                                    "token": tok,
-                                    "accumulated": accumulated,
-                                    "agent": display_name,
-                                })
+                                await ctx.send(
+                                    "content_token",
+                                    {
+                                        "token": tok,
+                                        "accumulated": accumulated,
+                                        "agent": display_name,
+                                    },
+                                )
 
                             response_text = accumulated
                             used_agent = display_name
@@ -1490,10 +1723,15 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                         _panel_components = []
                         if isinstance(panel_data, dict):
                             _panel_components = panel_data.get("components", [])
-                            if not _panel_components and panel_data.get("a2ui", {}).get("components"):
+                            if not _panel_components and panel_data.get("a2ui", {}).get(
+                                "components"
+                            ):
                                 _panel_components = panel_data["a2ui"]["components"]
 
-                        if _panel_components and _response_strategy in ("chat_with_a2ui", "chat_with_streaming_a2ui"):
+                        if _panel_components and _response_strategy in (
+                            "chat_with_a2ui",
+                            "chat_with_streaming_a2ui",
+                        ):
                             # chat_with_a2ui：流式推送 A2UI 组件到对话流（内联卡片）
                             await ctx.stream_a2ui_components(
                                 _panel_components,
@@ -1502,19 +1740,24 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                             )
                         else:
                             # workspace：推送到右侧面板
-                            await ctx.send("context_update", {"context_type": "a2ui", "data": panel_data})
+                            await ctx.send(
+                                "context_update", {"context_type": "a2ui", "data": panel_data}
+                            )
 
                 # === 提取引用来源 ===
                 ws_sources = extract_citations(response_text)
 
                 # === 发送最终完成事件 ===
-                await ctx.send("done", {
-                    "agent": used_agent,
-                    "content": response_text,
-                    "memory_id": memory_id,
-                    "conversation_id": conversation_id,
-                    "sources": [s.model_dump() for s in ws_sources],
-                })
+                await ctx.send(
+                    "done",
+                    {
+                        "agent": used_agent,
+                        "content": response_text,
+                        "memory_id": memory_id,
+                        "conversation_id": conversation_id,
+                        "sources": [s.model_dump() for s in ws_sources],
+                    },
+                )
 
                 # V2：取出本轮累积的思考步骤 + memory_id，随 AI 消息持久化
                 _thinking_snapshot = ctx.pop_thinking_steps()
@@ -1534,6 +1777,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                     _filled_slots = _as_list_of_dicts(req_analysis.get("filled_slots"))
                     if _discovery_intent and (_guidance_qs or _filled_slots):
                         from src.services.episodic_memory_service import episodic_memory
+
                         await episodic_memory.add_discovery_path(
                             intent=_discovery_intent,
                             user_input=content[:500],
@@ -1551,12 +1795,15 @@ async def websocket_chat(websocket: WebSocket, session_id: str) -> None:
                     _ws_user_id = _as_str(data.get("user_id") or ctx.user_id)
                     if _ws_user_id:
                         from src.services.user_profile_service import UserProfileService
+
                         async with async_session_maker() as _profile_db:
                             _profile_svc = UserProfileService(_profile_db)
                             await _profile_svc.update_after_session(
                                 user_id=_ws_user_id,
                                 intent=_as_str(req_analysis.get("intent"), "QA_CONSULTATION"),
-                                clarification_rounds=1 if msg_type == "clarification_response" else 0,
+                                clarification_rounds=(
+                                    1 if msg_type == "clarification_response" else 0
+                                ),
                                 user_input_sample=content[:300],
                             )
                             await _profile_db.commit()
@@ -1625,7 +1872,7 @@ async def create_handover(
             "ticket_id": f"TICKET-{conversation_id[:8]}",
             "status": "submitted",
             "estimated_response": "24小时内",
-            "message": "已成功转交专业律师团队，我们将尽快与您联系。"
+            "message": "已成功转交专业律师团队，我们将尽快与您联系。",
         }
     )
 
@@ -1634,9 +1881,7 @@ async def create_handover(
 async def get_available_agents(user: User = Depends(get_current_user_required)) -> dict[str, Any]:
     """获取可用的智能体列表"""
     workforce = get_workforce()
-    data = {
-        "agents": workforce.get_agents_info()
-    }
+    data = {"agents": workforce.get_agents_info()}
     return UnifiedResponse.success(data=data)
 
 
@@ -1647,6 +1892,7 @@ async def get_available_models(
 ) -> dict[str, Any]:
     """获取可用的 LLM 模型列表（供对话中切换模型使用）"""
     from src.services.llm_service import LLMService
+
     result = await LLMService.list_configs(db, config_type="llm", is_active=True, page_size=50)
     configs = result.get("items", [])
     models = [
@@ -1676,13 +1922,16 @@ async def get_conversation_canvas(
         from src.models.document import Document as DocModel
 
         result = await db.execute(
-            sa_select(DocModel).where(
+            sa_select(DocModel)
+            .where(
                 and_(
                     DocModel.doc_metadata.isnot(None),
                     cast(DocModel.doc_metadata["conversation_id"], String) == conversation_id,
                     DocModel.description.like("Canvas:%"),
                 )
-            ).order_by(DocModel.updated_at.desc()).limit(1)
+            )
+            .order_by(DocModel.updated_at.desc())
+            .limit(1)
         )
         doc = result.scalar_one_or_none()
 
@@ -1695,19 +1944,22 @@ async def get_conversation_canvas(
             # 尝试从文件路径读取
             try:
                 from pathlib import Path
+
                 fp = Path(doc.file_path)
                 if fp.exists():
                     content = fp.read_text(encoding="utf-8")
             except Exception:
                 pass
 
-        return UnifiedResponse.success(data={
-            "document_id": doc.id,
-            "title": doc.name,
-            "content": content,
-            "type": doc.doc_type.value if doc.doc_type else "document",
-            "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
-        })
+        return UnifiedResponse.success(
+            data={
+                "document_id": doc.id,
+                "title": doc.name,
+                "content": content,
+                "type": doc.doc_type.value if doc.doc_type else "document",
+                "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+            }
+        )
     except Exception as e:
         logger.error(f"获取 Canvas 文档失败: {e}")
         return UnifiedResponse.success(data=None, message="获取失败")
@@ -1732,32 +1984,38 @@ async def list_conversation_documents(
         from src.models.document import Document as DocModel
 
         result = await db.execute(
-            sa_select(DocModel).where(
+            sa_select(DocModel)
+            .where(
                 and_(
                     DocModel.doc_metadata.isnot(None),
                     cast(DocModel.doc_metadata["conversation_id"], String) == conversation_id,
                 )
-            ).order_by(DocModel.updated_at.desc())
+            )
+            .order_by(DocModel.updated_at.desc())
         )
         docs = result.scalars().all()
 
         items = []
         for doc in docs:
             preview = (doc.extracted_text or "")[:200]
-            items.append({
-                "id": str(doc.id),
-                "title": doc.name,
-                "type": doc.doc_type.value if doc.doc_type else "document",
-                "preview": preview,
-                "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
-                "created_at": doc.created_at.isoformat() if doc.created_at else None,
-            })
+            items.append(
+                {
+                    "id": str(doc.id),
+                    "title": doc.name,
+                    "type": doc.doc_type.value if doc.doc_type else "document",
+                    "preview": preview,
+                    "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+                    "created_at": doc.created_at.isoformat() if doc.created_at else None,
+                }
+            )
 
-        return UnifiedResponse.success(data={
-            "items": items,
-            "total": len(items),
-            "conversation_id": conversation_id,
-        })
+        return UnifiedResponse.success(
+            data={
+                "items": items,
+                "total": len(items),
+                "conversation_id": conversation_id,
+            }
+        )
     except Exception as e:
         logger.error(f"列出对话文档失败: {e}")
         return UnifiedResponse.success(data={"items": [], "total": 0}, message="获取失败")
@@ -1776,6 +2034,7 @@ async def get_document_full_content(
     """
     try:
         from src.models.document import Document as DocModel
+
         doc = await db.get(DocModel, document_id)
         if not doc:
             return UnifiedResponse.error(code=404, message="文档不存在")
@@ -1784,19 +2043,22 @@ async def get_document_full_content(
         if not content and doc.file_path:
             try:
                 from pathlib import Path
+
                 fp = Path(doc.file_path)
                 if fp.exists():
                     content = fp.read_text(encoding="utf-8")
             except Exception:
                 pass
 
-        return UnifiedResponse.success(data={
-            "id": str(doc.id),
-            "title": doc.name,
-            "content": content,
-            "type": doc.doc_type.value if doc.doc_type else "document",
-            "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
-        })
+        return UnifiedResponse.success(
+            data={
+                "id": str(doc.id),
+                "title": doc.name,
+                "content": content,
+                "type": doc.doc_type.value if doc.doc_type else "document",
+                "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+            }
+        )
     except Exception as e:
         logger.error(f"获取文档内容失败: {e}")
         return UnifiedResponse.error(code=500, message=f"获取失败: {str(e)}")
@@ -1815,18 +2077,24 @@ async def delete_document_from_workspace(
     """
     try:
         from src.models.document import Document as DocModel
+
         doc = await db.get(DocModel, document_id)
         if not doc:
             return UnifiedResponse.error(code=404, message="文档不存在")
 
         # 权限检查：仅创建者本人可删除
-        if doc.created_by and str(doc.created_by) != str(user.id) and user.role not in ("admin", "super_admin"):
+        if (
+            doc.created_by
+            and str(doc.created_by) != str(user.id)
+            and user.role not in ("admin", "super_admin")
+        ):
             return UnifiedResponse.error(code=403, message="无权删除此文档")
 
         # 删除关联文件（如果有）
         if doc.file_path:
             try:
                 from pathlib import Path
+
                 fp = Path(doc.file_path)
                 if fp.exists() and fp.is_file():
                     fp.unlink()
@@ -1857,6 +2125,7 @@ async def prepare_document_export(
     """
     try:
         from src.models.document import Document as DocModel
+
         doc = await db.get(DocModel, document_id)
         if not doc:
             return UnifiedResponse.error(code=404, message="文档不存在")
@@ -1865,6 +2134,7 @@ async def prepare_document_export(
         if not content and doc.file_path:
             try:
                 from pathlib import Path
+
                 fp = Path(doc.file_path)
                 if fp.exists():
                     content = fp.read_text(encoding="utf-8")
@@ -1873,21 +2143,26 @@ async def prepare_document_export(
 
         if format.lower() == "markdown":
             import base64
+
             b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
-            return UnifiedResponse.success(data={
-                "format": "markdown",
-                "filename": f"{doc.name}.md",
-                "content_base64": b64,
-                "mime": "text/markdown",
-            })
+            return UnifiedResponse.success(
+                data={
+                    "format": "markdown",
+                    "filename": f"{doc.name}.md",
+                    "content_base64": b64,
+                    "mime": "text/markdown",
+                }
+            )
 
         # PDF/DOCX 需要额外依赖，这里返回前端可自行转换的提示
-        return UnifiedResponse.success(data={
-            "format": format,
-            "filename": f"{doc.name}.{format}",
-            "content": content,
-            "note": "PDF/DOCX 由前端渲染生成",
-        })
+        return UnifiedResponse.success(
+            data={
+                "format": format,
+                "filename": f"{doc.name}.{format}",
+                "content": content,
+                "note": "PDF/DOCX 由前端渲染生成",
+            }
+        )
     except Exception as e:
         logger.error(f"文档导出准备失败: {e}")
         return UnifiedResponse.error(code=500, message=f"导出失败: {str(e)}")

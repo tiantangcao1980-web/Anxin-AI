@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P7-A: personas API 路由测试
 
@@ -18,6 +17,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -43,6 +43,7 @@ def _reset_persona_registry():
 # helpers
 # ------------------------------------------------------------------
 
+
 def _patch_chat(content: str = "ok"):
     """patch OperationsManagerAgent.chat 避免真正请求 LLM。"""
     return patch(
@@ -59,9 +60,7 @@ def _patch_llm_init():
 # ------------------------------------------------------------------
 class TestPersonaListAndDetail:
     @pytest.mark.asyncio
-    async def test_list_personas_returns_operations_manager(
-        self, auth_client: AsyncClient
-    ):
+    async def test_list_personas_returns_operations_manager(self, auth_client: AsyncClient):
         with _patch_llm_init():
             r = await auth_client.get("/api/v1/personas")
         assert r.status_code == 200, r.text
@@ -85,7 +84,10 @@ class TestPersonaListAndDetail:
         assert data["persona_id"] == "operations_manager"
         assert data["display_name"] == "流程管家"
         assert data["system_prompt_excerpt"]
-        assert "operations_manager" in data["system_prompt_excerpt"] or "流程管家" in data["system_prompt_excerpt"]
+        assert (
+            "operations_manager" in data["system_prompt_excerpt"]
+            or "流程管家" in data["system_prompt_excerpt"]
+        )
 
     @pytest.mark.asyncio
     async def test_get_persona_404(self, auth_client: AsyncClient):

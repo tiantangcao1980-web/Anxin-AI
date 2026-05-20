@@ -74,10 +74,7 @@ def test_release_worktree_inventory_classifies_dirty_paths(tmp_path):
         "docs/strategy/product-architecture-and-requirements-2026-05-08.md"
         in payload["categories"]["release_delivery"]
     )
-    assert (
-        "docs/archive/legacy-root-docs/旧文档.md"
-        in payload["categories"]["release_delivery"]
-    )
+    assert "docs/archive/legacy-root-docs/旧文档.md" in payload["categories"]["release_delivery"]
     assert "docs/design/cross-platform-token-drift.md" in payload["categories"]["release_delivery"]
     assert "frontend/package-lock.json" in payload["categories"]["release_delivery"]
     assert ".env" in payload["categories"]["local_secret"]

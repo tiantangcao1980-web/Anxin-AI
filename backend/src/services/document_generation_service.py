@@ -30,7 +30,8 @@ class DocumentGenerationService:
         validation = DocumentValidator.validate_document(response.content, doc_type)
         return {
             "content": response.content,
-            "draft_mode": response.metadata.get("draft_mode") or self._extract_draft_mode(response.reasoning),
+            "draft_mode": response.metadata.get("draft_mode")
+            or self._extract_draft_mode(response.reasoning),
             "validation_score": validation.score,
             "completeness_score": response.metadata.get("completeness_score"),
             "missing_fields": response.metadata.get("missing_fields", []),

@@ -52,4 +52,8 @@ async def test_start_due_diligence_event_requires_company_name():
 
     assert result is not None
     assert result["type"] == "a2ui_message"
-    assert any("请先填写需要调查的企业名称" in component["data"].get("content", "") or "请先填写需要调查的企业名称" in component["data"].get("description", "") for component in result["components"])
+    assert any(
+        "请先填写需要调查的企业名称" in component["data"].get("content", "")
+        or "请先填写需要调查的企业名称" in component["data"].get("description", "")
+        for component in result["components"]
+    )

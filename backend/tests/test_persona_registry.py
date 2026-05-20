@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 P7-A: PersonaRegistry 单元测试
 
@@ -31,6 +30,7 @@ def _reset_registry():
 # ------------------------------------------------------------------
 # helpers
 # ------------------------------------------------------------------
+
 
 def _make_persona(persona_id: str = "demo_persona", name: str = "Demo"):
     """创建一个不真正连接 LLM 的 fake persona class。

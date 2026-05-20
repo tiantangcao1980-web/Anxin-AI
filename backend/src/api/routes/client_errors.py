@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 客户端错误聚合上报端点（P19-B 三端可观测层 / Backend）
 
@@ -18,7 +17,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request, status
 from loguru import logger
@@ -34,29 +33,29 @@ router = APIRouter()
 
 
 class Breadcrumb(BaseModel):
-    ts: Optional[int] = None
-    category: Optional[str] = None
-    data: Optional[Any] = None
+    ts: int | None = None
+    category: str | None = None
+    data: Any | None = None
 
 
 class ClientErrorIn(BaseModel):
     """三端通用上报载荷。所有字段都是可选，因为不同 type 字段集不一样。"""
 
     source: str = Field(..., description="web | mobile | miniprogram")
-    type: Optional[str] = Field(
+    type: str | None = Field(
         default=None,
         description="crash | unhandled_rejection | web-vital | event | perf",
     )
-    error: Optional[str] = None
-    stack: Optional[str] = None
-    name: Optional[str] = None  # web-vital 名 / event 名
-    value: Optional[float] = None  # web-vital 数值
-    rating: Optional[str] = None  # web-vital good/needs-improvement/poor
-    context: Optional[Dict[str, Any]] = None
-    breadcrumbs: Optional[List[Breadcrumb]] = None
-    fingerprint: Optional[List[str]] = None
-    url: Optional[str] = None
-    ts: Optional[int] = None
+    error: str | None = None
+    stack: str | None = None
+    name: str | None = None  # web-vital 名 / event 名
+    value: float | None = None  # web-vital 数值
+    rating: str | None = None  # web-vital good/needs-improvement/poor
+    context: dict[str, Any] | None = None
+    breadcrumbs: list[Breadcrumb] | None = None
+    fingerprint: list[str] | None = None
+    url: str | None = None
+    ts: int | None = None
 
 
 # ──────────────── Hash 对齐 P19-A 后端 error_classifier ────────────────
@@ -79,7 +78,11 @@ def _compute_hash(payload: ClientErrorIn) -> str:
         return compute_fingerprint(
             source=payload.source,
             error_type=(payload.type or "unknown"),
-            module=(payload.fingerprint[1] if payload.fingerprint and len(payload.fingerprint) > 1 else (payload.url or "")),
+            module=(
+                payload.fingerprint[1]
+                if payload.fingerprint and len(payload.fingerprint) > 1
+                else (payload.url or "")
+            ),
             message=(payload.error or payload.name or ""),
         )
     except Exception:
@@ -103,8 +106,8 @@ async def _try_persist(payload: ClientErrorIn, fingerprint_hash: str) -> bool:
     保持 best-effort，不让上报路径因为落库失败而 5xx。
     """
     try:
-        from src.models.client_error import ClientError  # type: ignore
         from src.core.database import async_session_maker  # type: ignore
+        from src.models.client_error import ClientError  # type: ignore
 
         async with async_session_maker() as session:
             row = ClientError(
@@ -138,9 +141,7 @@ async def report_client_error(
     payload: ClientErrorIn,
     request: Request,
     # 100 次 / 60s, 按 IP 限速（无需登录态）
-    _: None = Depends(
-        rate_limit(limit=100, window=60, endpoint="client_errors", by_user=False)
-    ),
+    _: None = Depends(rate_limit(limit=100, window=60, endpoint="client_errors", by_user=False)),
 ) -> UnifiedResponse:
     """
     三端均可调用：
@@ -163,7 +164,9 @@ async def report_client_error(
         client_ip=(request.client.host if request.client else None),
         persisted=persisted,
     ).info(
-        f"[client_errors] {payload.source}/{payload.type} {payload.name or payload.error or ''}"[:300]
+        f"[client_errors] {payload.source}/{payload.type} {payload.name or payload.error or ''}"[
+            :300
+        ]
     )
 
     return UnifiedResponse(

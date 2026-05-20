@@ -7,10 +7,7 @@ from src.services.signature_service import SignType, signature_service
 @pytest.mark.asyncio
 async def test_bulk_policy_distribution():
     # 测试批量创建
-    users = [
-        {"name": "Emp1", "phone": "100"},
-        {"name": "Emp2", "phone": "101"}
-    ]
+    users = [{"name": "Emp1", "phone": "100"}, {"name": "Emp2", "phone": "101"}]
     res = await signature_service.create_batch_task(
         "policy_001", users, "admin", SignType.NOTICE_READ, "放假公告"
     )
@@ -32,23 +29,19 @@ async def test_bulk_policy_distribution():
     assert prog_updated["signed_count"] == 1
     assert prog_updated["completion_rate"] == "50.0%"
 
+
 @pytest.mark.asyncio
 async def test_labor_compliance_publish_intent():
     # 模拟 LaborComplianceAgent 处理发布任务
     agent = LaborComplianceAgent()
 
     # Mock context
-    context = {
-        "policy_name": "员工手册2026",
-        "employees": [{"name": "A"}, {"name": "B"}]
-    }
+    context = {"policy_name": "员工手册2026", "employees": [{"name": "A"}, {"name": "B"}]}
 
     # 直接调用 process
-    response = await agent.process({
-        "action": "publish_policy",
-        "description": "发布手册",
-        "context": context
-    })
+    response = await agent.process(
+        {"action": "publish_policy", "description": "发布手册", "context": context}
+    )
 
     assert "发起《员工手册2026》的全员宣贯" in response.content
     assert response.actions[0]["type"] == "start_batch_sign"

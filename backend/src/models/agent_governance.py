@@ -28,8 +28,12 @@ class AgentManager(Base, TimestampMixin):
 
     __tablename__ = "agent_managers"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
-    owner_user_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    owner_user_id: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     scope_type: Mapped[str] = mapped_column(String(50), nullable=False, default="organization")
     scope_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -48,7 +52,9 @@ class AgentTeam(Base, TimestampMixin):
 
     __tablename__ = "agent_teams"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     manager_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     scope_type: Mapped[str] = mapped_column(String(50), nullable=False, default="project")
@@ -74,7 +80,9 @@ class AgentWorker(Base, TimestampMixin):
 
     __tablename__ = "agent_workers"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     team_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     worker_type: Mapped[str] = mapped_column(String(60), nullable=False, default="assistant")
@@ -101,9 +109,13 @@ class HumanParticipant(Base, TimestampMixin):
 
     __tablename__ = "human_participants"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     team_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
-    user_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     external_subject_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     participant_type: Mapped[str] = mapped_column(String(40), nullable=False, default="employee")
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="viewer")
@@ -127,7 +139,9 @@ class AgentChannelPolicy(Base, TimestampMixin):
 
     __tablename__ = "agent_channel_policies"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     team_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     channel_type: Mapped[str] = mapped_column(String(50), nullable=False, default="workspace")
     channel_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -153,7 +167,9 @@ class CapabilityRoute(Base, TimestampMixin):
 
     __tablename__ = "capability_routes"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     route_key: Mapped[str] = mapped_column(String(160), nullable=False)
     route_type: Mapped[str] = mapped_column(String(60), nullable=False)
     provider: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -179,14 +195,18 @@ class CapabilityRouteTokenLease(Base, TimestampMixin):
 
     __tablename__ = "capability_route_token_leases"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     route_id: Mapped[str] = mapped_column(GUID(), nullable=False)
     consumer_id: Mapped[str] = mapped_column(String(160), nullable=False)
     consumer_type: Mapped[str] = mapped_column(String(60), nullable=False, default="agent_worker")
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     scopes: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_validated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -199,7 +219,9 @@ class CapabilityRouteTokenLease(Base, TimestampMixin):
         UniqueConstraint("org_id", "token_hash", name="uq_capability_route_token_leases_org_hash"),
         Index("ix_capability_route_token_leases_route", "route_id"),
         Index("ix_capability_route_token_leases_expires_at", "expires_at"),
-        Index("ix_capability_route_token_leases_consumer", "org_id", "consumer_type", "consumer_id"),
+        Index(
+            "ix_capability_route_token_leases_consumer", "org_id", "consumer_type", "consumer_id"
+        ),
     )
 
 
@@ -208,10 +230,16 @@ class AgentApproval(Base, TimestampMixin):
 
     __tablename__ = "agent_approvals"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     route_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
-    requested_by: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    decided_by: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    requested_by: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    decided_by: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     action_type: Mapped[str] = mapped_column(String(80), nullable=False)
     risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="l3")
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending")
@@ -237,12 +265,16 @@ class AgentAuditEvent(Base):
 
     __tablename__ = "agent_audit_events"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False
+    )
     team_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     worker_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     route_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     human_participant_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
-    actor_user_id: Mapped[str | None] = mapped_column(GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_user_id: Mapped[str | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     actor_type: Mapped[str] = mapped_column(String(50), nullable=False, default="system")
     actor_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     action: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -298,7 +330,9 @@ class SkillGovernanceProposal(Base, TimestampMixin):
 
     __tablename__ = "skill_governance_proposals"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     skill_name: Mapped[str] = mapped_column(String(160), nullable=False)
     current_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
     proposed_version: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -318,7 +352,12 @@ class SkillGovernanceProposal(Base, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint("org_id", "id", name="uq_skill_governance_proposals_org_id"),
-        UniqueConstraint("org_id", "skill_name", "proposed_version", name="uq_skill_governance_proposals_org_version"),
+        UniqueConstraint(
+            "org_id",
+            "skill_name",
+            "proposed_version",
+            name="uq_skill_governance_proposals_org_version",
+        ),
         Index("ix_skill_governance_proposals_org_status", "org_id", "status"),
         Index("ix_skill_governance_proposals_skill", "org_id", "skill_name"),
     )
@@ -329,12 +368,16 @@ class SkillEnabledVersion(Base, TimestampMixin):
 
     __tablename__ = "skill_enabled_versions"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     skill_name: Mapped[str] = mapped_column(String(160), nullable=False)
     version: Mapped[str] = mapped_column(String(80), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="enabled")
     proposal_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
-    enabled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
+    enabled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
 
     __table_args__ = (
         ForeignKeyConstraint(
@@ -352,7 +395,9 @@ class SkillConnectorConfig(Base, TimestampMixin):
 
     __tablename__ = "skill_connector_configs"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
     skill_name: Mapped[str] = mapped_column(String(160), nullable=False)
     connector_name: Mapped[str] = mapped_column(String(120), nullable=False)
     connector_type: Mapped[str] = mapped_column(String(60), nullable=False, default="http_api")
@@ -381,7 +426,9 @@ class SkillGovernanceAuditEvent(Base):
 
     __tablename__ = "skill_governance_audit_events"
 
-    org_id: Mapped[str] = mapped_column(GUID(), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False)
+    org_id: Mapped[str] = mapped_column(
+        GUID(), ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False
+    )
     proposal_id: Mapped[str | None] = mapped_column(GUID(), nullable=True)
     actor: Mapped[str] = mapped_column(String(160), nullable=False)
     action: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -410,5 +457,9 @@ def _reject_skill_governance_audit_event_mutation(*_args: object) -> None:
     raise ValueError("skill_governance_audit_events is append-only")
 
 
-event.listen(SkillGovernanceAuditEvent, "before_update", _reject_skill_governance_audit_event_mutation)
-event.listen(SkillGovernanceAuditEvent, "before_delete", _reject_skill_governance_audit_event_mutation)
+event.listen(
+    SkillGovernanceAuditEvent, "before_update", _reject_skill_governance_audit_event_mutation
+)
+event.listen(
+    SkillGovernanceAuditEvent, "before_delete", _reject_skill_governance_audit_event_mutation
+)

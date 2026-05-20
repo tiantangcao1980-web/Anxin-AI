@@ -259,12 +259,16 @@ async def test_unified_capability_policy_requires_and_accepts_high_risk_approval
     )
 
     audit_reasons = (
-        await db_session.execute(
-            select(AgentAuditEvent)
-            .where(AgentAuditEvent.org_id == test_organization.id)
-            .order_by(AgentAuditEvent.created_at, AgentAuditEvent.id)
+        (
+            await db_session.execute(
+                select(AgentAuditEvent)
+                .where(AgentAuditEvent.org_id == test_organization.id)
+                .order_by(AgentAuditEvent.created_at, AgentAuditEvent.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     allowed_audit = (
         await db_session.execute(
             select(AgentAuditEvent).where(AgentAuditEvent.id == allowed.audit_event_id)

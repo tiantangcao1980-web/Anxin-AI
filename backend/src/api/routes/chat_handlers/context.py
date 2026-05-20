@@ -115,25 +115,31 @@ class WebSocketContext:
         if self._ws_closed:
             return
         # V2：自动捕获思考过程事件 → 累积到 buffer，供保存 AI 消息时一并持久化
-        if event_type in ("thinking_content", "agent_thinking", "agent_start") and isinstance(data, dict):
+        if event_type in ("thinking_content", "agent_thinking", "agent_start") and isinstance(
+            data, dict
+        ):
             try:
                 content = data.get("content") or data.get("message") or ""
                 if content:
-                    self._thinking_steps_buffer.append({
-                        "id": str(uuid.uuid4()),
-                        "agent": data.get("agent", ""),
-                        "content": str(content)[:1500],  # 限长防撑爆
-                        "phase": data.get("phase", "execution"),
-                        "timestamp": int(asyncio.get_event_loop().time() * 1000),
-                    })
+                    self._thinking_steps_buffer.append(
+                        {
+                            "id": str(uuid.uuid4()),
+                            "agent": data.get("agent", ""),
+                            "content": str(content)[:1500],  # 限长防撑爆
+                            "phase": data.get("phase", "execution"),
+                            "timestamp": int(asyncio.get_event_loop().time() * 1000),
+                        }
+                    )
             except Exception:
                 pass
         try:
-            await self.ws.send_json({
-                **data,
-                "type": event_type,
-                "session_id": self.session_id,
-            })
+            await self.ws.send_json(
+                {
+                    **data,
+                    "type": event_type,
+                    "session_id": self.session_id,
+                }
+            )
         except Exception as e:
             if "close" in str(e).lower():
                 self._ws_closed = True
@@ -154,7 +160,9 @@ class WebSocketContext:
     # ---- 消息持久化（带自动重试） ----
 
     async def save_message(
-        self, role: str, content: str,
+        self,
+        role: str,
+        content: str,
         agent_name: str | None = None,
         citations: list[dict[str, Any]] | None = None,
         thinking_steps: list[dict[str, Any]] | None = None,
@@ -168,6 +176,7 @@ class WebSocketContext:
                 try:
                     from src.core.database import async_session_maker
                     from src.services.chat_service import ChatService
+
                     async with async_session_maker() as db_session:
                         svc = ChatService(db_session)
                         # V2：保存 thinking_steps 与 memory_id 到 msg_metadata
@@ -177,8 +186,10 @@ class WebSocketContext:
                         if memory_id:
                             _extra_meta["memory_id"] = memory_id
                         await svc.add_message(
-                            conversation_id=self.conversation_id, role=role,
-                            content=content, agent_name=agent_name,
+                            conversation_id=self.conversation_id,
+                            role=role,
+                            content=content,
+                            agent_name=agent_name,
                             citations=citations,
                             msg_metadata=_extra_meta if _extra_meta else None,
                         )
@@ -188,6 +199,7 @@ class WebSocketContext:
                             from sqlalchemy import update as sa_update
 
                             from src.models.conversation import Conversation as ConvModel
+
                             result = await db_session.execute(
                                 sa_select(ConvModel.title).where(
                                     ConvModel.id == self.conversation_id
@@ -202,10 +214,13 @@ class WebSocketContext:
                                         .where(ConvModel.id == self.conversation_id)
                                         .values(title=title_text)
                                     )
-                                    await self.send("conversation_title_updated", {
-                                        "conversation_id": self.conversation_id,
-                                        "title": title_text,
-                                    })
+                                    await self.send(
+                                        "conversation_title_updated",
+                                        {
+                                            "conversation_id": self.conversation_id,
+                                            "title": title_text,
+                                        },
+                                    )
                         await db_session.commit()
                     # 成功 → 跳出重试循环
                     if attempt > 0:
@@ -214,7 +229,9 @@ class WebSocketContext:
                 except Exception as e:
                     if attempt < max_retries - 1:
                         wait_time = 0.5 * (attempt + 1)
-                        logger.warning(f"WebSocket: 保存消息失败（第 {attempt + 1}/{max_retries} 次），{wait_time}s 后重试: {e}")
+                        logger.warning(
+                            f"WebSocket: 保存消息失败（第 {attempt + 1}/{max_retries} 次），{wait_time}s 后重试: {e}"
+                        )
                         await asyncio.sleep(wait_time)
                     else:
                         # 最终失败：静默记录日志，不弹警告打扰用户
@@ -227,6 +244,7 @@ class WebSocketContext:
         """加载 LLM 配置（优先使用缓存）"""
         try:
             from src.services.llm_service import LLMService
+
             return await LLMService.get_cached_effective_config("llm")
         except Exception:
             pass
@@ -234,12 +252,14 @@ class WebSocketContext:
         try:
             from src.core.database import async_session_maker
             from src.services.llm_service import LLMService
+
             async with async_session_maker() as db_session:
                 cfg = await LLMService.get_default_config(db_session)
                 if not cfg:
                     from sqlalchemy import select
 
                     from src.models.llm_config import LLMConfig
+
                     result_cfg = await db_session.execute(
                         select(LLMConfig)
                         .where(LLMConfig.config_type == "llm")
@@ -261,6 +281,7 @@ class WebSocketContext:
         try:
             from src.core.database import async_session_maker
             from src.services.chat_service import ChatService
+
             async with async_session_maker() as db_session:
                 svc = ChatService(db_session)
                 return await svc.get_recent_history(
@@ -278,33 +299,40 @@ class WebSocketContext:
         """将完整响应文本逐块流式推送"""
         if not text:
             return
-        chunks = re.split(r'([。！？；\n])', text)
+        chunks = re.split(r"([。！？；\n])", text)
         accumulated = ""
         buf = ""
         for chunk in chunks:
             buf += chunk
-            if chunk in '。！？；\n' or len(buf) >= 30:
+            if chunk in "。！？；\n" or len(buf) >= 30:
                 if buf.strip():
                     accumulated += buf
-                    await self.send("content_token", {
-                        "token": buf,
-                        "accumulated": accumulated,
-                        "agent": agent,
-                    })
+                    await self.send(
+                        "content_token",
+                        {
+                            "token": buf,
+                            "accumulated": accumulated,
+                            "agent": agent,
+                        },
+                    )
                     await asyncio.sleep(0.02)
                 buf = ""
         if buf.strip():
             accumulated += buf
-            await self.send("content_token", {
-                "token": buf,
-                "accumulated": accumulated,
-                "agent": agent,
-            })
+            await self.send(
+                "content_token",
+                {
+                    "token": buf,
+                    "accumulated": accumulated,
+                    "agent": agent,
+                },
+            )
 
     # ---- 流式 A2UI 组件推送 ----
 
     async def stream_a2ui_components(
-        self, components: list[dict[str, Any]],
+        self,
+        components: list[dict[str, Any]],
         agent: str = "AI 助手",
         stream_id: str | None = None,
         delay: float = 0.05,

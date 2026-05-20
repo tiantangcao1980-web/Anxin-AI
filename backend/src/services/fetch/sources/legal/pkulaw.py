@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """北大法宝（pkulaw.com）商业付费 API 客户端骨架。
 
 - 全部方法实装为 HTTP 调用结构（GET/POST + headers）
@@ -10,7 +9,7 @@
 from __future__ import annotations
 
 import logging
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import httpx
 
@@ -50,9 +49,9 @@ class PkuLawSource(BaseLegalSource):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        client: Optional[httpx.AsyncClient] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        client: httpx.AsyncClient | None = None,
         timeout: float = 20.0,
     ) -> None:
         settings = get_settings()

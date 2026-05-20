@@ -33,11 +33,12 @@ from src.services.legal_corpus_loader import (
 
 # ===== 查询模式 =====
 
+
 class QueryMode:
-    LOCAL = "local"      # 精确法条检索
-    GLOBAL = "global"    # 主题概览检索
-    HYBRID = "hybrid"    # 混合（默认）
-    NAIVE = "naive"      # 纯向量
+    LOCAL = "local"  # 精确法条检索
+    GLOBAL = "global"  # 主题概览检索
+    HYBRID = "hybrid"  # 混合（默认）
+    NAIVE = "naive"  # 纯向量
 
 
 MetadataValue: TypeAlias = (
@@ -84,24 +85,26 @@ def _metadata_text(metadata: MetadataDict, key: str, default: str = "") -> str:
 @dataclass
 class RetrievalResult:
     """单条检索结果"""
+
     content: str
-    source: str                    # 来源（法律名称）
-    article_number: str = ""       # 条文编号
-    score: float = 0.0             # 相关性评分
-    retrieval_method: str = ""     # 检索方式
+    source: str  # 来源（法律名称）
+    article_number: str = ""  # 条文编号
+    score: float = 0.0  # 相关性评分
+    retrieval_method: str = ""  # 检索方式
     metadata: MetadataDict = field(default_factory=dict)
 
 
 @dataclass
 class RAGContext:
     """RAG 检索上下文"""
+
     query: str
     mode: str
     results: list[RetrievalResult]
     total_found: int
-    context_text: str              # 格式化后的上下文文本
-    sources: list[SourceEntry]     # 引用来源列表
-    token_estimate: int            # 估计 token 数
+    context_text: str  # 格式化后的上下文文本
+    sources: list[SourceEntry]  # 引用来源列表
+    token_estimate: int  # 估计 token 数
 
 
 class LegalRAGService:
@@ -119,7 +122,9 @@ class LegalRAGService:
         self._corpus = get_all_legal_corpus()
         self._build_keyword_index()
         self._initialized = True
-        logger.info(f"LegalRAGService: 加载 {len(self._corpus)} 条法条，构建 {len(self._keyword_index)} 个关键词索引")
+        logger.info(
+            f"LegalRAGService: 加载 {len(self._corpus)} 条法条，构建 {len(self._keyword_index)} 个关键词索引"
+        )
 
     def _build_keyword_index(self) -> None:
         """构建关键词倒排索引"""
@@ -132,7 +137,7 @@ class LegalRAGService:
             words.add(article.law_name)
             words.add(article.chapter)
             # 从内容中提取核心名词（简单分词）
-            for segment in re.split(r'[，。；、\s]+', article.content):
+            for segment in re.split(r"[，。；、\s]+", article.content):
                 if 2 <= len(segment) <= 8:
                     words.add(segment)
             for w in words:
@@ -201,10 +206,10 @@ class LegalRAGService:
         results: list[RetrievalResult] = []
 
         # 1. 提取查询中的法条引用
-        law_refs = re.findall(r'《([^》]+)》', query)
-        article_refs = re.findall(r'第\s*(\d+)\s*条', query)
+        law_refs = re.findall(r"《([^》]+)》", query)
+        article_refs = re.findall(r"第\s*(\d+)\s*条", query)
 
-        for article in (self._corpus or []):
+        for article in self._corpus or []:
             score = 0.0
 
             # 法律名称匹配
@@ -222,24 +227,26 @@ class LegalRAGService:
                     score += 10.0
 
             # 内容关键词匹配
-            for word in re.split(r'[，。、\s《》]+', query):
+            for word in re.split(r"[，。、\s《》]+", query):
                 if len(word) >= 2 and word in article.content:
                     score += 1.0
 
             if score > 0:
-                results.append(RetrievalResult(
-                    content=article.content,
-                    source=f"《{article.law_name}》第{article.article_number}条",
-                    article_number=article.article_number,
-                    score=score,
-                    retrieval_method="local",
-                    metadata={
-                        "law_name": article.law_name,
-                        "chapter": article.chapter,
-                        "tags": article.tags,
-                        "effective_date": article.effective_date,
-                    },
-                ))
+                results.append(
+                    RetrievalResult(
+                        content=article.content,
+                        source=f"《{article.law_name}》第{article.article_number}条",
+                        article_number=article.article_number,
+                        score=score,
+                        retrieval_method="local",
+                        metadata={
+                            "law_name": article.law_name,
+                            "chapter": article.chapter,
+                            "tags": article.tags,
+                            "effective_date": article.effective_date,
+                        },
+                    )
+                )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:max_results]
@@ -253,9 +260,9 @@ class LegalRAGService:
         results: list[RetrievalResult] = []
 
         # 关键词匹配 + 标签匹配
-        query_words = {w for w in re.split(r'[，。、\s《》]+', query) if len(w) >= 2}
+        query_words = {w for w in re.split(r"[，。、\s《》]+", query) if len(w) >= 2}
 
-        for article in (self._corpus or []):
+        for article in self._corpus or []:
             score = 0.0
 
             # 标签匹配（权重最高）
@@ -275,18 +282,20 @@ class LegalRAGService:
                     score += 0.5
 
             if score > 0:
-                results.append(RetrievalResult(
-                    content=article.content,
-                    source=f"《{article.law_name}》第{article.article_number}条",
-                    article_number=article.article_number,
-                    score=score,
-                    retrieval_method="global",
-                    metadata={
-                        "law_name": article.law_name,
-                        "chapter": article.chapter,
-                        "tags": article.tags,
-                    },
-                ))
+                results.append(
+                    RetrievalResult(
+                        content=article.content,
+                        source=f"《{article.law_name}》第{article.article_number}条",
+                        article_number=article.article_number,
+                        score=score,
+                        retrieval_method="global",
+                        metadata={
+                            "law_name": article.law_name,
+                            "chapter": article.chapter,
+                            "tags": article.tags,
+                        },
+                    )
+                )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:max_results]
@@ -337,6 +346,7 @@ class LegalRAGService:
         """向量语义检索（Qdrant）"""
         try:
             from src.services.vector_store import vector_store
+
             if not vector_store or not vector_store.is_available:
                 return []
 
@@ -352,13 +362,15 @@ class LegalRAGService:
             for sr in search_results:
                 content = sr.get("text", sr.get("content", ""))
                 metadata: MetadataDict = sr.get("metadata") or {}
-                results.append(RetrievalResult(
-                    content=content,
-                    source=_metadata_text(metadata, "source", "知识库"),
-                    score=sr.get("score", 0.0),
-                    retrieval_method="vector",
-                    metadata=metadata,
-                ))
+                results.append(
+                    RetrievalResult(
+                        content=content,
+                        source=_metadata_text(metadata, "source", "知识库"),
+                        score=sr.get("score", 0.0),
+                        retrieval_method="vector",
+                        metadata=metadata,
+                    )
+                )
             return results
 
         except Exception as e:
@@ -376,23 +388,26 @@ class LegalRAGService:
         """知识图谱关系检索（Neo4j）"""
         try:
             from src.services.graph_service import graph_service
+
             related = cast(
                 list[GraphRelation],
                 graph_service.get_related_entities(entity_name, depth=depth),
             )
             results: list[RetrievalResult] = []
             for item in related[:max_results]:
-                results.append(RetrievalResult(
-                    content=f"{item.get('source', '')} --[{item.get('relation', '')}]--> {item.get('target', '')}",
-                    source="知识图谱",
-                    score=1.0,
-                    retrieval_method="graph",
-                    metadata={
-                        "source": item.get("source", ""),
-                        "relation": item.get("relation", ""),
-                        "target": item.get("target", ""),
-                    },
-                ))
+                results.append(
+                    RetrievalResult(
+                        content=f"{item.get('source', '')} --[{item.get('relation', '')}]--> {item.get('target', '')}",
+                        source="知识图谱",
+                        score=1.0,
+                        retrieval_method="graph",
+                        metadata={
+                            "source": item.get("source", ""),
+                            "relation": item.get("relation", ""),
+                            "target": item.get("target", ""),
+                        },
+                    )
+                )
             return results
         except Exception as e:
             logger.debug(f"图谱检索不可用: {e}")
@@ -452,11 +467,13 @@ class LegalRAGService:
 
             parts.append(entry)
             current_tokens += entry_tokens
-            sources.append({
-                "index": str(i + 1),
-                "source": r.source,
-                "method": r.retrieval_method,
-            })
+            sources.append(
+                {
+                    "index": str(i + 1),
+                    "source": r.source,
+                    "method": r.retrieval_method,
+                }
+            )
 
         return "\n".join(parts), sources
 
@@ -504,11 +521,11 @@ class LegalRAGService:
         self._ensure_loaded()
 
         # 简单按"第X条"分割
-        articles = re.split(r'(?=第\s*\d+\s*条)', content)
+        articles = re.split(r"(?=第\s*\d+\s*条)", content)
         added = 0
 
         for text in articles:
-            match = re.match(r'第\s*(\d+)\s*条', text)
+            match = re.match(r"第\s*(\d+)\s*条", text)
             if not match:
                 continue
 
@@ -528,7 +545,7 @@ class LegalRAGService:
                 idx = len(self._corpus)
                 self._corpus.append(new_article)
                 # 更新倒排索引
-                for word in re.split(r'[，。；、\s]+', article_content):
+                for word in re.split(r"[，。；、\s]+", article_content):
                     if 2 <= len(word) <= 8:
                         self._keyword_index.setdefault(word, []).append(idx)
                 added += 1

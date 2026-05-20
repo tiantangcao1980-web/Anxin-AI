@@ -24,7 +24,9 @@ def passing_checks() -> dict[str, bool]:
 
 
 @pytest.mark.asyncio
-async def test_skill_governance_proposal_persists_baseline_without_enabling_agent_version(db_session, test_organization):
+async def test_skill_governance_proposal_persists_baseline_without_enabling_agent_version(
+    db_session, test_organization
+):
     service = SkillGovernanceService(db_session)
 
     proposal = await service.create_proposal(
@@ -49,13 +51,15 @@ async def test_skill_governance_proposal_persists_baseline_without_enabling_agen
         skill_name="contract review",
         version="1.1.0",
     )
-    assert [event.reason_code for event in await restarted.get_audit_events(org_id=test_organization.id)] == [
-        "draft_created"
-    ]
+    assert [
+        event.reason_code for event in await restarted.get_audit_events(org_id=test_organization.id)
+    ] == ["draft_created"]
 
 
 @pytest.mark.asyncio
-async def test_skill_governance_requires_required_eval_before_approval(db_session, test_organization):
+async def test_skill_governance_requires_required_eval_before_approval(
+    db_session, test_organization
+):
     service = SkillGovernanceService(db_session)
     proposal = await service.create_proposal(
         org_id=test_organization.id,
@@ -77,11 +81,15 @@ async def test_skill_governance_requires_required_eval_before_approval(db_sessio
 
     events = await service.get_audit_events(org_id=test_organization.id)
     assert events[-1].reason_code == "eval_not_passed"
-    assert not await service.is_skill_enabled(org_id=test_organization.id, skill_name="tax-risk", version="2.1.0")
+    assert not await service.is_skill_enabled(
+        org_id=test_organization.id, skill_name="tax-risk", version="2.1.0"
+    )
 
 
 @pytest.mark.asyncio
-async def test_skill_governance_failed_eval_rejects_and_blocks_release(db_session, test_organization):
+async def test_skill_governance_failed_eval_rejects_and_blocks_release(
+    db_session, test_organization
+):
     service = SkillGovernanceService(db_session)
     proposal = await service.create_proposal(
         org_id=test_organization.id,
@@ -113,11 +121,15 @@ async def test_skill_governance_failed_eval_rejects_and_blocks_release(db_sessio
         )
 
     assert proposal.status == SkillEvolutionStatus.REJECTED.value
-    assert not await service.is_skill_enabled(org_id=test_organization.id, skill_name="external-mcp", version="0.1.0")
+    assert not await service.is_skill_enabled(
+        org_id=test_organization.id, skill_name="external-mcp", version="0.1.0"
+    )
 
 
 @pytest.mark.asyncio
-async def test_skill_governance_release_persists_enabled_version_and_audit_after_restart(db_session, test_organization):
+async def test_skill_governance_release_persists_enabled_version_and_audit_after_restart(
+    db_session, test_organization
+):
     service = SkillGovernanceService(db_session)
     proposal = await service.create_proposal(
         org_id=test_organization.id,
@@ -155,12 +167,16 @@ async def test_skill_governance_release_persists_enabled_version_and_audit_after
         )
     ).scalar_one()
     audits = (
-        await db_session.execute(
-            select(SkillGovernanceAuditEvent)
-            .where(SkillGovernanceAuditEvent.org_id == test_organization.id)
-            .order_by(SkillGovernanceAuditEvent.created_at)
+        (
+            await db_session.execute(
+                select(SkillGovernanceAuditEvent)
+                .where(SkillGovernanceAuditEvent.org_id == test_organization.id)
+                .order_by(SkillGovernanceAuditEvent.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert proposal.status == SkillEvolutionStatus.GRAY_RELEASED.value
     assert proposal.gray_percentage == 25
@@ -225,9 +241,15 @@ async def test_skill_governance_rollback_reverts_enabled_version(db_session, tes
     )
 
     assert proposal.status == SkillEvolutionStatus.ROLLED_BACK.value
-    assert not await service.is_skill_enabled(org_id=test_organization.id, skill_name="contract-review", version="1.1.0")
-    assert await service.is_skill_enabled(org_id=test_organization.id, skill_name="contract-review", version="1.0.0")
-    assert (await service.get_audit_events(org_id=test_organization.id))[-1].reason_code == "rolled_back"
+    assert not await service.is_skill_enabled(
+        org_id=test_organization.id, skill_name="contract-review", version="1.1.0"
+    )
+    assert await service.is_skill_enabled(
+        org_id=test_organization.id, skill_name="contract-review", version="1.0.0"
+    )
+    assert (await service.get_audit_events(org_id=test_organization.id))[
+        -1
+    ].reason_code == "rolled_back"
 
 
 @pytest.mark.asyncio
@@ -272,11 +294,15 @@ async def test_skill_governance_is_org_scoped(db_session, test_organization):
             actor="eval-harness",
         )
 
-    assert not await service.is_skill_enabled(org_id=other_org.id, skill_name="contract-review", version="1.1.0")
+    assert not await service.is_skill_enabled(
+        org_id=other_org.id, skill_name="contract-review", version="1.1.0"
+    )
 
 
 @pytest.mark.asyncio
-async def test_skill_connector_config_encrypts_credentials_and_sanitizes_audit(db_session, test_organization):
+async def test_skill_connector_config_encrypts_credentials_and_sanitizes_audit(
+    db_session, test_organization
+):
     service = SkillGovernanceService(db_session)
 
     config = await service.create_connector_config(
@@ -292,7 +318,9 @@ async def test_skill_connector_config_encrypts_credentials_and_sanitizes_audit(d
     )
     await db_session.commit()
     restarted = SkillGovernanceService(db_session)
-    listed = await restarted.list_connector_configs(org_id=test_organization.id, skill_name="contract review")
+    listed = await restarted.list_connector_configs(
+        org_id=test_organization.id, skill_name="contract review"
+    )
     audits = await restarted.get_audit_events(org_id=test_organization.id)
 
     assert listed[0].id == config.id
@@ -306,7 +334,9 @@ async def test_skill_connector_config_encrypts_credentials_and_sanitizes_audit(d
 
 
 @pytest.mark.asyncio
-async def test_skill_connector_update_preserves_or_replaces_credentials(db_session, test_organization):
+async def test_skill_connector_update_preserves_or_replaces_credentials(
+    db_session, test_organization
+):
     service = SkillGovernanceService(db_session)
     config = await service.create_connector_config(
         org_id=test_organization.id,
@@ -356,7 +386,9 @@ async def test_skill_connector_update_preserves_or_replaces_credentials(db_sessi
 
 
 @pytest.mark.asyncio
-async def test_skill_connector_update_rejects_duplicate_skill_connector_pair(db_session, test_organization):
+async def test_skill_connector_update_rejects_duplicate_skill_connector_pair(
+    db_session, test_organization
+):
     service = SkillGovernanceService(db_session)
     first = await service.create_connector_config(
         org_id=test_organization.id,

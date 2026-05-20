@@ -16,6 +16,7 @@ from src.models.base import GUID, Base
 
 class AuditAction(str, Enum):
     """审计操作类型"""
+
     # 用户相关
     USER_LOGIN = "user.login"
     USER_LOGOUT = "user.logout"
@@ -71,6 +72,7 @@ class AuditAction(str, Enum):
 
 class ResourceType(str, Enum):
     """资源类型"""
+
     USER = "user"
     ORGANIZATION = "organization"
     CASE = "case"
@@ -91,25 +93,14 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     # 操作信息
-    action: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        index=True,
-        comment="操作类型"
-    )
+    action: Mapped[str] = mapped_column(String(100), nullable=False, index=True, comment="操作类型")
 
     # 资源信息
     resource_type: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-        index=True,
-        comment="资源类型"
+        String(50), nullable=False, index=True, comment="资源类型"
     )
     resource_id: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-        index=True,
-        comment="资源ID"
+        String(100), nullable=True, index=True, comment="资源ID"
     )
 
     # 操作者信息
@@ -118,65 +109,39 @@ class AuditLog(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
-        comment="操作用户ID"
+        comment="操作用户ID",
     )
     user_email: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-        comment="操作用户邮箱"
+        String(255), nullable=True, comment="操作用户邮箱"
     )
     user_role: Mapped[str | None] = mapped_column(
-        String(50),
-        nullable=True,
-        comment="操作时的用户角色"
+        String(50), nullable=True, comment="操作时的用户角色"
     )
 
     # 变更内容
     old_value: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="变更前的值"
+        JSONB, nullable=True, comment="变更前的值"
     )
     new_value: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="变更后的值"
+        JSONB, nullable=True, comment="变更后的值"
     )
 
     # 请求信息
     ip_address: Mapped[str | None] = mapped_column(
-        String(45),
-        nullable=True,
-        comment="客户端IP地址"
+        String(45), nullable=True, comment="客户端IP地址"
     )
-    user_agent: Mapped[str | None] = mapped_column(
-        String(500),
-        nullable=True,
-        comment="用户代理"
-    )
-    request_id: Mapped[str | None] = mapped_column(
-        String(100),
-        nullable=True,
-        comment="请求ID"
-    )
+    user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="用户代理")
+    request_id: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="请求ID")
 
     # 操作结果
     status: Mapped[str] = mapped_column(
-        String(20),
-        default="success",
-        comment="操作状态：success/failed"
+        String(20), default="success", comment="操作状态：success/failed"
     )
-    error_message: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="错误信息"
-    )
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True, comment="错误信息")
 
     # 附加信息
     extra_data: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
-        nullable=True,
-        comment="额外数据"
+        JSONB, nullable=True, comment="额外数据"
     )
 
     # 时间戳
@@ -185,14 +150,14 @@ class AuditLog(Base):
         default=lambda: datetime.now(UTC),
         nullable=False,
         index=True,
-        comment="创建时间"
+        comment="创建时间",
     )
 
     # 复合索引，优化常见查询
     __table_args__ = (
-        Index('ix_audit_user_action', 'user_id', 'action'),
-        Index('ix_audit_resource', 'resource_type', 'resource_id'),
-        Index('ix_audit_created_at_action', 'created_at', 'action'),
+        Index("ix_audit_user_action", "user_id", "action"),
+        Index("ix_audit_resource", "resource_type", "resource_id"),
+        Index("ix_audit_created_at_action", "created_at", "action"),
     )
 
     def __repr__(self) -> str:

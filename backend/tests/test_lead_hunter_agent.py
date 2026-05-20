@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """LeadHunterAgent 5 capability mock 测试 (P7-C)。
 
 覆盖：
@@ -23,7 +22,6 @@ from src.agents.personas.sales_models import (
     QuoteItem,
     QuoteTerms,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -166,18 +164,14 @@ async def test_draft_email_falls_back_when_template_missing(agent):
 
 @pytest.mark.asyncio
 async def test_linkedin_outreach_rejects_invalid_url(agent):
-    res = await agent.linkedin_outreach(
-        "https://twitter.com/x", "hi", oauth_token="t"
-    )
+    res = await agent.linkedin_outreach("https://twitter.com/x", "hi", oauth_token="t")
     assert res["ok"] is False
     assert res["error"] == "invalid_profile_url"
 
 
 @pytest.mark.asyncio
 async def test_linkedin_outreach_requires_oauth(agent):
-    res = await agent.linkedin_outreach(
-        "https://www.linkedin.com/in/abc/", "hi", oauth_token=""
-    )
+    res = await agent.linkedin_outreach("https://www.linkedin.com/in/abc/", "hi", oauth_token="")
     assert res["ok"] is False
     assert res["error"] == "oauth_required"
 
@@ -215,8 +209,11 @@ async def test_linkedin_outreach_uses_injected_client(agent):
 @pytest.mark.asyncio
 async def test_generate_quote_placeholder_bytes(agent):
     lead = Lead(id="x", company_name="ACME", industry="i", country="US")
-    items = [QuoteItem(sku="A1", name="Widget", description=None,
-                       quantity=10, unit_price=20.0, currency="USD")]
+    items = [
+        QuoteItem(
+            sku="A1", name="Widget", description=None, quantity=10, unit_price=20.0, currency="USD"
+        )
+    ]
     blob = await agent.generate_quote(lead, items, terms={})
     assert isinstance(blob, bytes) and len(blob) > 0
     assert b"ACME" in blob
@@ -226,8 +223,11 @@ async def test_generate_quote_placeholder_bytes(agent):
 @pytest.mark.asyncio
 async def test_generate_quote_uses_docx_skill_when_provided(agent):
     lead = Lead(id="x", company_name="ACME", industry="i", country="US")
-    items = [QuoteItem(sku="A1", name="W", description=None,
-                       quantity=1, unit_price=99.99, currency="USD")]
+    items = [
+        QuoteItem(
+            sku="A1", name="W", description=None, quantity=1, unit_price=99.99, currency="USD"
+        )
+    ]
     skill = AsyncMock()
     skill.render_quote = AsyncMock(return_value=b"FAKE_DOCX_BYTES")
     blob = await agent.generate_quote(lead, items, QuoteTerms(), docx_skill=skill)
@@ -242,18 +242,20 @@ async def test_generate_quote_uses_docx_skill_when_provided(agent):
 
 @pytest.mark.asyncio
 async def test_sync_to_crm_unsupported_crm(agent):
-    res = await agent.sync_to_crm([Lead(id="x", company_name="C",
-                                         industry="i", country="US")],
-                                  crm="weirdcrm", oauth_token="t")
+    res = await agent.sync_to_crm(
+        [Lead(id="x", company_name="C", industry="i", country="US")],
+        crm="weirdcrm",
+        oauth_token="t",
+    )
     assert res["failed"] == 1
     assert res["errors"][0]["reason"] == "unsupported_crm"
 
 
 @pytest.mark.asyncio
 async def test_sync_to_crm_requires_token(agent):
-    res = await agent.sync_to_crm([Lead(id="x", company_name="C",
-                                         industry="i", country="US")],
-                                  crm="hubspot", oauth_token="")
+    res = await agent.sync_to_crm(
+        [Lead(id="x", company_name="C", industry="i", country="US")], crm="hubspot", oauth_token=""
+    )
     assert res["failed"] == 1
     assert res["errors"][0]["reason"] == "oauth_required"
 
@@ -266,13 +268,14 @@ async def test_sync_to_crm_with_client_aggregates_results(agent):
         Lead(id="c", company_name="C", industry="i", country="US"),
     ]
     client = AsyncMock()
-    client.upsert_lead = AsyncMock(side_effect=[
-        {"action": "created"},
-        {"action": "updated"},
-        Exception("boom"),
-    ])
-    res = await agent.sync_to_crm(leads, crm="salesforce",
-                                  oauth_token="t", client=client)
+    client.upsert_lead = AsyncMock(
+        side_effect=[
+            {"action": "created"},
+            {"action": "updated"},
+            Exception("boom"),
+        ]
+    )
+    res = await agent.sync_to_crm(leads, crm="salesforce", oauth_token="t", client=client)
     assert res["created"] == 1
     assert res["updated"] == 1
     assert res["failed"] == 1

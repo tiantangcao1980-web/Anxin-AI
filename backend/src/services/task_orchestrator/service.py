@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 TaskOrchestratorService —— 任务编排服务门面
 
@@ -30,7 +29,6 @@ from src.services.task_orchestrator.state_machine import (
     InvalidTransitionError,
     TaskStateMachine,
 )
-
 
 # ---------------------------------------------------------------------------
 # 默认事件 emitter：把 sync 调用桥接到 Redis Streams 异步发布
@@ -156,8 +154,7 @@ class TaskOrchestratorService:
             run_agent_task.delay(task.id)
         except Exception as e:
             logger.warning(
-                f"Celery enqueue 失败，任务停留在 QUEUED 等待人工/重试: "
-                f"task={task.id} err={e}"
+                f"Celery enqueue 失败，任务停留在 QUEUED 等待人工/重试: " f"task={task.id} err={e}"
             )
 
     # ------------------------------------------------------------------

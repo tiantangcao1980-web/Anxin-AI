@@ -23,11 +23,12 @@ from loguru import logger
 @dataclass
 class DocumentItem:
     """单份生成文件"""
+
     id: str = ""
-    recipient_name: str = ""      # 收件人/对象名
+    recipient_name: str = ""  # 收件人/对象名
     recipient_info: dict[str, Any] = field(default_factory=dict)  # 收件人详细信息
-    content: str = ""             # 生成的文件内容（Markdown）
-    status: str = "pending"       # pending / generating / done / error
+    content: str = ""  # 生成的文件内容（Markdown）
+    status: str = "pending"  # pending / generating / done / error
     error: str | None = None
 
     def __post_init__(self) -> None:
@@ -47,13 +48,14 @@ class DocumentItem:
 @dataclass
 class BatchJob:
     """批量生成任务"""
+
     job_id: str = ""
-    template_type: str = ""       # demand_letter / labor_contract / termination_notice / etc.
+    template_type: str = ""  # demand_letter / labor_contract / termination_notice / etc.
     total: int = 0
     completed: int = 0
     items: list[DocumentItem] = field(default_factory=list)
     common_context: dict[str, Any] = field(default_factory=dict)  # 各份文件共用的上下文
-    status: str = "created"       # created / processing / done / error
+    status: str = "created"  # created / processing / done / error
     created_at: str = ""
 
     def __post_init__(self) -> None:
@@ -85,7 +87,12 @@ DOCUMENT_TEMPLATES: dict[str, dict[str, Any]] = {
     "property_demand_letter": {
         "name": "物业催费律师函",
         "required_fields": ["owner_name", "unit_number", "overdue_amount", "overdue_period"],
-        "optional_fields": ["property_company", "property_address", "deadline_days", "contact_phone"],
+        "optional_fields": [
+            "property_company",
+            "property_address",
+            "deadline_days",
+            "contact_phone",
+        ],
         "template": """# 律师函
 
 **致：{owner_name}**
@@ -137,12 +144,16 @@ DOCUMENT_TEMPLATES: dict[str, dict[str, Any]] = {
             "date": "",
         },
     },
-
     # 企业催款律师函
     "business_demand_letter": {
         "name": "企业催款律师函",
         "required_fields": ["debtor_name", "debt_amount", "contract_info", "overdue_date"],
-        "optional_fields": ["creditor_name", "goods_or_service", "deadline_days", "contract_number"],
+        "optional_fields": [
+            "creditor_name",
+            "goods_or_service",
+            "deadline_days",
+            "contract_number",
+        ],
         "template": """# 律师函
 
 **致：{debtor_name}**
@@ -190,11 +201,15 @@ DOCUMENT_TEMPLATES: dict[str, dict[str, Any]] = {
             "date": "",
         },
     },
-
     # 解除劳动合同通知书
     "termination_notice": {
         "name": "解除劳动合同通知书",
-        "required_fields": ["employee_name", "entry_date", "termination_reason", "termination_type"],
+        "required_fields": [
+            "employee_name",
+            "entry_date",
+            "termination_reason",
+            "termination_type",
+        ],
         "optional_fields": ["company_name", "position", "last_work_date", "severance_amount"],
         "template": """# 解除劳动合同通知书
 
@@ -245,7 +260,6 @@ DOCUMENT_TEMPLATES: dict[str, dict[str, Any]] = {
             "date": "",
         },
     },
-
     # 调岗通知书
     "transfer_notice": {
         "name": "调岗通知书",
@@ -320,16 +334,20 @@ class BatchDocumentService:
             common_context: 所有文件共用的上下文（如公司名、地址、联系方式）
         """
         if template_type not in DOCUMENT_TEMPLATES:
-            raise ValueError(f"不支持的模板类型: {template_type}，可用: {list(DOCUMENT_TEMPLATES.keys())}")
+            raise ValueError(
+                f"不支持的模板类型: {template_type}，可用: {list(DOCUMENT_TEMPLATES.keys())}"
+            )
 
         template_def = DOCUMENT_TEMPLATES[template_type]
         items: list[DocumentItem] = []
         for r in recipients:
             name_field = template_def["required_fields"][0]
-            items.append(DocumentItem(
-                recipient_name=r.get(name_field, r.get("name", "未知")),
-                recipient_info=r,
-            ))
+            items.append(
+                DocumentItem(
+                    recipient_name=r.get(name_field, r.get("name", "未知")),
+                    recipient_info=r,
+                )
+            )
 
         job = BatchJob(
             template_type=template_type,

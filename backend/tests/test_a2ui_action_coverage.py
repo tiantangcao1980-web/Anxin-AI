@@ -8,7 +8,12 @@ from src.services.a2ui_intent_handler import handle_a2ui_event
 
 @pytest.mark.asyncio
 async def test_generated_a2ui_actions_are_all_handled():
-    source = Path(__file__).resolve().parent.parent.joinpath("src/services/a2ui_intent_handler.py").read_text(encoding="utf-8")
+    source = (
+        Path(__file__)
+        .resolve()
+        .parent.parent.joinpath("src/services/a2ui_intent_handler.py")
+        .read_text(encoding="utf-8")
+    )
     generated_actions = sorted(set(re.findall(r'actionId":\s*"([^"]+)"', source)))
 
     missing = []

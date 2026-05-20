@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """P9-A: AnxinAssistantAgent.classify_intent 单元测试。
 
 覆盖：
@@ -17,7 +16,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from src.agents.personas import AnxinAssistantAgent, PersonaRegistry
-from src.agents.personas.orchestration_models import IntentClassification
 
 
 @pytest.fixture(autouse=True)
@@ -152,9 +150,7 @@ class TestLLMFallback:
 
     @pytest.mark.asyncio
     async def test_llm_chat_exception_returns_entry(self, agent):
-        with patch.object(
-            agent, "chat", new=AsyncMock(side_effect=RuntimeError("LLM down"))
-        ):
+        with patch.object(agent, "chat", new=AsyncMock(side_effect=RuntimeError("LLM down"))):
             intent = await agent.classify_intent("一个完全开放的问题")
         assert intent.primary_intent == "anxin_assistant"
         assert intent.confidence == 0.0

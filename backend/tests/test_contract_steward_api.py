@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """合同管家 7 API endpoint 集成测试（P9-C）。
 
 覆盖：
@@ -22,6 +21,7 @@ from __future__ import annotations
 from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler as _SQLiteTC
 
 if not hasattr(_SQLiteTC, "visit_JSONB"):
+
     def _visit_JSONB(self, type_, **kw):  # noqa: N802
         return self.visit_JSON(type_, **kw)
 
@@ -29,7 +29,6 @@ if not hasattr(_SQLiteTC, "visit_JSONB"):
 
 
 from datetime import datetime
-from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -45,7 +44,6 @@ from src.agents.personas.contract_models import (
     VersionDiff,
 )
 from src.agents.personas.research_models import Citation
-
 
 PREFIX = "/api/v1/personas/contract"
 
@@ -110,9 +108,21 @@ class _FakePersona:
         is_blacklist = "单方面任意终止" in document_text
         return RiskAnalysis(
             overall_risk_level="critical" if is_blacklist else "medium",
-            risks=[{"category": "general", "description": "测试风险", "likelihood": 0.6, "impact": 0.5, "mitigation": "..."}],
+            risks=[
+                {
+                    "category": "general",
+                    "description": "测试风险",
+                    "likelihood": 0.6,
+                    "impact": 0.5,
+                    "mitigation": "...",
+                }
+            ],
             blacklist_clauses=["单方面任意终止"] if is_blacklist else [],
-            legal_basis=[Citation(source="legal_kb", url="", title="民法典合同编", excerpt="", confidence=0.7)],
+            legal_basis=[
+                Citation(
+                    source="legal_kb", url="", title="民法典合同编", excerpt="", confidence=0.7
+                )
+            ],
         )
 
     async def find_template(

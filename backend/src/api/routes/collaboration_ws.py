@@ -96,9 +96,7 @@ async def document_collaboration_websocket(
 
     try:
         # 等待第一条消息（可能是 auth 或 join）
-        init_message = _json_dict(await asyncio.wait_for(
-            websocket.receive_json(), timeout=15
-        ))
+        init_message = _json_dict(await asyncio.wait_for(websocket.receive_json(), timeout=15))
         init_type = init_message.get("type")
         init_data = _json_dict(init_message.get("data"))
 
@@ -121,10 +119,9 @@ async def document_collaboration_websocket(
                     logger.warning(f"WebSocket auth 消息 Token 验证失败: {e}")
 
             if not authenticated:
-                await websocket.send_json({
-                    "type": "error",
-                    "data": {"message": "认证失败，Token 无效"}
-                })
+                await websocket.send_json(
+                    {"type": "error", "data": {"message": "认证失败，Token 无效"}}
+                )
                 await websocket.close(code=4001, reason="认证失败")
                 return
 
@@ -142,10 +139,9 @@ async def document_collaboration_websocket(
             )
             doc_session = session_result.scalar_one_or_none()
             if not doc_session:
-                await websocket.send_json({
-                    "type": "error",
-                    "data": {"message": "文档没有可用的协作会话"}
-                })
+                await websocket.send_json(
+                    {"type": "error", "data": {"message": "文档没有可用的协作会话"}}
+                )
                 await websocket.close(code=4004, reason="协作会话不存在")
                 return
 
@@ -157,10 +153,9 @@ async def document_collaboration_websocket(
                 )
             )
             if not collab_result.scalar_one_or_none():
-                await websocket.send_json({
-                    "type": "error",
-                    "data": {"message": "您不是该文档协作会话的成员"}
-                })
+                await websocket.send_json(
+                    {"type": "error", "data": {"message": "您不是该文档协作会话的成员"}}
+                )
                 await websocket.close(code=4003, reason="未加入协作会话")
                 return
 
@@ -171,25 +166,24 @@ async def document_collaboration_websocket(
                 user_name=user_name,
                 session_id=session_id,
                 websocket=websocket,
-                initial_content=init_data.get("initial_content", "")
-                if isinstance(init_data.get("initial_content", ""), str)
-                else "",
+                initial_content=(
+                    init_data.get("initial_content", "")
+                    if isinstance(init_data.get("initial_content", ""), str)
+                    else ""
+                ),
             )
 
             # 发送初始化数据
-            await websocket.send_json({
-                "type": "init",
-                "data": {
-                    "session_id": session_id,
-                    "document_id": document_id,
-                    **join_result
+            await websocket.send_json(
+                {
+                    "type": "init",
+                    "data": {"session_id": session_id, "document_id": document_id, **join_result},
                 }
-            })
+            )
         else:
-            await websocket.send_json({
-                "type": "error",
-                "data": {"message": "第一条消息必须是 join 类型"}
-            })
+            await websocket.send_json(
+                {"type": "error", "data": {"message": "第一条消息必须是 join 类型"}}
+            )
             await websocket.close()
             return
 
@@ -204,15 +198,9 @@ async def document_collaboration_websocket(
                 operation_result = await collaboration_service.handle_operation(
                     document_id=document_id,
                     user_id=user_id,
-                    operation={
-                        **msg_data,
-                        "session_id": session_id
-                    }
+                    operation={**msg_data, "session_id": session_id},
                 )
-                await websocket.send_json({
-                    "type": "operation_ack",
-                    "data": operation_result
-                })
+                await websocket.send_json({"type": "operation_ack", "data": operation_result})
 
             elif msg_type == "cursor_update":
                 # 更新光标位置
@@ -223,9 +211,11 @@ async def document_collaboration_websocket(
                     document_id=document_id,
                     user_id=user_id,
                     position=position,
-                    selection=cast(dict[str, int] | None, selection_raw)
-                    if isinstance(selection_raw, dict)
-                    else None,
+                    selection=(
+                        cast(dict[str, int] | None, selection_raw)
+                        if isinstance(selection_raw, dict)
+                        else None
+                    ),
                 )
 
             elif msg_type in ("comment", "comment_add"):
@@ -246,10 +236,12 @@ async def document_collaboration_websocket(
                     content=comment_content if isinstance(comment_content, str) else "",
                     position=cast(dict[str, int], position_payload),
                 )
-                await websocket.send_json({
-                    "type": "comment_add_ack",
-                    "data": comment_result,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "comment_add_ack",
+                        "data": comment_result,
+                    }
+                )
 
             elif msg_type == "comment_reply":
                 # 回复评论
@@ -257,10 +249,12 @@ async def document_collaboration_websocket(
                 reply_content = msg_data.get("content", "")
 
                 if not isinstance(parent_id_value, str) or not parent_id_value:
-                    await websocket.send_json({
-                        "type": "error",
-                        "data": {"message": "缺少 parent_id 参数"},
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "data": {"message": "缺少 parent_id 参数"},
+                        }
+                    )
                 else:
                     # 使用 add_comment 并附带 parent_id
                     reply_result = await collaboration_service.add_comment(
@@ -270,47 +264,57 @@ async def document_collaboration_websocket(
                         content=reply_content if isinstance(reply_content, str) else "",
                         position=cast(dict[str, int], {"parent_id": parent_id_value}),
                     )
-                    await websocket.send_json({
-                        "type": "comment_reply_ack",
-                        "data": {**reply_result, "parent_id": parent_id_value},
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "comment_reply_ack",
+                            "data": {**reply_result, "parent_id": parent_id_value},
+                        }
+                    )
 
             elif msg_type in ("resolve_comment", "comment_resolve"):
                 # 解决评论
                 comment_id = msg_data.get("comment_id")
                 if not isinstance(comment_id, str) or not comment_id:
-                    await websocket.send_json({
-                        "type": "error",
-                        "data": {"message": "缺少 comment_id 参数"},
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "data": {"message": "缺少 comment_id 参数"},
+                        }
+                    )
                 else:
                     resolve_result = await collaboration_service.resolve_comment(
                         document_id=document_id,
                         comment_id=comment_id,
                     )
-                    await websocket.send_json({
-                        "type": "comment_resolve_ack",
-                        "data": resolve_result,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "comment_resolve_ack",
+                            "data": resolve_result,
+                        }
+                    )
 
             elif msg_type == "comment_delete":
                 # 删除评论
                 comment_id = msg_data.get("comment_id")
                 if not comment_id:
-                    await websocket.send_json({
-                        "type": "error",
-                        "data": {"message": "缺少 comment_id 参数"},
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "data": {"message": "缺少 comment_id 参数"},
+                        }
+                    )
                 else:
                     session = collaboration_service.manager.get_session(document_id)
                     if session and comment_id in session.comments:
                         # 仅评论作者可删除
                         comment_obj = session.comments[comment_id]
                         if comment_obj.user_id != user_id:
-                            await websocket.send_json({
-                                "type": "error",
-                                "data": {"message": "只能删除自己的评论"},
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "error",
+                                    "data": {"message": "只能删除自己的评论"},
+                                }
+                            )
                         else:
                             del session.comments[comment_id]
                             # 广播删除
@@ -322,15 +326,19 @@ async def document_collaboration_websocket(
                                     "user_id": user_id,
                                 },
                             )
-                            await websocket.send_json({
-                                "type": "comment_delete_ack",
-                                "data": {"success": True, "comment_id": comment_id},
-                            })
+                            await websocket.send_json(
+                                {
+                                    "type": "comment_delete_ack",
+                                    "data": {"success": True, "comment_id": comment_id},
+                                }
+                            )
                     else:
-                        await websocket.send_json({
-                            "type": "error",
-                            "data": {"message": "评论不存在"},
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "data": {"message": "评论不存在"},
+                            }
+                        )
 
             elif msg_type == "save":
                 # 保存文档
@@ -339,24 +347,19 @@ async def document_collaboration_websocket(
                     document_id=document_id,
                     content=save_content if isinstance(save_content, str) else "",
                 )
-                await websocket.send_json({
-                    "type": "save_ack",
-                    "data": save_result
-                })
+                await websocket.send_json({"type": "save_ack", "data": save_result})
 
             elif msg_type == "ping":
                 # 心跳
-                await websocket.send_json({
-                    "type": "pong",
-                    "data": {"timestamp": msg_data.get("timestamp")}
-                })
+                await websocket.send_json(
+                    {"type": "pong", "data": {"timestamp": msg_data.get("timestamp")}}
+                )
 
             else:
                 logger.warning(f"未知消息类型: {msg_type}")
-                await websocket.send_json({
-                    "type": "error",
-                    "data": {"message": f"未知消息类型: {msg_type}"}
-                })
+                await websocket.send_json(
+                    {"type": "error", "data": {"message": f"未知消息类型: {msg_type}"}}
+                )
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket 断开: session={session_id}, doc={document_id}")
@@ -365,10 +368,7 @@ async def document_collaboration_websocket(
     except Exception as e:
         logger.error(f"WebSocket 错误: {e}")
         try:
-            await websocket.send_json({
-                "type": "error",
-                "data": {"message": str(e)}
-            })
+            await websocket.send_json({"type": "error", "data": {"message": str(e)}})
         except Exception as _send_err:
             # ===== [B-02] 不再使用裸 except: pass =====
             # 原因：裸 except 会吞掉所有异常（包括 KeyboardInterrupt）
@@ -377,6 +377,7 @@ async def document_collaboration_websocket(
 
 
 # ==================== HTTP API (用于非 WebSocket 场景) ====================
+
 
 @router.post("/document/{document_id}/operations")
 async def apply_document_operation(
@@ -409,9 +410,7 @@ async def apply_document_operation(
     service = CollaborationService(db)
 
     result = await service.handle_operation(
-        document_id=document_id,
-        user_id=str(user.id),
-        operation=operation
+        document_id=document_id, user_id=str(user.id), operation=operation
     )
 
     return result
@@ -566,6 +565,4 @@ async def get_active_users(
     if not session:
         return {"users": []}
 
-    return {
-        "users": [u.__dict__.copy() for u in session.get_active_users()]
-    }
+    return {"users": [u.__dict__.copy() for u in session.get_active_users()]}
