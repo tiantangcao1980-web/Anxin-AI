@@ -64,6 +64,8 @@ export interface ListPageTemplateProps {
   toolbarRight?: React.ReactNode
 
   // === 主体（列表区）===
+  /** 列表区之前的自定义内容（KPI 网格 / 段落叙述 / 大图等，可选）*/
+  beforeList?: React.ReactNode
   /** 列表 items —— 调用方自己渲染（应使用 hairline 分隔，非卡片）*/
   children: React.ReactNode
   /** 加载态 */
@@ -97,6 +99,7 @@ export function ListPageTemplate({
   activeTab,
   onTabChange,
   toolbarRight,
+  beforeList,
   children,
   loading,
   error,
@@ -158,6 +161,10 @@ export function ListPageTemplate({
             </div>
           )}
         </div>
+      )}
+
+      {beforeList && !loading && !error && (
+        <div data-ui="list-page-before">{beforeList}</div>
       )}
 
       <div data-ui="list-page-body">

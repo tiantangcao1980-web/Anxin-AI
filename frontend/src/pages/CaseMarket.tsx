@@ -1,25 +1,29 @@
 /**
- * CaseMarket — 案源市场（双端共用页面，根据 primary_client 渲染不同视图）
+ * CaseMarket · 案源市场（Editorial Luxury 改造 · Phase 1.13）
  *
- * V2 架构：
- * - 需求方（needer）：发布需求 + 查看我的需求 + 查看收到的投标
- * - 服务方（provider）：浏览市场 + 投标 + 查看我的投标
+ * 旧版用 PageContainer + Card grid + Badge variant + 表情符号提示。
+ * 新版：ListPageTemplate + 1px hairline 卡 + tone-only status + 极简 Dialog。
+ *
+ * V2 架构：双端共用，按 primary_client 分发
+ * - 服务方（provider）：browse 市场 + 投标
+ * - 需求方（needer）：my-requests + publish
  */
-
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { icons } from '@/lib/icons'
 import { toast } from 'sonner'
-import { PageContainer } from '@/components/ui/PageContainer'
+import {
+  Plus, Search, FileText, Briefcase, MapPin, DollarSign, Lightbulb,
+} from 'lucide-react'
+
+import { ListPageTemplate, ListPageStatus } from '@/components/ui/ListPageTemplate'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { useAuthStore } from '@/lib/store'
 import { caseMarketApi } from '@/lib/api'
 import { ConflictWarning, type ConflictWarningData } from '@/components/pro/ConflictWarning'
+import { cn } from '@/components/ui/utils'
 
 type Tab = 'browse' | 'my-bids' | 'my-requests' | 'publish'
 
@@ -51,16 +55,33 @@ interface BidItem {
   created_at: string
 }
 
-const URGENCY_CONFIG: Record<string, { label: string; color: string }> = {
-  urgent: { label: '紧急', color: 'text-destructive' },
-  normal: { label: '一般', color: 'text-foreground' },
-  flexible: { label: '不急', color: 'text-muted-foreground' },
+const URGENCY_META: Record<string, { label: string; labelEn: string; tone: 'normal' | 'warning' | 'error' }> = {
+  urgent:   { label: '紧急', labelEn: 'Urgent',   tone: 'error' },
+  normal:   { label: '一般', labelEn: 'Normal',   tone: 'normal' },
+  flexible: { label: '不急', labelEn: 'Flexible', tone: 'normal' },
 }
 
 const LEGAL_AREAS = [
   '合同', '劳动人事', '知识产权', '诉讼', '公司法务',
   '婚姻家庭', '房产', '刑事辩护', '金融', '其他',
 ]
+
+function ToneTag({ tone, label, labelEn }: { tone: 'normal' | 'success' | 'warning' | 'error'; label: string; labelEn: string }) {
+  const toneClass = {
+    normal:  'text-muted-foreground',
+    success: 'text-success',
+    warning: 'text-warning',
+    error:   'text-destructive',
+  }[tone]
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em]', toneClass)}>
+      <span className="h-1 w-1 rounded-full bg-current" aria-hidden />
+      <span>{labelEn}</span>
+      <span className="text-foreground/30" aria-hidden>·</span>
+      <span className="normal-case tracking-normal text-foreground/80">{label}</span>
+    </span>
+  )
+}
 
 export default function CaseMarket() {
   const { user } = useAuthStore()
@@ -71,27 +92,24 @@ export default function CaseMarket() {
   const [items, setItems] = useState<CaseRequestItem[]>([])
   const [myBids, setMyBids] = useState<BidItem[]>([])
 
-  // 投标弹窗
   const [bidDialogOpen, setBidDialogOpen] = useState(false)
   const [bidTarget, setBidTarget] = useState<CaseRequestItem | null>(null)
   const [bidProposal, setBidProposal] = useState('')
-  const [bidPrice, setBidPrice] = useState<string>('')
-  const [bidDays, setBidDays] = useState<string>('')
+  const [bidPrice, setBidPrice] = useState('')
+  const [bidDays, setBidDays] = useState('')
 
-  // 发布弹窗
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [pubTitle, setPubTitle] = useState('')
   const [pubDesc, setPubDesc] = useState('')
   const [pubArea, setPubArea] = useState(LEGAL_AREAS[0])
   const [pubUrgency, setPubUrgency] = useState<'urgent' | 'normal' | 'flexible'>('normal')
   const [pubLocation, setPubLocation] = useState('')
-  const [pubBudgetMin, setPubBudgetMin] = useState<string>('')
-  const [pubBudgetMax, setPubBudgetMax] = useState<string>('')
+  const [pubBudgetMin, setPubBudgetMin] = useState('')
+  const [pubBudgetMax, setPubBudgetMax] = useState('')
 
-  // 冲突警告
   const [conflictWarning, setConflictWarning] = useState<ConflictWarningData | null>(null)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       if (tab === 'browse') {
@@ -109,32 +127,26 @@ export default function CaseMarket() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tab])
 
   useEffect(() => {
-    if (tab !== 'publish') loadData()
-  }, [tab])
+    if (tab !== 'publish') void loadData()
+  }, [tab, loadData])
 
   const handleSubmitBid = async () => {
     if (!bidTarget) return
-    if (!bidProposal.trim() || bidProposal.length < 10) {
-      toast.error('请填写方案说明（至少 10 字）')
-      return
-    }
+    if (!bidProposal.trim() || bidProposal.length < 10) { toast.error('请填写方案说明（至少 10 字）'); return }
     try {
       const result = await caseMarketApi.submitBid(bidTarget.id, {
         proposal: bidProposal,
         quoted_price: bidPrice ? Number(bidPrice) : undefined,
         estimated_days: bidDays ? Number(bidDays) : undefined,
       })
-      // 检查冲突警告
-      if (result?.conflict_warning) {
-        setConflictWarning(result.conflict_warning)
-      }
+      if (result?.conflict_warning) setConflictWarning(result.conflict_warning)
       toast.success(result?.message || '投标已提交')
       setBidDialogOpen(false)
       setBidProposal(''); setBidPrice(''); setBidDays('')
-      loadData()
+      void loadData()
     } catch (e: any) {
       toast.error(e?.message || '投标失败')
     }
@@ -142,7 +154,7 @@ export default function CaseMarket() {
 
   const handlePublish = async () => {
     if (!pubTitle || pubTitle.length < 5) { toast.error('标题至少 5 字'); return }
-    if (!pubDesc || pubDesc.length < 10) { toast.error('详细描述至少 10 字'); return }
+    if (!pubDesc || pubDesc.length < 10)  { toast.error('详细描述至少 10 字'); return }
     try {
       await caseMarketApi.publishRequest({
         title: pubTitle,
@@ -162,147 +174,168 @@ export default function CaseMarket() {
     }
   }
 
-  // 服务方端标签
-  const providerTabs: { key: Tab; label: string; icon: keyof typeof icons }[] = [
-    { key: 'browse', label: '案源市场', icon: 'Search' },
-    { key: 'my-bids', label: '我的投标', icon: 'FileText' },
+  const providerTabs: { key: Tab; label: string }[] = [
+    { key: 'browse',  label: '案源市场' },
+    { key: 'my-bids', label: '我的投标' },
   ]
-
-  // 需求方端标签
-  const neederTabs: { key: Tab; label: string; icon: keyof typeof icons }[] = [
-    { key: 'my-requests', label: '我的需求', icon: 'Briefcase' },
+  const neederTabs: { key: Tab; label: string }[] = [
+    { key: 'my-requests', label: '我的需求' },
   ]
-
   const tabs = isProvider ? providerTabs : neederTabs
 
   return (
-    <PageContainer
-      title={isProvider ? '案源市场' : '法律需求'}
-      description={isProvider ? '按专业领域、地域筛选优质案源' : '发布需求，让律师主动找您'}
-      actions={
-        !isProvider ? (
-          <Button onClick={() => setPublishDialogOpen(true)}>
-            <icons.Add className="w-4 h-4 mr-1.5" />
-            发布新需求
-          </Button>
-        ) : null
-      }
-    >
-      {/* Tab 切换 */}
-      <div className="flex gap-2 mb-6 border-b border-border">
-        {tabs.map((t) => {
-          const Icon = icons[t.icon] || icons.FileText
-          const active = tab === t.key
-          return (
+    <>
+      <ListPageTemplate
+        tracker={['Network', isProvider ? '案源市场' : '法律需求']}
+        title={isProvider ? '案源市场' : '法律需求'}
+        description={isProvider ? '按专业领域、地域筛选优质案源。' : '发布需求，让律师主动找您。'}
+        actions={
+          !isProvider ? (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 border-b-2 ${
-                active ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
+              type="button"
+              onClick={() => setPublishDialogOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-primary hover:bg-primary-700 text-primary-foreground px-5 py-2 text-[13px] font-medium transition-colors"
             >
-              <Icon className="w-4 h-4" />
-              {t.label}
+              <Plus className="w-4 h-4 stroke-[1.5]" />
+              <span>发布新需求</span>
             </button>
-          )
-        })}
-      </div>
-
-      {/* 内容 */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
-        </div>
-      ) : tab === 'my-bids' ? (
-        <MyBidsList bids={myBids} />
-      ) : items.length === 0 ? (
-        <div className="text-center py-16">
-          <icons.Briefcase className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-          <p className="text-sm text-muted-foreground">
-            {tab === 'browse' ? '暂无待接单的需求' : '您还没有发布需求'}
-          </p>
-          {tab === 'my-requests' && (
-            <Button variant="link" onClick={() => setPublishDialogOpen(true)} className="mt-2">
-              发布第一个需求 →
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {items.map((item) => (
-            <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="h-full hover:border-primary/40 transition-colors">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base line-clamp-2">{item.title}</CardTitle>
-                    <Badge variant="outline" className={URGENCY_CONFIG[item.urgency]?.color}>
-                      {URGENCY_CONFIG[item.urgency]?.label || item.urgency}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground line-clamp-3 mb-3">
-                    {item.description}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-                    <span className="flex items-center gap-1">
-                      <icons.Briefcase className="w-3 h-3" /> {item.legal_area}
-                    </span>
-                    {item.location && (
-                      <span className="flex items-center gap-1">
-                        <icons.MapPin className="w-3 h-3" /> {item.location}
+          ) : null
+        }
+        tabs={tabs.map((t) => ({ key: t.key, label: t.label }))}
+        activeTab={tab}
+        onTabChange={(k) => setTab(k as Tab)}
+        loading={false}
+        empty={false}
+      >
+        <li>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border border-t border-l border-border">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-card border-r border-b border-border p-5">
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : tab === 'my-bids' ? (
+            <MyBidsList bids={myBids} />
+          ) : items.length === 0 ? (
+            <ListPageStatus
+              tracker="Empty"
+              title={tab === 'browse' ? '暂无待接单的需求' : '您还没有发布需求'}
+              description={tab === 'browse' ? '稍后再来看看新案源。' : '发布第一个需求，律师将很快看到。'}
+              action={tab === 'my-requests' && (
+                <button
+                  type="button"
+                  onClick={() => setPublishDialogOpen(true)}
+                  className="bg-primary hover:bg-primary-700 text-primary-foreground px-5 py-2.5 text-[14px] font-medium transition-colors"
+                >
+                  发布第一个需求
+                </button>
+              )}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border border-t border-l border-border">
+              {items.map((item, i) => {
+                const urgency = URGENCY_META[item.urgency] || URGENCY_META.normal
+                return (
+                  <motion.article
+                    key={item.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.02 }}
+                    className="bg-card border-r border-b border-border p-5 flex flex-col group hover:bg-surface-2/40 transition-colors"
+                  >
+                    <header className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="font-serif text-[12px] text-muted-foreground tabular-nums">
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          <ToneTag tone={urgency.tone} labelEn={urgency.labelEn} label={urgency.label} />
+                        </div>
+                        <h3 className="font-serif text-[17px] leading-tight text-foreground line-clamp-2">{item.title}</h3>
+                      </div>
+                    </header>
+                    <p className="text-[13px] text-muted-foreground leading-relaxed line-clamp-3 mb-4">
+                      {item.description}
+                    </p>
+                    <div className="flex items-center gap-3 text-[12px] text-muted-foreground mb-3 flex-wrap">
+                      <span className="inline-flex items-center gap-1">
+                        <Briefcase className="w-3 h-3 stroke-[1.5]" /> {item.legal_area}
                       </span>
-                    )}
-                    {(item.budget_min || item.budget_max) && (
-                      <span className="flex items-center gap-1 text-primary">
-                        <icons.DollarSign className="w-3 h-3" />
-                        {item.budget_min || 0} - {item.budget_max || '不限'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-[10px] text-muted-foreground">
-                      浏览 {item.view_count} · 投标 {item.bid_count}
+                      {item.location && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="w-3 h-3 stroke-[1.5]" /> {item.location}
+                        </span>
+                      )}
+                      {(item.budget_min || item.budget_max) && (
+                        <span className="inline-flex items-center gap-1 text-primary">
+                          <DollarSign className="w-3 h-3 stroke-[1.5]" />
+                          {item.budget_min || 0} - {item.budget_max || '不限'}
+                        </span>
+                      )}
                     </div>
-                    {isProvider && tab === 'browse' ? (
-                      <Button size="sm" onClick={() => { setBidTarget(item); setBidDialogOpen(true) }}>
-                        立即投标
-                      </Button>
-                    ) : (
-                      <Badge variant="secondary">{item.status}</Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      )}
+                    <footer className="mt-auto pt-3 border-t border-border/60 flex items-center justify-between">
+                      <div className="text-[11px] text-muted-foreground uppercase tracking-[0.12em]">
+                        Views {item.view_count} · Bids {item.bid_count}
+                      </div>
+                      {isProvider && tab === 'browse' ? (
+                        <button
+                          type="button"
+                          onClick={() => { setBidTarget(item); setBidDialogOpen(true) }}
+                          className="text-[11px] uppercase tracking-[0.12em] text-primary hover:text-primary-700 transition-colors"
+                        >
+                          立即投标 →
+                        </button>
+                      ) : (
+                        <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                          {item.status}
+                        </span>
+                      )}
+                    </footer>
+                  </motion.article>
+                )
+              })}
+            </div>
+          )}
+        </li>
+      </ListPageTemplate>
 
       {/* 投标弹窗 */}
       <Dialog open={bidDialogOpen} onOpenChange={setBidDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>投标：{bidTarget?.title}</DialogTitle>
+            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-1">
+              CaseMarket · Bid
+            </div>
+            <DialogTitle className="font-serif text-[20px]">
+              投标：{bidTarget?.title}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
+          <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-medium mb-1 block">方案说明（至少 10 字）</label>
+              <label className="block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                Proposal · 方案说明（至少 10 字）
+              </label>
               <textarea
                 value={bidProposal}
                 onChange={(e) => setBidProposal(e.target.value)}
                 placeholder="请简述您的服务方案、执业经验、处理思路"
                 rows={5}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-primary/50"
+                className="w-full px-3 py-2 bg-background border border-border text-[14px] focus:outline-none focus:border-primary transition-colors"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium mb-1 block">报价（元）</label>
+                <label className="block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                  Price · 报价（元）
+                </label>
                 <Input type="number" value={bidPrice} onChange={(e) => setBidPrice(e.target.value)} placeholder="可选" />
               </div>
               <div>
-                <label className="text-xs font-medium mb-1 block">预计完成（天）</label>
+                <label className="block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-2">
+                  Days · 预计完成（天）
+                </label>
                 <Input type="number" value={bidDays} onChange={(e) => setBidDays(e.target.value)} placeholder="可选" />
               </div>
             </div>
@@ -318,64 +351,63 @@ export default function CaseMarket() {
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>发布法律需求</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
-            <div>
-              <label className="text-xs font-medium mb-1 block">标题 *</label>
-              <Input value={pubTitle} onChange={(e) => setPubTitle(e.target.value)} placeholder="如：劳动合同起草咨询" />
+            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-1">
+              CaseMarket · Publish
             </div>
-            <div>
-              <label className="text-xs font-medium mb-1 block">详细描述 *</label>
+            <DialogTitle className="font-serif text-[20px]">发布法律需求</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            <Field label="Title · 标题 *">
+              <Input value={pubTitle} onChange={(e) => setPubTitle(e.target.value)} placeholder="如：劳动合同起草咨询" />
+            </Field>
+            <Field label="Description · 详细描述 *">
               <textarea
                 value={pubDesc}
                 onChange={(e) => setPubDesc(e.target.value)}
                 rows={5}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:border-primary/50"
+                className="w-full px-3 py-2 bg-background border border-border text-[14px] focus:outline-none focus:border-primary transition-colors"
                 placeholder="请详细说明您遇到的法律问题"
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium mb-1 block">法律领域</label>
+              <Field label="Area · 法律领域">
                 <select
                   value={pubArea}
                   onChange={(e) => setPubArea(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                  className="w-full px-3 py-2 bg-background border border-border text-[14px] focus:outline-none focus:border-primary transition-colors"
                 >
                   {LEGAL_AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1 block">紧急度</label>
+              </Field>
+              <Field label="Urgency · 紧急度">
                 <select
                   value={pubUrgency}
                   onChange={(e) => setPubUrgency(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                  className="w-full px-3 py-2 bg-background border border-border text-[14px] focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="urgent">紧急</option>
                   <option value="normal">一般</option>
                   <option value="flexible">不急</option>
                 </select>
-              </div>
+              </Field>
             </div>
-            <div>
-              <label className="text-xs font-medium mb-1 block">所在城市</label>
+            <Field label="City · 所在城市">
               <Input value={pubLocation} onChange={(e) => setPubLocation(e.target.value)} placeholder="如：北京（可选）" />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium mb-1 block">预算下限（元）</label>
+              <Field label="Budget Min · 预算下限（元）">
                 <Input type="number" value={pubBudgetMin} onChange={(e) => setPubBudgetMin(e.target.value)} placeholder="可选" />
-              </div>
-              <div>
-                <label className="text-xs font-medium mb-1 block">预算上限（元）</label>
+              </Field>
+              <Field label="Budget Max · 预算上限（元）">
                 <Input type="number" value={pubBudgetMax} onChange={(e) => setPubBudgetMax(e.target.value)} placeholder="可选" />
-              </div>
+              </Field>
             </div>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              💡 发布后您的需求将进入案源市场，平台律师可投标。默认匿名发布，联系方式仅在您接受投标后对该律师可见。
-            </p>
+            <aside className="border-l-2 border-primary/40 pl-3 py-1 flex items-start gap-2">
+              <Lightbulb className="w-3.5 h-3.5 stroke-[1.5] text-primary mt-0.5 shrink-0" />
+              <p className="text-[12px] text-muted-foreground leading-relaxed">
+                发布后您的需求将进入案源市场，平台律师可投标。默认匿名发布，联系方式仅在您接受投标后对该律师可见。
+              </p>
+            </aside>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPublishDialogOpen(false)}>取消</Button>
@@ -384,63 +416,77 @@ export default function CaseMarket() {
         </DialogContent>
       </Dialog>
 
-      {/* 利益冲突警告 */}
       <ConflictWarning
         warning={conflictWarning}
         onConfirmAnyway={() => { setConflictWarning(null); toast.info('已记录您的知情同意') }}
         onWithdraw={() => {
           setConflictWarning(null)
           toast.success('投标已撤回')
-          // TODO: 调用撤回投标 API
-          loadData()
+          void loadData()
         }}
         onClose={() => setConflictWarning(null)}
       />
-    </PageContainer>
+    </>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-2">
+        {label}
+      </label>
+      {children}
+    </div>
   )
 }
 
 function MyBidsList({ bids }: { bids: BidItem[] }) {
   if (bids.length === 0) {
     return (
-      <div className="text-center py-16">
-        <icons.FileText className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
-        <p className="text-sm text-muted-foreground">您还没有投标记录</p>
-      </div>
+      <ListPageStatus
+        tracker="Empty"
+        title="您还没有投标记录"
+        description="去案源市场找一个适合的案件吧。"
+      />
     )
   }
-  const statusColor = (s: string) => {
-    if (s === 'accepted') return 'text-success'
-    if (s === 'rejected') return 'text-destructive'
-    if (s === 'withdrawn') return 'text-muted-foreground'
-    return 'text-warning'
+  const statusMeta = (s: string): { label: string; labelEn: string; tone: 'normal' | 'success' | 'warning' | 'error' } => {
+    switch (s) {
+      case 'accepted':  return { label: '已接受', labelEn: 'Accepted',  tone: 'success' }
+      case 'rejected':  return { label: '已拒绝', labelEn: 'Rejected',  tone: 'error' }
+      case 'withdrawn': return { label: '已撤回', labelEn: 'Withdrawn', tone: 'normal' }
+      default:          return { label: '待审核', labelEn: 'Pending',   tone: 'warning' }
+    }
   }
-  const statusLabel = (s: string) => ({
-    pending: '待审核', accepted: '已接受', rejected: '已拒绝', withdrawn: '已撤回',
-  }[s] || s)
   return (
-    <div className="space-y-3">
-      {bids.map((bid) => (
-        <Card key={bid.id}>
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <p className="text-sm text-foreground line-clamp-2 flex-1">{bid.proposal}</p>
-              <Badge variant="outline" className={statusColor(bid.status)}>
-                {statusLabel(bid.status)}
-              </Badge>
+    <ol className="space-y-px">
+      {bids.map((bid, i) => {
+        const meta = statusMeta(bid.status)
+        return (
+          <li
+            key={bid.id}
+            className="flex items-start gap-6 py-5 px-3 -mx-3 border-b border-border/60"
+          >
+            <span className="font-serif text-[13px] text-muted-foreground w-10 shrink-0 pt-1 tabular-nums">
+              {String(i + 1).padStart(3, '0')}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-2">
+                <ToneTag tone={meta.tone} labelEn={meta.labelEn} label={meta.label} />
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {new Date(bid.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="text-[14px] text-foreground/90 line-clamp-2 leading-relaxed">{bid.proposal}</p>
+              <div className="text-[12px] text-muted-foreground mt-2 flex items-center gap-4 flex-wrap">
+                {bid.quoted_price !== undefined && <span>报价 · ¥{bid.quoted_price}</span>}
+                {bid.estimated_days !== undefined && <span>工期 · {bid.estimated_days} 天</span>}
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {bid.quoted_price !== undefined && (
-                <span>报价：¥{bid.quoted_price}</span>
-              )}
-              {bid.estimated_days !== undefined && (
-                <span>工期：{bid.estimated_days} 天</span>
-              )}
-              <span className="ml-auto">{new Date(bid.created_at).toLocaleDateString()}</span>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
