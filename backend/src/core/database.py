@@ -170,7 +170,12 @@ async def _ensure_pre_create_schema_constraints() -> None:
 async def init_db() -> None:
     """初始化数据库表"""
     try:
-        await _ensure_pre_create_schema_constraints()
+        # [S8 dev fix] DO $$ ALTER 块在 PG 中即使有 IF 守卫，
+        # 也要求表已存在；新库走 create_all 即可，跳过 pre-create compat
+        try:
+            await _ensure_pre_create_schema_constraints()
+        except Exception as exc:
+            logger.warning(f"_ensure_pre_create_schema_constraints 跳过（可能是新库）: {exc}")
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("数据库表结构同步完成")

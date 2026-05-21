@@ -27,6 +27,43 @@ PR #9 上轮 V3 升级落地了「8 业务域 × 8 高饱和色拼盘 + emoji �
 
 ---
 
+## ⚙️ 2026-05-21 S9 工程协作密度增量（必读补充）
+
+**目标**：保留 Editorial Luxury 在「品牌入口 / 内容阅读」上的资产（Login / Hero / Display / Editorial Serif），同时在「应用功能容器」（chat / personas / admin / case-center 等）层向**飞书 / 企业微信工程协作密度**靠拢。
+
+**飞书 / 企业微信参考点**：
+- 应用 navbar 48-56px（紧凑）
+- 卡片圆角 8-12px、按钮圆角 6-8px（克制，不张扬）
+- 阴影极轻，主要靠 1px 边框 + `border/60` 描边
+- 列表行高 36-40px（紧凑扫描）
+- 工作台卡片化模块直达
+
+**S9 实际落地的 token 收紧**（详见 `frontend/src/lib/design-tokens.ts`）：
+
+| Token | Reset 后（Editorial Luxury） | S9 后（应用容器层）| 备注 |
+|---|---|---|---|
+| `radius.button` | `rounded-2xl` (16px) | **`rounded-lg` (8px)** | 飞书风按钮 |
+| `radius.card` | `rounded-3xl` (24px) | **`rounded-xl` (12px)** | 飞书风卡片 |
+| `radius.bubble` | `rounded-2xl` (16px) | **`rounded-xl` (12px)** | 紧凑气泡 |
+| `radius.small` | `rounded-lg` (8px) | **`rounded-md` (6px)** | 小控件 |
+| `radius.hero` | — | **`rounded-3xl` (24px)** | **新增**，保留 Editorial Hero 大圆角语义 |
+| `cardStyle.base` shadow | `shadow-card` | **`shadow-sm`** | 弱阴影 |
+| `cardStyle.base` border | `border/40` | **`border/60`** | 加强边框描边 |
+| Layout navbar | `h-[60px]` | **`h-14` (56px)** | 紧凑导航 |
+| 按钮 hover | `hover:-translate-y-0.5` | 移除（直接颜色变化）| 工程协作风去除"浮动"动画 |
+
+**保留的 Editorial 资产**：
+- Login / WelcomeGuide / DomainHomePage 的 Display Hero（48px Noto Serif SC）
+- 业务域名仍用衬线展示
+- 品牌琥珀橙不变
+- 文档预览区仍用 Editorial 字号体系
+
+**判断准则**：你正在做的是「**功能容器**」还是「**品牌入口 / 内容阅读**」？
+- 前者用 S9 紧凑 token（飞书风）
+- 后者用 Editorial Hero token（保留 Reset 后定型）
+
+---
+
 ## 1. Visual Theme & Atmosphere
 
 安心智能助手的界面不是通用 SaaS 控制台，也不是刻意强调“AI 感”的炫技产品。它应该像一间被精心整理过的专业法律工作室：光线柔和、秩序清晰、层级克制，始终把判断、风险和证据放在视觉优先级的前面。品牌气质要传达“可信赖的专业协作伙伴”，而不是“高刺激的技术平台”。这意味着页面需要保留足够的留白和呼吸感，但不能松散；要有明显的结构边界，但不能显得刻板或官僚；要让用户感受到系统正在高效工作，但不能用过量动画和色彩制造噪声。

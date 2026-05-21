@@ -10,6 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "037_contract_attachments"
 down_revision: str | None = "036_contract_versions"
@@ -20,18 +21,19 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "contract_attachments",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        # [S8 fix] 用 GUID() 匹配 contracts.id / organizations.id 类型
+        sa.Column("id", GUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("contract_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("contract_id", GUID(), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("original_filename", sa.String(length=255), nullable=False),
         sa.Column("content_type", sa.String(length=255), nullable=False),
         sa.Column("storage_backend", sa.String(length=16), nullable=False),
         sa.Column("object_key", sa.String(length=1024), nullable=False),
         sa.Column("file_size", sa.BigInteger(), nullable=False, server_default="0"),
         sa.Column("file_hash", sa.String(length=64), nullable=False),
-        sa.Column("uploaded_by", sa.CHAR(length=36), nullable=True),
+        sa.Column("uploaded_by", GUID(), nullable=True),
         sa.ForeignKeyConstraint(["contract_id"], ["contracts.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["uploaded_by"], ["users.id"], ondelete="SET NULL"),

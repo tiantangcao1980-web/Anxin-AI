@@ -10,6 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "038_sync_log"
 down_revision: str | None = "037_contract_attachments"
@@ -20,10 +21,10 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "sync_log",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("user_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("user_id", GUID(), nullable=False),
         sa.Column("device_id", sa.String(length=128), nullable=False),
         sa.Column("entity_type", sa.String(length=64), nullable=False),
         sa.Column("entity_id", sa.String(length=128), nullable=False),

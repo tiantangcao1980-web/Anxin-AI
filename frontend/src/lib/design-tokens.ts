@@ -53,23 +53,27 @@ export const spacing = {
 } as const
 
 // ===== 圆角体系 (DESIGN.md §5 Radius Scale) =====
+// [S9 2026-05] 应用功能容器向飞书/企业微信工程协作风靠拢：
+// 圆角整体收紧（24→12, 16→8），保留 Editorial Hero 大圆角语义
 export const radius = {
-  /** 按钮、输入框 — 16px */
-  button: 'rounded-2xl',
-  /** 标准卡片、面板、抽屉 — 24px */
-  card: 'rounded-3xl',
-  /** 弹窗 — 24px */
-  dialog: 'rounded-3xl',
+  /** 按钮、输入框 — 8px（飞书风紧凑）*/
+  button: 'rounded-lg',
+  /** 标准卡片、面板、抽屉 — 12px（飞书风紧凑）*/
+  card: 'rounded-xl',
+  /** 弹窗 — 16px（保留略大保持仪式感）*/
+  dialog: 'rounded-2xl',
   /** 头像 — pill */
   avatar: 'rounded-full',
   /** 标签、徽章 — 4px */
   badge: 'rounded',
-  /** 聊天气泡 — 16px */
-  bubble: 'rounded-2xl',
-  /** 紧凑容器、列表子项 — 12px */
-  compact: 'rounded-xl',
-  /** 小控件、表格行 — 8px */
-  small: 'rounded-lg',
+  /** 聊天气泡 — 12px */
+  bubble: 'rounded-xl',
+  /** 紧凑容器、列表子项 — 8px */
+  compact: 'rounded-lg',
+  /** 小控件、表格行 — 6px */
+  small: 'rounded-md',
+  /** Editorial Hero 大圆角（Login/Welcome）保留 — 24px */
+  hero: 'rounded-3xl',
 } as const
 
 // ===== 阴影体系 =====
@@ -87,31 +91,31 @@ export const duration = {
   slow: 'duration-300',
 } as const
 
-// ===== 卡片样式预设 (DESIGN.md §4 Cards: 24px radius) =====
-// v2 优化：边框从 /70 降到 /40 更精致（Linear/Stripe 风格），spacious 变体用于呼吸感
+// ===== 卡片样式预设 — [S9 飞书风] 12px radius + 弱阴影 + 1px 边框 =====
+// 工程协作密度：圆角小、内边距紧凑、阴影靠边框，模块化清晰
 export const cardStyle = {
-  base: 'rounded-3xl border border-border/40 bg-surface-1 p-5 shadow-card',
-  /** 宽松内边距（24px）— 用于高信息密度场景需要呼吸感时 */
-  spacious: 'rounded-3xl border border-border/40 bg-surface-1 p-6 shadow-card',
+  base: 'rounded-xl border border-border/60 bg-surface-1 p-4 shadow-sm',
+  /** 宽松内边距 — 高信息密度场景需要呼吸感时 */
+  spacious: 'rounded-xl border border-border/60 bg-surface-1 p-5 shadow-sm',
   interactive:
-    'rounded-3xl border border-border/40 bg-surface-1 p-5 shadow-card transition-colors hover:border-primary/25 hover:shadow-float cursor-pointer',
-  highlight: 'rounded-3xl border border-primary/20 bg-primary-50/80 p-5 shadow-card dark:bg-primary-100/10',
-  compact: 'rounded-2xl border border-border/40 bg-surface-1 p-4 shadow-card',
-  flat: 'rounded-2xl bg-surface-2 p-5',
+    'rounded-xl border border-border/60 bg-surface-1 p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow cursor-pointer',
+  highlight: 'rounded-xl border border-primary/30 bg-primary-50/80 p-4 shadow-sm dark:bg-primary-100/10',
+  compact: 'rounded-lg border border-border/60 bg-surface-1 p-3 shadow-sm',
+  flat: 'rounded-lg bg-surface-2 p-4',
 } as const
 
-// ===== 按钮样式预设 (DESIGN.md §4 Buttons: 16px radius) =====
+// ===== 按钮样式预设 — [S9 飞书风] 8px radius + 紧凑 =====
 export const buttonStyle = {
   primary:
-    'rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm transition-all hover:-translate-y-0.5 hover:bg-primary-600 active:translate-y-0 outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+    'rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-primary-600 outline-none focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   secondary:
-    'rounded-2xl border border-border/40 bg-surface-1 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-2 hover:border-primary/20 outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+    'rounded-lg border border-border/60 bg-surface-1 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface-2 hover:border-primary/30 outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   ghost:
-    'rounded-2xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-surface-2 hover:text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+    'rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   danger:
-    'rounded-2xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-all hover:bg-destructive/90 outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
-  icon: 'rounded-2xl p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
-  sm: 'rounded-xl px-3 py-1.5 text-xs font-medium transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+    'rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 outline-none focus-visible:ring-2 focus-visible:ring-destructive/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+  icon: 'rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+  sm: 'rounded-md px-3 py-1.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
 } as const
 
 // ===== 标题层级 (DESIGN.md §3 Typography Hierarchy) =====

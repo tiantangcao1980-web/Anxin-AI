@@ -10,6 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "036_contract_versions"
 down_revision: str | None = "035_im_message_sequence"
@@ -24,15 +25,17 @@ def upgrade() -> None:
     )
     op.create_table(
         "contract_versions",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        # [S8 fix] 用 GUID()（PG: UUID / 其它: CHAR(36)）匹配 contracts.id 类型，
+        # 避免 PG 中外键类型冲突 (DatatypeMismatchError)
+        sa.Column("id", GUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("contract_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("contract_id", GUID(), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("text", sa.Text(), nullable=False),
         sa.Column("source", sa.String(length=32), nullable=False, server_default="manual"),
         sa.Column("description", sa.String(length=255), nullable=True),
-        sa.Column("created_by", sa.CHAR(length=36), nullable=True),
+        sa.Column("created_by", GUID(), nullable=True),
         sa.ForeignKeyConstraint(["contract_id"], ["contracts.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),

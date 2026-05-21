@@ -11,6 +11,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "042_remote_control_queue"
 down_revision: str | None = "041_skill_governance_persistence"
@@ -28,10 +29,10 @@ def _timestamp_columns() -> list[sa.Column[Any]]:
 def upgrade() -> None:
     op.create_table(
         "remote_control_pairings",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("user_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("user_id", GUID(), nullable=False),
         sa.Column("mobile_device_id", sa.String(length=128), nullable=False),
         sa.Column("desktop_device_id", sa.String(length=128), nullable=False),
         sa.Column("requested_scopes", sa.JSON(), nullable=False),
@@ -39,7 +40,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=40), nullable=False, server_default="pending_desktop_confirmation"),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("confirmed_by", sa.CHAR(length=36), nullable=True),
+        sa.Column("confirmed_by", GUID(), nullable=True),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("revoked_reason", sa.Text(), nullable=True),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"], ondelete="CASCADE"),
@@ -61,17 +62,17 @@ def upgrade() -> None:
 
     op.create_table(
         "remote_control_commands",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("user_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("pairing_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("user_id", GUID(), nullable=False),
+        sa.Column("pairing_id", GUID(), nullable=False),
         sa.Column("desktop_device_id", sa.String(length=128), nullable=False),
         sa.Column("command_type", sa.String(length=80), nullable=False),
         sa.Column("payload", sa.JSON(), nullable=False),
         sa.Column("risk_level", sa.String(length=40), nullable=False, server_default="l3"),
         sa.Column("status", sa.String(length=40), nullable=False, server_default="queued"),
-        sa.Column("route_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("route_id", GUID(), nullable=True),
         sa.Column("route_consumer_id", sa.String(length=160), nullable=True),
         sa.Column("route_scopes", sa.JSON(), nullable=False),
         sa.Column("second_confirmed", sa.Boolean(), nullable=False, server_default=sa.false()),
@@ -101,11 +102,11 @@ def upgrade() -> None:
 
     op.create_table(
         "remote_control_audit_events",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("user_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("pairing_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("command_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("id", GUID(), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("user_id", GUID(), nullable=True),
+        sa.Column("pairing_id", GUID(), nullable=True),
+        sa.Column("command_id", GUID(), nullable=True),
         sa.Column("actor_type", sa.String(length=50), nullable=False, server_default="user"),
         sa.Column("action", sa.String(length=120), nullable=False),
         sa.Column("status", sa.String(length=30), nullable=False, server_default="success"),

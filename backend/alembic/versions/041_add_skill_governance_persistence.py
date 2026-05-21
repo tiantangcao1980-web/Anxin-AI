@@ -11,6 +11,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "041_skill_governance_persistence"
 down_revision: str | None = "040_agent_governance_control_plane"
@@ -28,9 +29,9 @@ def _timestamp_columns() -> list[sa.Column[Any]]:
 def upgrade() -> None:
     op.create_table(
         "skill_governance_proposals",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("skill_name", sa.String(length=160), nullable=False),
         sa.Column("current_version", sa.String(length=80), nullable=True),
         sa.Column("proposed_version", sa.String(length=80), nullable=False),
@@ -65,13 +66,13 @@ def upgrade() -> None:
 
     op.create_table(
         "skill_enabled_versions",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("skill_name", sa.String(length=160), nullable=False),
         sa.Column("version", sa.String(length=80), nullable=False),
         sa.Column("status", sa.String(length=30), nullable=False, server_default="enabled"),
-        sa.Column("proposal_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("proposal_id", GUID(), nullable=True),
         sa.Column("enabled_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["org_id"], ["organizations.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(
@@ -90,9 +91,9 @@ def upgrade() -> None:
 
     op.create_table(
         "skill_governance_audit_events",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("proposal_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("id", GUID(), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("proposal_id", GUID(), nullable=True),
         sa.Column("actor", sa.String(length=160), nullable=False),
         sa.Column("action", sa.String(length=120), nullable=False),
         sa.Column("status", sa.String(length=30), nullable=False, server_default="success"),

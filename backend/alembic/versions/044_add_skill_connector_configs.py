@@ -11,6 +11,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "044_skill_connector_configs"
 down_revision: str | None = "043_remote_control_execution_state"
@@ -28,9 +29,9 @@ def _timestamp_columns() -> list[sa.Column[Any]]:
 def upgrade() -> None:
     op.create_table(
         "skill_connector_configs",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("skill_name", sa.String(length=160), nullable=False),
         sa.Column("connector_name", sa.String(length=120), nullable=False),
         sa.Column("connector_type", sa.String(length=60), nullable=False, server_default="http_api"),

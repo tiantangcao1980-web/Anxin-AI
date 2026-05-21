@@ -595,6 +595,23 @@ export async function minimizeCurrentWindow(): Promise<boolean> {
   }
 }
 
+/**
+ * 启动窗口拖动（用于 titlebar mousedown 事件）
+ * macOS webkit 不识别 `-webkit-app-region: drag`，必须用 Tauri 的 startDragging API。
+ */
+export async function startDraggingCurrentWindow(): Promise<boolean> {
+  if (!isTauri()) return false
+
+  try {
+    const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window')
+    await getCurrentWindow().startDragging()
+    return true
+  } catch (error) {
+    console.debug('[Tauri] 启动窗口拖动失败:', error)
+    return false
+  }
+}
+
 export async function toggleMaximizeCurrentWindow(): Promise<boolean> {
   if (!isTauri()) return false
 

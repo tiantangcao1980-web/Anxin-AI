@@ -11,6 +11,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "040_agent_governance_control_plane"
 down_revision: str | None = "039_search_cache_org_scope"
@@ -28,10 +29,10 @@ def _timestamp_columns() -> list[sa.Column[Any]]:
 def upgrade() -> None:
     op.create_table(
         "agent_managers",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("owner_user_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("owner_user_id", GUID(), nullable=True),
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("scope_type", sa.String(length=50), nullable=False, server_default="organization"),
         sa.Column("scope_id", sa.String(length=100), nullable=True),
@@ -47,10 +48,10 @@ def upgrade() -> None:
 
     op.create_table(
         "agent_teams",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("manager_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("manager_id", GUID(), nullable=True),
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("scope_type", sa.String(length=50), nullable=False, server_default="project"),
         sa.Column("scope_id", sa.String(length=100), nullable=True),
@@ -71,10 +72,10 @@ def upgrade() -> None:
 
     op.create_table(
         "agent_workers",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("team_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("team_id", GUID(), nullable=True),
         sa.Column("name", sa.String(length=160), nullable=False),
         sa.Column("worker_type", sa.String(length=60), nullable=False, server_default="assistant"),
         sa.Column("runtime", sa.String(length=80), nullable=False, server_default="server"),
@@ -96,11 +97,11 @@ def upgrade() -> None:
 
     op.create_table(
         "human_participants",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("team_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("user_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("team_id", GUID(), nullable=True),
+        sa.Column("user_id", GUID(), nullable=True),
         sa.Column("external_subject_id", sa.String(length=120), nullable=True),
         sa.Column("participant_type", sa.String(length=40), nullable=False, server_default="employee"),
         sa.Column("role", sa.String(length=50), nullable=False, server_default="viewer"),
@@ -121,10 +122,10 @@ def upgrade() -> None:
 
     op.create_table(
         "agent_channel_policies",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("team_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("team_id", GUID(), nullable=True),
         sa.Column("channel_type", sa.String(length=50), nullable=False, server_default="workspace"),
         sa.Column("channel_id", sa.String(length=120), nullable=True),
         sa.Column("status", sa.String(length=30), nullable=False, server_default="active"),
@@ -145,9 +146,9 @@ def upgrade() -> None:
 
     op.create_table(
         "capability_routes",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("route_key", sa.String(length=160), nullable=False),
         sa.Column("route_type", sa.String(length=60), nullable=False),
         sa.Column("provider", sa.String(length=100), nullable=True),
@@ -169,10 +170,10 @@ def upgrade() -> None:
 
     op.create_table(
         "capability_route_token_leases",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("route_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("route_id", GUID(), nullable=False),
         sa.Column("consumer_id", sa.String(length=160), nullable=False),
         sa.Column("consumer_type", sa.String(length=60), nullable=False, server_default="agent_worker"),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
@@ -200,12 +201,12 @@ def upgrade() -> None:
 
     op.create_table(
         "agent_approvals",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("route_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("requested_by", sa.CHAR(length=36), nullable=True),
-        sa.Column("decided_by", sa.CHAR(length=36), nullable=True),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("route_id", GUID(), nullable=True),
+        sa.Column("requested_by", GUID(), nullable=True),
+        sa.Column("decided_by", GUID(), nullable=True),
         sa.Column("action_type", sa.String(length=80), nullable=False),
         sa.Column("risk_level", sa.String(length=20), nullable=False, server_default="l3"),
         sa.Column("status", sa.String(length=30), nullable=False, server_default="pending"),
@@ -229,13 +230,13 @@ def upgrade() -> None:
 
     op.create_table(
         "agent_audit_events",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("team_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("worker_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("route_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("human_participant_id", sa.CHAR(length=36), nullable=True),
-        sa.Column("actor_user_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("id", GUID(), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("team_id", GUID(), nullable=True),
+        sa.Column("worker_id", GUID(), nullable=True),
+        sa.Column("route_id", GUID(), nullable=True),
+        sa.Column("human_participant_id", GUID(), nullable=True),
+        sa.Column("actor_user_id", GUID(), nullable=True),
         sa.Column("actor_type", sa.String(length=50), nullable=False, server_default="system"),
         sa.Column("actor_snapshot", sa.JSON(), nullable=True),
         sa.Column("action", sa.String(length=120), nullable=False),

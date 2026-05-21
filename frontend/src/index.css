@@ -851,9 +851,17 @@ html[data-platform="tauri-macos"] .tauri-safe-pl-22 {
   padding-left: 88px; /* 88px = 左 16 + 交通灯 52 + 间距 20 */
 }
 
-/* 在 Tauri 桌面端禁用文本选择的默认拖拽行为 */
+/* Tauri 桌面端窗口拖动：header 整体可拖，内部交互元素恢复 no-drag */
+/* macOS webkit 默认所有元素 no-drag，必须显式给 header 设 drag */
+html[data-platform^="tauri"] header[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
 html[data-platform^="tauri"] header[data-tauri-drag-region] button,
 html[data-platform^="tauri"] header[data-tauri-drag-region] input,
-html[data-platform^="tauri"] header[data-tauri-drag-region] a {
+html[data-platform^="tauri"] header[data-tauri-drag-region] a,
+html[data-platform^="tauri"] header[data-tauri-drag-region] [role="button"],
+html[data-platform^="tauri"] header[data-tauri-drag-region] [role="menuitem"] {
   -webkit-app-region: no-drag;
+  app-region: no-drag;
 }

@@ -1,4 +1,4 @@
--- AI法务智能体系统 - 数据库初始化脚本
+-- Anxin AI 安心智能助手 - 数据库初始化脚本
 
 -- 创建扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

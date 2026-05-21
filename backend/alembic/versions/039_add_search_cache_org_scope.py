@@ -10,6 +10,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "039_search_cache_org_scope"
 down_revision: str | None = "038_sync_log"
@@ -18,7 +19,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("search_cache", sa.Column("org_id", sa.CHAR(length=36), nullable=True))
+    op.add_column("search_cache", sa.Column("org_id", GUID(), nullable=True))
     op.create_foreign_key(
         "fk_search_cache_org_id_organizations",
         "search_cache",

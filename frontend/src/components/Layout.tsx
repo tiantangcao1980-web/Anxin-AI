@@ -2,8 +2,8 @@
  * Layout.tsx - 应用主布局组件
  *
  * ===== 顶部导航栏设计 =====
- * 受 Apple.com / Insta360.com 启发的顶部导航
- * - 固定顶栏 60px，Logo 左置，四大业务域下拉菜单居中，系统功能右置
+ * [S9 2026-05] 借鉴飞书/企业微信工程协作密度，应用层 navbar 56px（h-14），保留品牌琥珀橙
+ * - 固定顶栏 56px（h-14），Logo 左置，四大业务域 Tab 居中，系统功能右置
  * - 移动端：底部 Tab 栏 + 顶部二级水平滚动导航
  * - 内容区域全宽，无侧边栏占用水平空间
  *
@@ -31,6 +31,7 @@ import { ModeSwitcher } from '@/components/mode-switcher/ModeSwitcher'
 import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
 import { DesktopTitleBarControls, handleDesktopTitleBarDoubleClick } from '@/components/desktop/TitleBar'
+import { startDraggingCurrentWindow } from '@/lib/tauri-bridge'
 
 // Heroicons 组件类型
 type HeroIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -315,14 +316,24 @@ export default function Layout() {
 
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-surface-2">
-      {/* ===== 固定顶部导航栏 (Tauri 桌面端：data-tauri-drag-region 允许拖拽窗口) ===== */}
+      {/* ===== 固定顶部导航栏 (Tauri 桌面端：mousedown 启动 startDragging) ===== */}
       <header
         data-tauri-drag-region
+        onMouseDown={(event) => {
+          // 仅当点击的是 header 本身或非交互子元素（div/span/icon）时启动拖动；
+          // 落在 button/a/input/role=button 的点击保持原行为不拖动
+          const target = event.target as Element | null
+          if (!target) return
+          if (target.closest('a,button,input,select,textarea,[role="button"],[data-titlebar-control],[data-no-drag]')) {
+            return
+          }
+          void startDraggingCurrentWindow()
+        }}
         onDoubleClick={(event) => handleDesktopTitleBarDoubleClick(event.target)}
         className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-surface-1/90 backdrop-blur-xl"
       >
         {/* 在 Tauri 桌面端 macOS，html[data-platform="tauri-macos"] 会激活 .tauri-safe-pl-22 增加左 padding 让开交通灯 */}
-        <div className="h-[60px] px-4 lg:px-6 flex items-center tauri-safe-pl-22">
+        <div className="h-14 px-4 lg:px-6 flex items-center tauri-safe-pl-22">
           {/* 左侧：Logo */}
           <button
             type="button"

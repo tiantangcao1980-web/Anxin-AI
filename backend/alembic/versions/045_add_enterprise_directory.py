@@ -13,6 +13,7 @@ from typing import Any
 import sqlalchemy as sa
 
 from alembic import op
+from src.models.base import GUID
 
 revision: str = "045_enterprise_directory"
 down_revision: str | None = "044_skill_connector_configs"
@@ -43,15 +44,15 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     op.create_table(
         "departments",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("parent_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("org_id", GUID(), nullable=False),
+        sa.Column("parent_id", GUID(), nullable=True),
         sa.Column("name", sa.String(length=200), nullable=False),
         sa.Column("code", sa.String(length=100), nullable=True),
         sa.Column("path", sa.String(length=1024), nullable=True),
         sa.Column("order_idx", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("leader_id", sa.CHAR(length=36), nullable=True),
+        sa.Column("leader_id", GUID(), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("external_id", sa.String(length=200), nullable=True),
         sa.Column("ext_source", sa.String(length=50), nullable=True),
@@ -73,10 +74,10 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     op.create_table(
         "department_memberships",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("user_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("department_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("user_id", GUID(), nullable=False),
+        sa.Column("department_id", GUID(), nullable=False),
         sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("position_title", sa.String(length=200), nullable=True),
         sa.Column("joined_at", sa.DateTime(timezone=True), nullable=True),
@@ -102,9 +103,9 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     op.create_table(
         "user_groups",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("name", sa.String(length=200), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column(
@@ -118,10 +119,10 @@ def upgrade() -> None:
 
     op.create_table(
         "user_group_members",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("group_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("user_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("group_id", GUID(), nullable=False),
+        sa.Column("user_id", GUID(), nullable=False),
         sa.Column("joined_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["group_id"], ["user_groups.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
@@ -134,9 +135,9 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     op.create_table(
         "positions",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("name", sa.String(length=200), nullable=False),
         sa.Column("code", sa.String(length=100), nullable=True),
         sa.Column("level", sa.Integer(), nullable=False, server_default="0"),
@@ -151,15 +152,15 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     op.create_table(
         "role_bindings",
-        sa.Column("id", sa.CHAR(length=36), nullable=False),
+        sa.Column("id", GUID(), nullable=False),
         *_timestamp_columns(),
-        sa.Column("org_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("org_id", GUID(), nullable=False),
         sa.Column("subject_type", sa.String(length=20), nullable=False),
-        sa.Column("subject_id", sa.CHAR(length=36), nullable=False),
+        sa.Column("subject_id", GUID(), nullable=False),
         sa.Column("role", sa.String(length=50), nullable=False),
         sa.Column("scope_type", sa.String(length=20), nullable=False),
-        sa.Column("scope_id", sa.CHAR(length=36), nullable=False),
-        sa.Column("granted_by", sa.CHAR(length=36), nullable=True),
+        sa.Column("scope_id", GUID(), nullable=False),
+        sa.Column("granted_by", GUID(), nullable=True),
         sa.Column("granted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),

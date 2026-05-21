@@ -24,9 +24,8 @@
         "decorations": true,
         "transparent": false,
         "shadow": true,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "trafficLightPosition": { "x": 16, "y": 18 }
+        "titleBarStyle": "Visible",
+        "hiddenTitle": false
       }
     ],
     "trayIcon": {
