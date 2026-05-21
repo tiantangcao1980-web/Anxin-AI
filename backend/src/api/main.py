@@ -267,3 +267,5 @@ async def root() -> dict[str, str]:
 
 
 app.include_router(health_router)
+# [S9 fix] 别名挂在 /api/v1 下，兼容前端/桌面端用统一 base path 轮询健康
+app.include_router(health_router, prefix="/api/v1")

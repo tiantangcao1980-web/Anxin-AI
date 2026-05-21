@@ -27,6 +27,7 @@ from src.models.base import Base, TimestampMixin
 from src.models.billing import BillingPlan, Refund, Subscription, SubscriptionEvent
 from src.models.case import Case, CaseEvent
 from src.models.case_market import BidStatus, CaseRequest, LawyerBid, RequestStatus
+from src.models.client_error import ClientError
 from src.models.collaboration import (
     CollaboratorRole,
     DocumentCollaborator,
