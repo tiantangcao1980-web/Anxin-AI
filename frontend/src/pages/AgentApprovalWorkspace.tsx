@@ -984,8 +984,8 @@ function SkillConnectorPanel({
     <section className="rounded-lg border border-border bg-background p-4 shadow-sm" data-testid="skill-connector-panel">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700">
-            <icons.Key className="h-4 w-4" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-foreground/70">
+            <icons.Key className="h-4 w-4 stroke-[1.5]" />
           </span>
           <div className="min-w-0">
             <h2 className="truncate text-base font-semibold text-foreground">Skill 连接器凭据</h2>
@@ -1198,7 +1198,7 @@ function SkillConnectorRow({
                 未保存凭据
               </span>
             ) : connector.credential_keys.map((key) => (
-              <span key={key} className="rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+              <span key={key} className="rounded-sm border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.06em] text-foreground/70">
                 {key}
               </span>
             ))}
