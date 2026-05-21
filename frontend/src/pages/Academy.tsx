@@ -1,234 +1,325 @@
-import { useState, useEffect, useCallback } from'react'
-import { icons } from'@/lib/icons'
-import { cardStyle, heading, statusColor } from'@/lib/design-tokens'
-import { coursesApi, type CourseItem } from'@/lib/api'
-import { PageContainer } from'@/components/ui/PageContainer'
-import { ErrorState } from'@/components/common'
+/**
+ * Academy · 司法学院（Editorial Luxury 改造 · Phase 1）
+ *
+ * 旧版用 PageContainer + cardStyle.interactive 3 列卡片墙 + statusColor chip 色块。
+ * 新版：ListPageTemplate 列表 + DetailPageTemplate 详情。
+ * 区分手段：tone-only chip + 衬线大字 + 进度细线，无背景色块。
+ */
 
-type CourseCategory ='all' |'regulation' |'case_study' |'practice' |'exam'
+import { useCallback, useEffect, useState } from 'react'
+import { ArrowLeft, CheckCircle, Circle, Clock, List, User } from 'lucide-react'
+
+import { ListPageTemplate, ListPageStatus } from '@/components/ui/ListPageTemplate'
+import { DetailPageTemplate, PanelSection } from '@/components/ui/PageTemplates'
+import { coursesApi, type CourseItem } from '@/lib/api'
+import { cn } from '@/components/ui/utils'
+
+type CourseCategory = 'all' | 'regulation' | 'case_study' | 'practice' | 'exam'
+type Level = '入门' | '进阶' | '高级'
 
 interface Course {
- id: string
- title: string
- instructor: string
- category: Exclude<CourseCategory,'all'>
- duration: string
- lessons: number
- progress: number
- description: string
- level:'入门' |'进阶' |'高级'
- tags: string[]
+  id: string
+  title: string
+  instructor: string
+  category: Exclude<CourseCategory, 'all'>
+  duration: string
+  lessons: number
+  progress: number
+  description: string
+  level: Level
+  tags: string[]
 }
 
-const categoryConfig: Record<string, { label: string; color: string }> = {
- regulation: { label:'法规解读', color: statusColor.info },
- case_study: { label:'案例分析', color: statusColor.success },
- practice: { label:'实务技能', color: statusColor.warning },
- exam: { label:'考试辅导', color:'text-primary bg-primary/5' },
+const CATEGORY_META: Record<Exclude<CourseCategory, 'all'>, { label: string; labelEn: string }> = {
+  regulation: { label: '法规解读', labelEn: 'Regulation' },
+  case_study: { label: '案例分析', labelEn: 'Case Study' },
+  practice:   { label: '实务技能', labelEn: 'Practice' },
+  exam:       { label: '考试辅导', labelEn: 'Exam Prep' },
 }
 
-const levelColor: Record<string, string> = {
-'入门': statusColor.success,
-'进阶': statusColor.warning,
-'高级': statusColor.error,
+const LEVEL_TONE: Record<Level, 'success' | 'warning' | 'error'> = {
+  入门: 'success',
+  进阶: 'warning',
+  高级: 'error',
 }
 
 function apiToCourse(item: CourseItem): Course {
- return {
- id: item.id,
- title: item.title,
- instructor: item.instructor ||'',
- category: (item.category as Exclude<CourseCategory,'all'>) ||'regulation',
- duration: item.duration ||'',
- lessons: item.lessons,
- progress: item.progress,
- description: item.description ||'',
- level: (item.level as'入门' |'进阶' |'高级') ||'入门',
- tags: item.tags || [],
- }
+  return {
+    id: item.id,
+    title: item.title,
+    instructor: item.instructor || '',
+    category: (item.category as Exclude<CourseCategory, 'all'>) || 'regulation',
+    duration: item.duration || '',
+    lessons: item.lessons,
+    progress: item.progress,
+    description: item.description || '',
+    level: (item.level as Level) || '入门',
+    tags: item.tags || [],
+  }
 }
 
+function CategoryChip({ category }: { category: Exclude<CourseCategory, 'all'> }) {
+  const meta = CATEGORY_META[category]
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <span>{meta.labelEn}</span>
+      <span className="text-foreground/30" aria-hidden>·</span>
+      <span className="normal-case tracking-normal text-foreground/70">{meta.label}</span>
+    </span>
+  )
+}
+
+function LevelChip({ level }: { level: Level }) {
+  const tone = LEVEL_TONE[level]
+  const toneClass = {
+    success: 'text-success',
+    warning: 'text-warning',
+    error:   'text-destructive',
+  }[tone]
+  return (
+    <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.16em]', toneClass)}>
+      <span className="h-1 w-1 rounded-full bg-current" aria-hidden />
+      <span>{level}</span>
+    </span>
+  )
+}
+
+/* ------------ 详情视图 ------------ */
+function CourseDetail({ course, onBack }: { course: Course; onBack: () => void }) {
+  const completedCount = Math.floor((course.lessons * course.progress) / 100)
+  return (
+    <DetailPageTemplate
+      tracker={['Knowledge', '司法学院', CATEGORY_META[course.category].label]}
+      title={course.title}
+      description={course.description}
+      actions={
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 stroke-[1.5]" />
+          <span>返回列表</span>
+        </button>
+      }
+    >
+      {/* meta 行 */}
+      <div className="flex items-center gap-6 mb-10">
+        <CategoryChip category={course.category} />
+        <LevelChip level={course.level} />
+      </div>
+
+      {/* KPI */}
+      <div className="grid grid-cols-3 gap-px bg-border mb-10 border-t border-l border-border">
+        <div className="bg-card px-5 py-4 border-r border-b border-border">
+          <div className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <User className="w-3 h-3 stroke-[1.5]" />
+            Instructor
+          </div>
+          <div className="text-[18px] text-foreground mt-1">{course.instructor || '—'}</div>
+        </div>
+        <div className="bg-card px-5 py-4 border-r border-b border-border">
+          <div className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <Clock className="w-3 h-3 stroke-[1.5]" />
+            Duration
+          </div>
+          <div className="text-[18px] text-foreground mt-1">{course.duration || '—'}</div>
+        </div>
+        <div className="bg-card px-5 py-4 border-r border-b border-border">
+          <div className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <List className="w-3 h-3 stroke-[1.5]" />
+            Lessons
+          </div>
+          <div className="font-serif text-[28px] leading-[1.1] text-foreground mt-1 tabular-nums">
+            {course.lessons}
+          </div>
+        </div>
+      </div>
+
+      {/* 进度 */}
+      <div className="mb-10">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            Progress
+          </span>
+          <span className="text-[13px] text-foreground tabular-nums">
+            {course.progress}% · {completedCount} / {course.lessons}
+          </span>
+        </div>
+        <div className="w-full h-px bg-border relative">
+          <div
+            className="absolute top-0 left-0 h-px bg-primary transition-[width]"
+            style={{ width: `${course.progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* 大纲 */}
+      <PanelSection tracker="Outline" title="课程大纲">
+        <ol className="space-y-px">
+          {Array.from({ length: Math.min(course.lessons, 8) }, (_, i) => {
+            const completed = i < completedCount
+            return (
+              <li key={i} className="flex items-center gap-4 py-3 border-b border-border/60 last:border-b-0">
+                {completed ? (
+                  <CheckCircle className="w-4 h-4 text-success stroke-[1.5] shrink-0" />
+                ) : (
+                  <Circle className="w-4 h-4 text-muted-foreground/50 stroke-[1.5] shrink-0" />
+                )}
+                <span className="font-serif text-[13px] text-muted-foreground w-10 tabular-nums">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className={cn('text-[14px]', completed ? 'text-foreground' : 'text-muted-foreground')}>
+                  第 {i + 1} 课
+                </span>
+              </li>
+            )
+          })}
+          {course.lessons > 8 && (
+            <li className="text-[12px] text-muted-foreground text-center py-3 italic">
+              还有 {course.lessons - 8} 个课时…
+            </li>
+          )}
+        </ol>
+      </PanelSection>
+
+      {course.tags.length > 0 && (
+        <footer className="mt-10 pt-6 border-t border-border flex flex-wrap items-center gap-4">
+          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            Tags
+          </span>
+          {course.tags.map((tag) => (
+            <span key={tag} className="text-[13px] text-foreground/80 border border-border px-2.5 py-0.5">
+              {tag}
+            </span>
+          ))}
+        </footer>
+      )}
+    </DetailPageTemplate>
+  )
+}
+
+/* ------------ 主页面 ------------ */
 export default function Academy() {
- const [courses, setCourses] = useState<Course[]>([])
- const [category, setCategory] = useState<CourseCategory>('all')
- const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
- const [loading, setLoading] = useState(true)
- const [error, setError] = useState<string | null>(null)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [category, setCategory] = useState<CourseCategory>('all')
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
- const loadCourses = useCallback(async () => {
- setLoading(true)
- setError(null)
- try {
- const data = await coursesApi.list({ page_size: 100 })
- setCourses((data.items || []).map(apiToCourse))
- } catch (err) {
- setCourses([])
- setError(err instanceof Error ? err.message :'加载课程失败')
- } finally {
- setLoading(false)
- }
- }, [])
+  const loadCourses = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await coursesApi.list({ page_size: 100 })
+      setCourses((data.items || []).map(apiToCourse))
+    } catch (err) {
+      setCourses([])
+      setError(err instanceof Error ? err.message : '加载课程失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
- useEffect(() => { loadCourses() }, [loadCourses])
+  useEffect(() => { void loadCourses() }, [loadCourses])
 
- const filtered = category ==='all' ? courses : courses.filter(c => c.category === category)
+  const filtered = category === 'all' ? courses : courses.filter((c) => c.category === category)
 
- if (selectedCourse) {
- return (
- <PageContainer showHeader={false} scrollable={false} className="!p-0 !space-y-0">
- <div className="border-b border-border px-4 sm:px-5 lg:px-6 py-4 flex items-center gap-3">
- <button onClick={() => setSelectedCourse(null)} className="p-1 rounded hover:bg-muted">
- <icons.ArrowLeft className="w-5 h-5" />
- </button>
- <h1 className={heading.page}>{selectedCourse.title}</h1>
- </div>
- <div className="flex-1 overflow-y-auto px-4 sm:px-5 lg:px-6 py-6 max-w-2xl">
- <div className="flex items-center gap-3 mb-4">
- <span className={`text-xs px-2 py-0.5 rounded-full ${categoryConfig[selectedCourse.category]?.color ||''}`}>
- {categoryConfig[selectedCourse.category]?.label || selectedCourse.category}
- </span>
- <span className={`text-xs px-2 py-0.5 rounded-full ${levelColor[selectedCourse.level] ||''}`}>
- {selectedCourse.level}
- </span>
- </div>
+  if (selectedCourse) {
+    return <CourseDetail course={selectedCourse} onBack={() => setSelectedCourse(null)} />
+  }
 
- <p className="text-sm text-muted-foreground leading-relaxed mb-6">{selectedCourse.description}</p>
+  const counts: Record<CourseCategory, number> = {
+    all: courses.length,
+    regulation: courses.filter((c) => c.category === 'regulation').length,
+    case_study: courses.filter((c) => c.category === 'case_study').length,
+    practice:   courses.filter((c) => c.category === 'practice').length,
+    exam:       courses.filter((c) => c.category === 'exam').length,
+  }
 
- <div className="grid grid-cols-3 gap-4 mb-6">
- <div className={cardStyle.base +' text-center'}>
- <icons.User className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
- <p className="text-sm font-medium text-foreground">{selectedCourse.instructor}</p>
- <p className="text-xs text-muted-foreground">讲师</p>
- </div>
- <div className={cardStyle.base +' text-center'}>
- <icons.Clock className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
- <p className="text-sm font-medium text-foreground">{selectedCourse.duration}</p>
- <p className="text-xs text-muted-foreground">总时长</p>
- </div>
- <div className={cardStyle.base +' text-center'}>
- <icons.List className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
- <p className="text-sm font-medium text-foreground">{selectedCourse.lessons} 课时</p>
- <p className="text-xs text-muted-foreground">课程章节</p>
- </div>
- </div>
-
- <div className="mb-6">
- <div className="flex items-center justify-between mb-2">
- <h3 className={heading.section}>学习进度</h3>
- <span className="text-xs text-muted-foreground">{selectedCourse.progress}%</span>
- </div>
- <div className="w-full h-2 rounded-full bg-muted">
- <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${selectedCourse.progress}%` }} />
- </div>
- </div>
-
- <h3 className={heading.section +' mb-3'}>课程大纲</h3>
- <div className="space-y-2">
- {Array.from({ length: Math.min(selectedCourse.lessons, 8) }, (_, i) => {
- const completed = i < Math.floor(selectedCourse.lessons * selectedCourse.progress / 100)
- return (
- <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${completed ?'bg-primary/5' :'bg-muted/30'}`}>
- {completed ? (
- <icons.CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
- ) : (
- <icons.Circle className="w-4 h-4 text-muted-foreground flex-shrink-0" />
- )}
- <span className={`text-sm ${completed ?'text-foreground' :'text-muted-foreground'}`}>
- 第 {i + 1} 课
- </span>
- </div>
- )
- })}
- {selectedCourse.lessons > 8 && (
- <p className="text-xs text-muted-foreground text-center py-2">还有 {selectedCourse.lessons - 8} 个课时...</p>
- )}
- </div>
-
- <div className="flex gap-2 mt-6">
- {selectedCourse.tags.map(tag => (
- <span key={tag} className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{tag}</span>
- ))}
- </div>
- </div>
- </PageContainer>
- )
- }
-
- return (
- <PageContainer showHeader={false} scrollable={false} className="!p-0 !space-y-0">
- <div className="border-b border-border px-4 sm:px-5 lg:px-6 py-5">
- <h1 className={heading.page +' mb-4'}>
- <icons.Academy className="w-5 h-5 inline-block mr-2 -mt-0.5" />
- 司法学院
- </h1>
- <div className="flex gap-2">
- {[{ key:'all' as const, label:'全部' }, ...Object.entries(categoryConfig).map(([k, v]) => ({ key: k as CourseCategory, label: v.label }))].map(c => (
- <button key={c.key} onClick={() => setCategory(c.key)}
- className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
- category === c.key ?'bg-primary text-primary-foreground' :'bg-muted text-muted-foreground hover:text-foreground'
- }`}>
- {c.label}
- </button>
- ))}
- </div>
- </div>
-
- <div className="flex-1 overflow-y-auto px-4 sm:px-5 lg:px-6 py-4">
- {loading ? (
- <div className="flex items-center justify-center py-20">
- <icons.Refresh className="w-6 h-6 animate-spin text-primary" />
- <span className="ml-2 text-sm text-muted-foreground">加载课程...</span>
- </div>
- ) : error ? (
- <ErrorState
- title="课程数据加载失败"
- message={error}
- onRetry={() => void loadCourses()}
- />
- ) : filtered.length === 0 ? (
- <div className="flex flex-col items-center justify-center py-20">
- <icons.Academy className="w-10 h-10 text-muted-foreground/50 mb-3" />
- <p className="text-sm text-foreground mb-1">暂无课程数据</p>
- <p className="text-xs text-muted-foreground">运行种子数据后即可验证司法学院页面。</p>
- </div>
- ) : (
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
- {filtered.map(course => (
- <div key={course.id} onClick={() => setSelectedCourse(course)} className={cardStyle.interactive}>
- <div className="flex items-center justify-between mb-3">
- <div className="flex gap-1.5">
- <span className={`text-xs px-1.5 py-0.5 rounded-full ${categoryConfig[course.category]?.color ||''}`}>
- {categoryConfig[course.category]?.label || course.category}
- </span>
- <span className={`text-xs px-1.5 py-0.5 rounded-full ${levelColor[course.level] ||''}`}>
- {course.level}
- </span>
- </div>
- </div>
- <h3 className={heading.card +' mb-1'}>{course.title}</h3>
- <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{course.description}</p>
-
- {course.progress > 0 && (
- <div className="mb-3">
- <div className="w-full h-1.5 rounded-full bg-muted">
- <div className={`h-full rounded-full ${course.progress === 100 ?'bg-success' :'bg-primary'}`}
- style={{ width: `${course.progress}%` }} />
- </div>
- <p className="text-xs text-muted-foreground mt-1">
- {course.progress === 100 ?'已完成' : `${course.progress}% 进度`}
- </p>
- </div>
- )}
-
- <div className="flex items-center justify-between text-xs text-muted-foreground">
- <span>{course.instructor}</span>
- <span>{course.lessons} 课时 · {course.duration}</span>
- </div>
- </div>
- ))}
- </div>
- )}
- </div>
- </PageContainer>
- )
+  return (
+    <ListPageTemplate
+      tracker={['Knowledge', '司法学院']}
+      title="司法学院"
+      description="法规 · 案例 · 实务 · 考辅 — 系统化学习路径。"
+      tabs={[
+        { key: 'all',        label: '全部',     count: counts.all },
+        { key: 'regulation', label: '法规解读', count: counts.regulation },
+        { key: 'case_study', label: '案例分析', count: counts.case_study },
+        { key: 'practice',   label: '实务技能', count: counts.practice },
+        { key: 'exam',       label: '考试辅导', count: counts.exam },
+      ]}
+      activeTab={category}
+      onTabChange={(k) => setCategory(k as CourseCategory)}
+      loading={loading}
+      error={error}
+      empty={!loading && !error && filtered.length === 0}
+      emptyState={
+        <ListPageStatus
+          tracker="Empty"
+          title={category === 'all' ? '暂无课程' : '该分类暂无课程'}
+          description={
+            category === 'all'
+              ? '运行种子数据后即可看到课程，或换其他分类。'
+              : '试试切换其他分类。'
+          }
+          action={
+            category === 'all' && (
+              <button
+                onClick={() => void loadCourses()}
+                className="bg-primary hover:bg-primary-700 text-primary-foreground px-5 py-2.5 text-[14px] font-medium transition-colors"
+              >
+                重新加载
+              </button>
+            )
+          }
+        />
+      }
+    >
+      {filtered.map((course, i) => (
+        <li key={course.id}>
+          <button
+            type="button"
+            onClick={() => setSelectedCourse(course)}
+            className="group w-full text-left flex items-start gap-6 py-6 px-3 -mx-3 border-b border-border/60 transition-colors hover:bg-surface-2/40"
+          >
+            <span className="font-serif text-[13px] text-muted-foreground w-10 shrink-0 pt-1 tabular-nums">
+              {String(i + 1).padStart(3, '0')}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-4 flex-wrap mb-2">
+                <CategoryChip category={course.category} />
+                <LevelChip level={course.level} />
+              </div>
+              <h3 className="font-serif text-[18px] leading-tight text-foreground">{course.title}</h3>
+              <p className="text-[13px] text-muted-foreground line-clamp-2 mt-2 leading-relaxed">
+                {course.description}
+              </p>
+              {course.progress > 0 && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex-1 h-px bg-border relative max-w-[200px]">
+                    <div
+                      className={cn(
+                        'absolute top-0 left-0 h-px transition-[width]',
+                        course.progress === 100 ? 'bg-success' : 'bg-primary',
+                      )}
+                      style={{ width: `${course.progress}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    {course.progress === 100 ? '已完成' : `${course.progress}%`}
+                  </span>
+                </div>
+              )}
+              <div className="text-[12px] text-muted-foreground mt-3 flex items-center gap-3 flex-wrap">
+                <span>{course.instructor || '—'}</span>
+                <span>· {course.lessons} 课时</span>
+                {course.duration && <span>· {course.duration}</span>}
+              </div>
+            </div>
+          </button>
+        </li>
+      ))}
+    </ListPageTemplate>
+  )
 }
