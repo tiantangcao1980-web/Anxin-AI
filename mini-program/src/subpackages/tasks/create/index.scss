@@ -1,6 +1,9 @@
+// 2026-05: P3 批量迁移到 design-tokens 变量
+@import '../../../styles/design-tokens.scss';
+
 // -*- coding: utf-8 -*-
 page {
-  background: #FAFAFA;
+  background: $color-surface-2;
   height: 100vh;
 }
 
@@ -9,8 +12,8 @@ page {
 }
 
 .ct-section {
-  background: #FFFFFF;
-  border: 1rpx solid #EEEEEE;
+  background: $color-surface;
+  border: 1rpx solid $color-border-subtle;
   border-radius: 18rpx;
   padding: 28rpx 28rpx 24rpx;
   margin-bottom: 20rpx;
@@ -28,22 +31,22 @@ page {
   &__label {
     display: block;
     font-size: 26rpx;
-    color: #1D2129;
+    color: $color-text-primary;
     font-weight: 600;
     margin-bottom: 14rpx;
   }
   &__hint {
     display: block;
     font-size: 22rpx;
-    color: #86909C;
+    color: $color-text-tertiary;
     margin-top: 12rpx;
     line-height: 1.5;
   }
 }
 
 .ct-row {
-  background: #FAFAFA;
-  border: 1rpx solid #EEEEEE;
+  background: $color-surface-2;
+  border: 1rpx solid $color-border-subtle;
   border-radius: 12rpx;
   padding: 22rpx 22rpx;
   display: flex;
@@ -53,7 +56,7 @@ page {
 
   &__value {
     font-size: 28rpx;
-    color: #1D2129;
+    color: $color-text-primary;
   }
   &__arrow {
     font-size: 32rpx;
@@ -63,40 +66,40 @@ page {
 }
 
 .ct-input {
-  background: #FAFAFA;
-  border: 1rpx solid #EEEEEE;
+  background: $color-surface-2;
+  border: 1rpx solid $color-border-subtle;
   border-radius: 12rpx;
   padding: 22rpx 22rpx;
   font-size: 28rpx;
-  color: #1D2129;
+  color: $color-text-primary;
 }
 
 .ct-textarea {
   width: 100%;
   min-height: 240rpx;
-  background: #FAFAFA;
-  border: 1rpx solid #EEEEEE;
+  background: $color-surface-2;
+  border: 1rpx solid $color-border-subtle;
   border-radius: 12rpx;
   padding: 22rpx 22rpx;
   font-size: 28rpx;
-  color: #1D2129;
+  color: $color-text-primary;
   line-height: 1.55;
   box-sizing: border-box;
 }
 
 .ct-submit {
   margin-top: 32rpx;
-  background: #D4A574;
+  background: $color-brand-primary;
   border-radius: 16rpx;
   padding: 28rpx 0;
   text-align: center;
   transition: transform 0.12s ease;
 
-  &--hover { transform: scale(0.98); background: #B8864E; }
+  &--hover { transform: scale(0.98); background: $color-brand-primary-dark; }
   &--loading { opacity: 0.6; }
 
   &__text {
-    color: #FFFFFF;
+    color: $color-surface;
     font-size: 32rpx;
     font-weight: 700;
   }
@@ -106,7 +109,7 @@ page {
   display: block;
   text-align: center;
   font-size: 22rpx;
-  color: #86909C;
+  color: $color-text-tertiary;
   margin-top: 20rpx;
   margin-bottom: 80rpx;
 }

@@ -1,0 +1,29 @@
+// DomainBadge (Reset · Editorial Luxury) — 仅文字 micro UPPERCASE
+// 2026-05 Reset: 删除域色、域 surface 底色、emoji 字号；只保留文字层次
+
+@import '../../styles/design-tokens.scss';
+
+.domain-badge {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+
+  &__en {
+    font-size: 20rpx;
+    font-weight: 500;
+    letter-spacing: 3.2rpx; // ~0.16em on 20rpx
+    text-transform: uppercase;
+    color: $color-text-secondary;
+  }
+
+  &__sep {
+    font-size: 20rpx;
+    color: $color-text-disabled;
+  }
+
+  &__zh {
+    font-size: 24rpx;
+    color: $color-text-primary;
+  }
+}

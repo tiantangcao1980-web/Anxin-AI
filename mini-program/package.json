@@ -21,6 +21,8 @@
     "check-navigation-boundary": "node scripts/check-navigation-boundary.js",
     "check-privacy-boundary": "node scripts/check-privacy-boundary.js",
     "typecheck": "tsc --noEmit --skipLibCheck --noUnusedLocals false",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
     "predev:h5": "npm run generate-icons",
     "dev:h5": "npm run build:h5 -- --watch"
   },
@@ -46,7 +48,8 @@
     "@types/react-dom": "^18.2.0",
     "typescript": "^5.1.0",
     "sass": "^1.62.0",
-    "babel-preset-taro": "3.6.x"
+    "babel-preset-taro": "3.6.x",
+    "vitest": "^1.6.1"
   },
   "overrides": {
     "webpack": "5.89.0"

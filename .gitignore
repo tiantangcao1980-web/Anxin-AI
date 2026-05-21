@@ -18,6 +18,11 @@ backend/venv/
 # ==================== Node.js ====================
 /frontend/node_modules/
 /node_modules/
+**/node_modules/
+
+# 项目锁文件统一用 package-lock.json (npm)；
+# pnpm-lock.yaml 仅是个别开发者本地 pnpm 装出来的副产物，不入库以避免与 npm 锁文件冲突。
+pnpm-lock.yaml
 
 # ==================== 环境配置（含敏感信息） ====================
 # 使用 .env.example 作为模板（不含真实密钥）

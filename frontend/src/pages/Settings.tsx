@@ -1,86 +1,100 @@
-import { useState, useEffect } from'react'
-import { useNavigate, useSearchParams } from'react-router-dom'
-import { icons } from'@/lib/icons'
-import { toast } from'sonner'
-import { cardStyle, buttonStyle, heading, statusBadge, iconSize, inputStyle } from'@/lib/design-tokens'
-import { PageContainer } from'@/components/ui/PageContainer'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { icons } from '@/lib/icons'
+import { toast } from 'sonner'
+import { cardStyle, buttonStyle, heading, statusBadge, iconSize, inputStyle } from '@/lib/design-tokens'
 
-import { Button } from'@/components/ui/button'
-import { Input } from'@/components/ui/input'
-import { Label } from'@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from'@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from'@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from'@/components/ui/select'
-import { Switch } from'@/components/ui/switch'
-import { Badge } from'@/components/ui/badge'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from'@/components/ui/dialog'
-import { ScrollArea } from'@/components/ui/scroll-area'
-import { Separator } from'@/components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
 
-import { llmApi, mcpApi, authApi, notificationsApi, LLMConfig, LLMProvider, McpServerConfig, McpServerCreate, NotificationPreference } from'@/lib/api'
-import { useAuthStore, useUIStore } from'@/lib/store'
-import { ErrorState, LoadingState } from'@/components/common'
-import { usePermission } from'@/hooks/usePermission'
-import { DesktopWorkstationPanel } from'@/components/desktop/DesktopWorkstationPanel'
+import { llmApi, mcpApi, authApi, notificationsApi, LLMConfig, LLMProvider, McpServerConfig, McpServerCreate, NotificationPreference } from '@/lib/api'
+import { useAuthStore, useUIStore } from '@/lib/store'
+import { ErrorState, LoadingState } from '@/components/common'
+import { usePermission } from '@/hooks/usePermission'
+import { DesktopWorkstationPanel } from '@/components/desktop/DesktopWorkstationPanel'
 import { buildLlmConfigSavePayload, getLlmCredentialSummary } from './llmSettingsModel'
 import { buildMcpSavePayload, getPersistedEnvKeys, maskMcpEnvValue } from './mcpSettingsModel'
-import { normalizeSettingsTab } from'./settingsTabs'
+import { normalizeSettingsTab } from './settingsTabs'
+import { EditorialPageHeader } from '@/components/ui/EditorialPageHeader'
+import { cn } from '@/components/ui/utils'
+
+const SETTINGS_TABS = [
+  { key: 'profile',       labelEn: 'Profile',  label: '个人中心', icon: icons.User },
+  { key: 'workstation',   labelEn: 'Desktop',  label: '本机运行', icon: icons.LayoutDashboard },
+  { key: 'notifications', labelEn: 'Notify',   label: '通知偏好', icon: icons.Notification },
+] as const
 
 export default function Settings() {
- const [searchParams, setSearchParams] = useSearchParams()
- const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(searchParams.get('tab')))
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(searchParams.get('tab')))
 
- useEffect(() => {
- const rawTab = searchParams.get('tab')
- const normalizedTab = normalizeSettingsTab(rawTab)
- setActiveTab(normalizedTab)
- if (rawTab && rawTab !== normalizedTab) {
- setSearchParams(normalizedTab ==='profile' ? {} : { tab: normalizedTab }, { replace: true })
- }
- }, [searchParams, setSearchParams])
+  useEffect(() => {
+    const rawTab = searchParams.get('tab')
+    const normalizedTab = normalizeSettingsTab(rawTab)
+    setActiveTab(normalizedTab)
+    if (rawTab && rawTab !== normalizedTab) {
+      setSearchParams(normalizedTab === 'profile' ? {} : { tab: normalizedTab }, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
- const handleTabChange = (value: string) => {
- const nextTab = normalizeSettingsTab(value)
- setActiveTab(nextTab)
- setSearchParams(nextTab ==='profile' ? {} : { tab: nextTab }, { replace: true })
- }
+  const handleTabChange = (value: string) => {
+    const nextTab = normalizeSettingsTab(value)
+    setActiveTab(nextTab)
+    setSearchParams(nextTab === 'profile' ? {} : { tab: nextTab }, { replace: true })
+  }
 
- return (
- <PageContainer
- title="我的设置"
- description="管理个人账号、本机运行和通知偏好；组织级模型、工具和系统集成统一进入治理后台"
- className="box-border w-[100dvw] min-w-0 max-w-[100dvw] overflow-hidden lg:w-full lg:max-w-full"
- >
- <Tabs value={activeTab} onValueChange={handleTabChange} className="min-w-0 space-y-4 overflow-hidden">
- <TabsList className="min-w-0 max-w-full w-full justify-start overflow-x-auto scrollbar-hide sm:w-auto">
- <TabsTrigger value="profile" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
- <icons.User className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">个人中心</span>
- </TabsTrigger>
- <TabsTrigger value="workstation" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
- <icons.LayoutDashboard className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">本机运行</span>
- </TabsTrigger>
- <TabsTrigger value="notifications" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
- <icons.Notification className={`${iconSize.sm} shrink-0`} />
- <span className="whitespace-nowrap">通知偏好</span>
- </TabsTrigger>
- </TabsList>
+  return (
+    <div className="h-full overflow-auto">
+      <div className="max-w-5xl mx-auto px-6 sm:px-8 lg:px-12 xl:px-16 py-8 lg:py-10">
+        <EditorialPageHeader
+          tracker={['Account', '我的设置']}
+          title="我的设置"
+          description="管理个人账号、本机运行和通知偏好；组织级模型、工具和系统集成统一进入治理后台。"
+        />
 
- <TabsContent value="profile" className="min-w-0 space-y-4">
- <ProfilePanel />
- </TabsContent>
+        <nav className="flex items-end gap-8 border-b border-border mb-8 overflow-x-auto" role="tablist" aria-label="设置">
+          {SETTINGS_TABS.map((tab) => {
+            const active = activeTab === tab.key
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => handleTabChange(tab.key)}
+                className={cn(
+                  'relative py-3 inline-flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.16em] transition-colors whitespace-nowrap',
+                  active
+                    ? 'text-foreground after:absolute after:left-0 after:right-0 after:bottom-0 after:h-px after:bg-primary'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className="w-3.5 h-3.5 stroke-[1.5]" />
+                <span>{tab.labelEn}</span>
+                <span className="text-foreground/30" aria-hidden>·</span>
+                <span className="normal-case tracking-normal">{tab.label}</span>
+              </button>
+            )
+          })}
+        </nav>
 
- <TabsContent value="workstation" className="min-w-0 space-y-4">
- <DesktopWorkstationPanel />
- </TabsContent>
-
- <TabsContent value="notifications" className="min-w-0 space-y-4">
- <NotificationPreferencesPanel />
- </TabsContent>
- </Tabs>
- </PageContainer>
- )
+        <div className="space-y-6 min-w-0">
+          {activeTab === 'profile' && <ProfilePanel />}
+          {activeTab === 'workstation' && <DesktopWorkstationPanel />}
+          {activeTab === 'notifications' && <NotificationPreferencesPanel />}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ============ 个人中心面板 ============

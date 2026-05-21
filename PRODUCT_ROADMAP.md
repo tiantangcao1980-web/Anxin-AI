@@ -46,7 +46,7 @@
 │     - 本地 LLM 集成（私有化场景）                                    │
 │     - 目标用户：日常重度使用的律师、企业法务                           │
 │                                                                  │
-│  📱 移动端/小程序 (Mobile + Mini Program, uni-app)                  │
+│  📱 移动端/小程序 (Mobile + Mini Program, Expo RN + Taro)            │
 │     - 外出办公场景（出庭/会见/差旅）                                  │
 │     - 快速 AI 咨询 + 案件状态查看 + 消息审批                          │
 │     - 语音输入 + 拍照识别                                           │
@@ -115,27 +115,29 @@
 
 ---
 
-### 2.3 移动端/小程序（桌面收口后按 uni-app 推进）
+### 2.3 移动端/小程序（桌面收口后按 Expo RN + Taro 推进）
 
 **核心场景**：
 - 律师出庭、会见客户、差旅期间的 AI 查询
 - 管理者随时查看案件进展、审批状态
 - 语音输入 + 拍照识别证据材料
 
-**技术栈**：uni-app + TypeScript。旧 `mobile/` Expo 与 `mini-program/` Taro 目录保留为 legacy/回归参考，后续新移动能力优先进入 `apps/uni-mobile/`。
+**技术栈**：Mobile (Expo RN) + Mini Program (Taro)。两端独立演进，共享 `frontend/src/lib/design-tokens.ts` 之外的端内派生 token（详见各端 `theme/` 或 `styles/`）。
+
+> 2026-05 路线调整：原跨端方案（早期短暂存在的 Vue 跨端目录）已终止 — 与 Expo RN 和 Taro 产生维护重叠、专用打包/签名流程未跑通、跨端 token 漂移引入额外审计成本。未来若需 H5 移动端，将由 `frontend/` 通过响应式断点覆盖；若需新移动能力，进入 `mobile/`；若需小程序原生能力，进入 `mini-program/`。完整历史见 [CHANGELOG](./CHANGELOG.md)。
 
 **已有代码级基座**：
-- ✅ `apps/uni-mobile/` 首版基座：typecheck、契约测试、H5 build、WeChat Mini Program build 已通过
-- ✅ legacy mobile/mini 本地 smoke、fake fallback guard、隐私模式 no-network guard 已有
-- ✅ cross-device continuation code rehearsal 已证明后端/桌面 adapter/uni-app sync client 的代码级续接
-- ⏳ DCloud App 云打包/签名、真实 iOS/Android、交互式微信开发者工具和共享预发账号跨设备连续会话仍待补
+- ✅ `mobile/` Expo + RN：本地 smoke、fake fallback guard、隐私模式 no-network guard 已有
+- ✅ `mini-program/` Taro：契约测试、本地 smoke 已通过
+- ✅ cross-device continuation code rehearsal 已证明后端/桌面 adapter 的代码级续接（mobile/mini-program 客户端契约由各端独立 smoke 覆盖）
+- ⏳ 真实 iOS/Android、交互式微信开发者工具和共享预发账号跨设备连续会话仍待补
 
 **待实现**：
-- [ ] uni-app 移动端专用布局（底部 Tab 导航、44px 触摸目标、safe-area）
+- [ ] Mobile 端专用布局收口（底部 Tab、44pt 触控、safe-area）
 - [ ] 语音输入集成（浏览器 Web Speech API + 原生 fallback）
 - [ ] 拍照识别（原生相机插件）
 - [ ] 推送通知（APNs / FCM）
-- [ ] DCloud App 云打包 / iOS TestFlight / Android 渠道 / 微信小程序体验版验收
+- [ ] iOS TestFlight / Android 渠道 / 微信小程序体验版验收
 
 ---
 
@@ -154,9 +156,10 @@
 - [ ] 自动更新上线
 - [ ] 用户反馈闭环（内嵌反馈面板 → 后端 AIAssistantFeedback）
 
-### M3（M2 + 8 周）：uni-app 移动端/小程序 Beta
-- [ ] uni-app iOS / Android / H5 / 微信小程序 UI 适配
-- [ ] DCloud 云打包、TestFlight、Android 渠道和微信体验版
+### M3（M2 + 8 周）：移动端 + 小程序 Beta
+- [ ] Mobile (Expo RN) iOS / Android UI 适配 + 推送
+- [ ] Mini Program (Taro) 微信小程序体验版
+- [ ] TestFlight、Android 渠道、微信小程序体验版三条发布通道
 - [ ] 核心场景（AI 查询、案件查看、消息、桌面续接）
 
 ### M4（M3 + 4 周）：多端闭环

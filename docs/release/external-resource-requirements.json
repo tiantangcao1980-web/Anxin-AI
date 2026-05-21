@@ -623,26 +623,12 @@
       ]
     },
     {
-      "id": "mobile.uni_app_release",
+      "id": "mobile.native_release",
       "priority": "P0",
       "lane": "mobile-mini-device",
-      "title": "uni-app mobile and mini-program release resources",
+      "title": "Mobile (Expo RN) and Mini Program (Taro) release resources",
       "status": "external_input_required",
       "items": [
-        {
-          "id": "dcloud_account_appid",
-          "label": "DCloud account, uni-app AppID, and cloud build access",
-          "type": "account",
-          "account_refs": [
-            "DCloud account label",
-            "uni-app app id label"
-          ],
-          "secret": true,
-          "required_for": [
-            "DCloud App cloud build",
-            "uniPush or native plugin setup"
-          ]
-        },
         {
           "id": "ios_signing",
           "label": "Apple Developer Team, Bundle ID, signing certificates, provisioning profiles, and TestFlight access",
@@ -711,15 +697,12 @@
         }
       ],
       "commands_after_receipt": [
-        "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json",
-        "bash scripts/uni-mobile-migration-guard.sh",
-        "bash scripts/uni-mobile-smoke.sh --out docs/release/evidence/artifacts/uni-mobile-base-smoke-YYYYMMDD.json"
+        "bash scripts/mobile-device-smoke.sh --out docs/release/evidence/artifacts/mobile-mini-code-smoke-YYYYMMDD.json --manual-template-out docs/release/evidence/artifacts/mobile-device-manual-template-YYYYMMDD.json"
       ],
       "completion_evidence": [
         "iOS device or TestFlight smoke",
         "Android device smoke",
         "WeChat DevTools interactive or real-device smoke",
-        "DCloud App cloud build or official package transcript",
         "wx.login to code2session with no session_key leak",
         "desktop/web/mobile cross-device continuation"
       ]

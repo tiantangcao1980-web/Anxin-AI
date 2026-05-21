@@ -17,6 +17,7 @@ import { getTokenStorage } from'@/lib/platform/storage'
 import { useAuthStore } from'@/lib/store'
 import { saveAuthToken } from'@/lib/tauri-bridge'
 import { iconSize, radius, buttonStyle, heading, inputStyle, statusColor } from'@/lib/design-tokens'
+import { DOMAINS } from'@/lib/domains'
 
 declare global {
  interface Window {
@@ -421,112 +422,99 @@ export default function Login() {
 
  return (
  <div className="min-h-screen flex bg-background">
- {/* ===== 左侧品牌展示区（无渐变，适配深浅色模式） ===== */}
- <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between p-12 bg-muted/50 dark:bg-muted/20 border-r border-border/30">
- {/* 装饰元素 — 几何圆环 */}
- <div className="absolute inset-0 pointer-events-none">
- <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full border-[3px] border-primary/10 dark:border-primary/5" />
- <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full border-[2px] border-primary/8 dark:border-primary/4" />
- <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full border-[3px] border-primary/8 dark:border-primary/4" />
- <div className="absolute top-1/3 right-1/4 w-3 h-3 rounded-full bg-primary/20 dark:bg-primary/10" />
- <div className="absolute top-2/3 left-1/5 w-2 h-2 rounded-full bg-primary/15 dark:bg-primary/8" />
- <div className="absolute bottom-1/4 right-1/3 w-4 h-4 rounded-full bg-primary/10 dark:bg-primary/5" />
+ {/*
+   ===== 左侧 7 col 标题区 (Editorial Luxury) =====
+   2026-05 Reset:
+   - 删除原 8 域高饱和徽章网格、几何装饰圆环、3 大支柱高饱和图标卡
+   - 改为 Editorial 排版：serif Display + serif H1 + body 引言 + 8 域 serif 编号目录
+   - 单一品牌琥珀橙仅出现在右侧 CTA 按钮上
+ */}
+ <div className="hidden lg:flex lg:w-7/12 relative flex-col justify-between px-16 xl:px-24 pt-32 pb-16 bg-background">
+   {/* 顶部：序号 + EST tracker */}
+   <div className="space-y-16">
+     <div className="flex items-center gap-3">
+       <span className="font-serif text-[28px] leading-none text-foreground">安</span>
+       <div className="h-px w-12 bg-muted-foreground/40"></div>
+       <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+         Anxin Intelligence · Est 2026
+       </span>
+     </div>
+
+     {/* serif 主标题 */}
+     <div>
+       <h1 className="font-serif text-[48px] leading-[1.1] tracking-[-0.04em] font-medium text-foreground">
+         安心智能助手
+       </h1>
+       <p className="font-serif text-[32px] leading-[1.2] tracking-[-0.02em] font-medium mt-6 text-foreground/80 max-w-[18ch]">
+         为企业老板而做的 AI 工作台
+       </p>
+     </div>
+
+     {/* body 长引言 */}
+     <p className="text-[15px] leading-[1.85] text-foreground/80 max-w-[42ch]">
+       一个 App 搞定企业 8 大业务 — 法务、财务、税务、合规、经营管理、调研获客、内容产出、出海跨境。
+       不是仪表板，不是工具集合 —
+       <span className="font-serif italic"> 是把判断、风险、证据放在每一个画面优先位置的工作台。</span>
+     </p>
+   </div>
+
+   {/* 底部：8 域编辑级目录（无色块、无图标卡、无饱和度） */}
+   <div className="pt-24">
+     <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-4">
+       Index · 业务域目录
+     </div>
+     <ol className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-3 text-[13px] text-foreground/80">
+       {DOMAINS.map((d, i) => (
+         <li key={d.id}>
+           <span className="font-serif text-muted-foreground mr-2">
+             {String(i + 1).padStart(2, '0')}
+           </span>
+           {d.label}
+         </li>
+       ))}
+     </ol>
+     <div className="mt-8 pt-4 border-t border-border flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+       <span>© 2026 · 安心科技</span>
+       <span>专业 / 克制 / 长期</span>
+     </div>
+   </div>
  </div>
 
- <div className="relative z-10">
- {/* Logo */}
- <div className="flex items-center gap-3 mb-12">
- <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-sm">
- <icons.Legal className={`${iconSize.lg} text-primary-foreground`} />
- </div>
- <div>
- <h1 className={`${heading.page} text-foreground text-2xl`}>安心智能助手</h1>
- <p className="text-sm text-muted-foreground">超级安心智能助手系统</p>
- </div>
- </div>
-
- {/* 特性列表 */}
- <div className="space-y-6 mb-12">
- {[
- { Icon: icons.Brain, title:'多智能体协作', desc:'6大专业智能体团队协同处理法律事务' },
- { Icon: icons.Shield, title:'全流程风控', desc:'AI实时监控合同风险、诉讼风险' },
- { Icon: icons.Zap, title:'效率提升10倍', desc:'自动化合同审查、文书起草、尽调报告' },
- ].map((feature, i) => (
- <motion.div
- key={feature.title}
- initial={{ opacity: 0, x: -30 }}
- animate={{ opacity: 1, x: 0 }}
- transition={{ delay: 0.2 + i * 0.15 }}
- className="flex items-start gap-4"
- >
- <div className="w-10 h-10 bg-primary/10 dark:bg-primary/15 rounded-lg flex items-center justify-center flex-shrink-0">
- <feature.Icon className={`${iconSize.md} text-primary`} />
- </div>
- <div>
- <h3 className="text-foreground font-medium">{feature.title}</h3>
- <p className="text-muted-foreground text-sm mt-1">{feature.desc}</p>
- </div>
- </motion.div>
- ))}
- </div>
-
- {/* 形象角色占位区 — 待设计完成后替换 */}
- <div className="flex gap-4 items-end">
- <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: 0.6 }}
- className="w-28 h-36 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-dashed border-primary/20 dark:border-primary/15 flex flex-col items-center justify-center gap-2"
- >
- <icons.User className="w-8 h-8 text-primary/30 dark:text-primary/20" />
- <span className="text-[10px] text-muted-foreground/60">形象角色 1</span>
- </motion.div>
- <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ delay: 0.75 }}
- className="w-24 h-32 bg-primary/5 dark:bg-primary/10 rounded-2xl border-2 border-dashed border-primary/20 dark:border-primary/15 flex flex-col items-center justify-center gap-2"
- >
- <icons.Bot className="w-7 h-7 text-primary/30 dark:text-primary/20" />
- <span className="text-[10px] text-muted-foreground/60">形象角色 2</span>
- </motion.div>
- </div>
- </div>
-
- <p className="relative z-10 text-muted-foreground/50 text-xs">
- &copy; 2026 安心智能助手 &middot; 赋能法律行业智能化
- </p>
- </div>
-
- {/* ===== 右侧表单区 ===== */}
- <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+ {/* ===== 右侧 5 col 表单区 (Editorial Luxury) ===== */}
+ <div className="flex-1 lg:w-5/12 flex items-center justify-center p-6 lg:p-12 bg-surface-1 lg:border-l lg:border-border">
  <motion.div
  initial={{ opacity: 0, y: 20 }}
  animate={{ opacity: 1, y: 0 }}
  className="w-full max-w-md"
  >
- {/* 移动端 Logo */}
- <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
- <div className={`w-10 h-10 bg-primary ${radius.card} flex items-center justify-center`}>
- <icons.Legal className={`${iconSize.md} text-primary-foreground`} />
- </div>
- <h1 className={heading.page}>安心智能助手</h1>
+ {/* 移动端 Logo (Reset · Editorial Luxury) */}
+ {/* 不用 V2 橙底天平方块；改为衬线 "安" + micro tracker，与 desktop 左栏顶部呼应 */}
+ <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
+   <span className="font-serif text-[28px] leading-none text-foreground">安</span>
+   <div className="h-px w-8 bg-muted-foreground/40" />
+   <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+     Anxin · Est 2026
+   </span>
  </div>
 
- {/* Tab 切换（忘记密码模式时隐藏） */}
+ {/* Tab 切换 (Reset · Editorial underline 风格) */}
+ {/* 旧版 bg-muted 圆角胶囊背景 → 改为 underline 编辑级 tab */}
  {mode !=='forgot' && mode !=='verify' ? (
- <div className={`flex gap-1 mb-8 bg-muted p-1 ${radius.card}`}>
+ <div className="flex border-b border-border mb-8">
  {(['login','register'] as const).map((tab) => (
  <button
  key={tab}
  onClick={() => setMode(tab)}
- className={`flex-1 py-2.5 ${radius.button} text-sm font-medium transition-colors ${
+ className={`relative px-5 py-3 text-sm font-medium transition-colors ${
  mode === tab
- ?'bg-background text-foreground shadow-sm'
+ ?'text-foreground'
  :'text-muted-foreground hover:text-foreground'
  }`}
  >
- {tab ==='login' ?'登录' :'注册'}
+ {tab ==='login' ?'登 录' :'注 册'}
+ {mode === tab && (
+   <span aria-hidden className="absolute left-5 right-5 -bottom-px h-px bg-primary" />
+ )}
  </button>
  ))}
  </div>

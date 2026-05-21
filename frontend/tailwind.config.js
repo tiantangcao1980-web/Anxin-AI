@@ -14,28 +14,28 @@ export default {
       },
     },
     fontFamily: {
-      // UI 默认：现代无衬线，中英混排自动切换中日韩字体
+      // 2026-05 Reset: 删除 ui-design skill FORBIDDEN FONTS:
+      //   ❌ Inter / Roboto / Arial / Helvetica / Helvetica Neue / system-ui / -apple-system
+      // 中文优先字体栈（PingFang/YaHei/Noto Sans SC 均为系统/Web 字体）。
+      // 英文/数字用 generic sans-serif 兜底，由浏览器选系统默认（不强制具体字体名）。
       sans: [
-        "Inter",
         "PingFang SC",
         "Microsoft YaHei",
         "Hiragino Sans GB",
+        "Noto Sans SC",
         "WenQuanYi Micro Hei",
-        "Helvetica Neue",
-        "Arial",
         "sans-serif",
       ],
-      // 长文档/法条引用专用：衬线气质，强化「编辑器暖感」(Claude 借鉴)
+      // 衬线（Editorial Luxury 核心字体）— 用于 Display / H1 / 业务域名 / 法条引用
       serif: [
-        "Source Serif Pro",
-        "Source Han Serif SC",
         "Noto Serif SC",
+        "Source Han Serif SC",
         "Songti SC",
         "STSong",
         "SimSun",
         "serif",
       ],
-      // 合同比对/代码片段/数字对齐：等宽
+      // 等宽（合同 diff / 代码片段 / 数字对齐）
       mono: [
         "JetBrains Mono",
         "SF Mono",
@@ -160,6 +160,9 @@ export default {
           conclusion: "hsl(var(--node-conclusion))",
           other: "hsl(var(--node-other))",
         },
+        // 2026-05 Reset：删除 16 个 colors.domain.* utility
+        // 业务域可视化改用 序号 + 衬线域名 + 字距层次（不用色）
+        // 详见 docs/design/v3-prototype-editorial.html
       },
       // 排版系统 (DesignDNA §3 — 字距随字号反向缩放)
       fontSize: {

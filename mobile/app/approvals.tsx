@@ -15,6 +15,8 @@ import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import { api } from '@/services/api'
 import type { ApprovalItem } from '@/types/api'
+import { DomainStripe } from '@/components/DomainBadge'
+import { DomainBreadcrumb } from '@/components/DomainBreadcrumb'
 
 const approvalFilters = [
   { key: 'pending', label: '待审批' },
@@ -62,6 +64,11 @@ export default function ApprovalsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Stack.Screen options={{ title: '审批处理' }} />
+      {/* V3 合规域视觉锚点 — 4pt 高警示橙红彩条 + 紧凑面包屑 */}
+      <DomainStripe domain="compliance" />
+      <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+        <DomainBreadcrumb domain="compliance" compact />
+      </View>
       <View style={styles.filterRow}>
         {approvalFilters.map((item) => {
           const count = approvals.filter((approval) => approval.status === item.key).length

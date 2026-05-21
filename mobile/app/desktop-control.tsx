@@ -299,7 +299,7 @@ export default function DesktopControlScreen() {
             <TouchableOpacity
               style={styles.secondaryButton}
               activeOpacity={0.75}
-              onPress={() => router.push('/(tabs)/profile' as any)}
+              onPress={() => router.push('/(tabs)/me' as any)}
             >
               <Ionicons name="shield-half" size={18} color={Colors.primary} />
               <Text style={styles.secondaryButtonText}>查看运行模式</Text>

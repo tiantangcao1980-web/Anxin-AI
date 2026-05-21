@@ -56,7 +56,43 @@ export const palette = {
   // ===== AI 强调 =====
   ai: '#7C5CFF',
   aiSurface: 'rgba(124,92,255,0.08)',
+
+  // ===== AI 专属语义 (V3 — 与 frontend --ai-thinking/suggestion/citation 对齐) =====
+  aiThinking: '#A78BFA',
+  aiThinkingSurface: 'rgba(167,139,250,0.10)',
+  aiSuggestion: '#34A853',
+  aiSuggestionSurface: 'rgba(52,168,83,0.10)',
+  aiCitation: '#3F8FE0',
+  aiCitationSurface: 'rgba(63,143,224,0.10)',
+
+  // ===== 风险三档（与 frontend --risk-* 对齐） =====
+  riskHigh: '#E04848',
+  riskHighSoft: '#FBECEC',
+  riskMedium: '#E2A311',
+  riskMediumSoft: '#FCF3DA',
+  riskLow: '#8E867D',
+  riskLowSoft: '#F2EFEA',
+
+  // ===== 置信度三档 =====
+  confidenceHigh: '#2F9E5C',
+  confidenceMedium: '#E2A311',
+  confidenceLow: '#8E867D',
 } as const
+
+// 2026-05 Reset: 删除 8 个 domain.* 高饱和色（含被 ui-design FORBIDDEN COLORS 命中的紫色）。
+// 业务域元数据（id / labelZh / labelEn）改为 metaOnly 形式，不带 color/surface：
+export const domainMeta = {
+  legal:      { labelZh: '法务',     labelEn: 'Legal' },
+  finance:    { labelZh: '财务',     labelEn: 'Finance' },
+  tax:        { labelZh: '税务',     labelEn: 'Tax' },
+  compliance: { labelZh: '合规',     labelEn: 'Compliance' },
+  operations: { labelZh: '经营管理', labelEn: 'Operations' },
+  growth:     { labelZh: '调研获客', labelEn: 'Growth' },
+  content:    { labelZh: '内容产出', labelEn: 'Content' },
+  global:     { labelZh: '出海跨境', labelEn: 'Global' },
+} as const
+
+export type DomainId = keyof typeof domainMeta
 
 export interface ThemeColors {
   // 复制 palette 的所有 key 但放宽为 string，使 light/dark 可互替
@@ -96,6 +132,22 @@ export interface ThemeColors {
   infoSoft: string
   ai: string
   aiSurface: string
+  // V3 新增：AI 语义 + 风险三档 + 置信度
+  aiThinking: string
+  aiThinkingSurface: string
+  aiSuggestion: string
+  aiSuggestionSurface: string
+  aiCitation: string
+  aiCitationSurface: string
+  riskHigh: string
+  riskHighSoft: string
+  riskMedium: string
+  riskMediumSoft: string
+  riskLow: string
+  riskLowSoft: string
+  confidenceHigh: string
+  confidenceMedium: string
+  confidenceLow: string
   // 主题专用
   background: string
   backgroundMuted: string

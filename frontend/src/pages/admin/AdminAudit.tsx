@@ -108,7 +108,7 @@ export default function AdminAudit() {
       }
       const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>合规审计报告</title>
 <style>
-  body { font-family: -apple-system, 'PingFang SC', sans-serif; padding: 40px; color: #333; line-height: 1.7; }
+  body { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif; padding: 40px; color: #333; line-height: 1.7; }
   h1 { color: #d97706; border-bottom: 2px solid #d97706; padding-bottom: 8px; }
   h2 { color: #444; margin-top: 28px; }
   .meta { color: #666; font-size: 14px; margin-bottom: 24px; }

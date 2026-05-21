@@ -7,14 +7,19 @@
  * 数据流：搜索 → SSE 流式调查 → 结果分发到各模块
  * 联动法律智库知识图谱
  */
-import { useState, useCallback, useMemo, useRef } from'react'
-import { useNavigate, useParams } from'react-router-dom'
-import { motion, AnimatePresence } from'framer-motion'
-import { icons } from'@/lib/icons'
-import { cardStyle, heading, buttonStyle, inputStyle } from'@/lib/design-tokens'
-import { dueDiligenceApi, licApi, knowledgeApi, InvestigationStreamEvent } from'@/lib/api'
-import { toast } from'sonner'
-import { v4 as uuidv4 } from'uuid'
+import { useState, useCallback, useMemo, useRef } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { icons } from '@/lib/icons'
+import { dueDiligenceApi, licApi, knowledgeApi, InvestigationStreamEvent } from '@/lib/api'
+import { toast } from 'sonner'
+import { v4 as uuidv4 } from 'uuid'
+import { cn } from '@/components/ui/utils'
+
+// Editorial Luxury tokens (本页内联)
+const editorialInput = 'w-full bg-card border border-border text-[14px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary transition-colors'
+const editorialPrimary = 'bg-primary hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-primary-foreground text-[13px] font-medium transition-colors'
+const editorialGhost = 'border border-border bg-card hover:bg-surface-2 text-foreground text-[13px] transition-colors'
 
 // 子组件
 import { type InvestigationSection } from'@/components/due-diligence/InvestigationSidebar'
@@ -96,105 +101,138 @@ function SearchSection() {
  }, [query, mode])
 
  return (
- <div className="space-y-4">
+ <div className="space-y-6">
  <div className="flex gap-3">
  <div className="flex-1 relative">
- <icons.Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+ <icons.Search className="w-4 h-4 stroke-[1.5] absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
  <input
  type="text"
  value={query}
  onChange={e => setQuery(e.target.value)}
- onKeyDown={e => e.key ==='Enter' && handleSearch()}
- placeholder="输入搜索关键词或问题..."
- className={`${inputStyle.search} pl-10`}
+ onKeyDown={e => e.key === 'Enter' && handleSearch()}
+ placeholder="输入搜索关键词或问题…"
+ className={`${editorialInput} pl-10 pr-4 py-2.5`}
  />
  </div>
- <button onClick={handleSearch} disabled={loading || !query.trim()} className={`${buttonStyle.primary} min-w-[80px]`}>
- {loading ? <icons.RefreshCw className="w-4 h-4 animate-spin" /> :'搜索'}
+ <button onClick={handleSearch} disabled={loading || !query.trim()} className={`${editorialPrimary} px-5 py-2.5 min-w-[80px]`}>
+ {loading ? <icons.RefreshCw className="w-4 h-4 stroke-[1.5] animate-spin inline" /> : '搜索'}
  </button>
  </div>
 
- <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
- {SEARCH_MODES.map(m => (
+ <nav className="flex items-end gap-6 border-b border-border" role="tablist" aria-label="搜索模式">
+ {SEARCH_MODES.map(m => {
+ const active = mode === m.key
+ return (
  <button
  key={m.key}
+ type="button"
+ role="tab"
+ aria-selected={active}
  onClick={() => setMode(m.key)}
- className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
- mode === m.key ?'bg-primary text-primary-foreground' :'bg-muted text-muted-foreground hover:text-foreground'
- }`}
  title={m.desc}
+ className={cn(
+ 'relative pb-2.5 text-[11px] font-medium uppercase tracking-[0.16em] transition-colors whitespace-nowrap',
+ active
+ ? 'text-foreground after:absolute after:left-0 after:right-0 after:bottom-0 after:h-px after:bg-primary'
+ : 'text-muted-foreground hover:text-foreground',
+ )}
  >
  {m.label}
  </button>
- ))}
- </div>
+ )
+ })}
+ </nav>
 
  <div className="min-h-[300px]">
  {!hasSearched && (
- <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
- <icons.Search className="w-16 h-16 mb-4 opacity-20" />
- <p className="text-sm">输入关键词开始搜索知识库</p>
- <p className="text-xs mt-1 opacity-60">支持关键词检索、语义检索和 RAG 智能问答</p>
+ <div className="text-center py-16">
+ <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-4">
+ Search · 准备就绪
+ </div>
+ <icons.Search className="w-12 h-12 stroke-[1] text-foreground/20 mx-auto mb-4" />
+ <p className="font-serif text-[20px] text-foreground mb-1">输入关键词开始搜索知识库</p>
+ <p className="text-[13px] text-muted-foreground">支持关键词检索、语义检索和 RAG 智能问答。</p>
  </div>
  )}
 
  {loading && (
- <div className="flex items-center justify-center py-20">
- <icons.RefreshCw className="w-6 h-6 animate-spin text-primary" />
- <span className="ml-2 text-sm text-muted-foreground">搜索中...</span>
+ <div className="flex items-center justify-center py-20 gap-3">
+ <icons.RefreshCw className="w-5 h-5 stroke-[1.5] animate-spin text-primary" />
+ <span className="text-[12px] uppercase tracking-[0.12em] text-muted-foreground">搜索中…</span>
  </div>
  )}
 
  {ragAnswer && !loading && (
- <div className="space-y-4">
- <div className={cardStyle.highlight}>
- <div className="flex items-center gap-2 mb-3">
- <icons.Sparkles className="w-4 h-4 text-primary" />
- <span className={heading.section}>AI 回答</span>
+ <aside className="border-l-2 border-primary/60 pl-5 py-2">
+ <div className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-primary mb-2">
+ <icons.Sparkles className="w-3 h-3 stroke-[1.5]" />
+ <span>AI Answer · AI 回答</span>
  </div>
- <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{ragAnswer.answer}</div>
+ <p className="text-[15px] leading-[1.85] text-foreground/90 whitespace-pre-wrap">{ragAnswer.answer}</p>
  {ragAnswer.chunks_used && (
- <p className="text-xs text-muted-foreground mt-3">参考了 {ragAnswer.chunks_used} 个知识片段</p>
+ <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground mt-3 tabular-nums">
+ 参考了 {ragAnswer.chunks_used} 个知识片段
+ </p>
  )}
- </div>
- </div>
+ </aside>
  )}
 
  {hasSearched && !loading && results.length > 0 && (
  <div>
- <p className="text-xs text-muted-foreground mb-3">找到 {results.length} 条结果</p>
- <div className="space-y-3">
- {results.map((r, i) => (
- <div key={r.id || i} className={cardStyle.interactive}>
- <div className="flex items-start justify-between gap-3">
+ <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground mb-4 tabular-nums">
+ 找到 {results.length} 条结果
+ </p>
+ <ol className="space-y-px">
+ {results.map((r, i) => {
+ const scoreTone =
+ r.score === undefined ? 'normal' :
+ r.score > 0.8 ? 'success' :
+ r.score > 0.5 ? 'warning' : 'normal'
+ const scoreClass = {
+ normal: 'text-muted-foreground',
+ success: 'text-success',
+ warning: 'text-warning',
+ }[scoreTone]
+ return (
+ <li key={r.id || i} className="border-b border-border/60 last:border-b-0">
+ <div className="flex items-start gap-4 py-4 px-3 -mx-3 transition-colors hover:bg-surface-2/40">
+ <span className="font-serif text-[12px] text-muted-foreground w-10 shrink-0 tabular-nums pt-1">
+ {String(i + 1).padStart(3, '0')}
+ </span>
  <div className="flex-1 min-w-0">
- <h3 className={`${heading.card} mb-1`}>{r.title || `结果 ${i + 1}`}</h3>
- <p className="text-xs text-muted-foreground line-clamp-3">{r.content?.slice(0, 300)}</p>
+ <h3 className="font-serif text-[16px] leading-tight text-foreground mb-1">
+ {r.title || `结果 ${i + 1}`}
+ </h3>
+ <p className="text-[13px] text-muted-foreground line-clamp-3 leading-relaxed">
+ {r.content?.slice(0, 300)}
+ </p>
  {r.source && (
- <div className="flex items-center gap-1 mt-2">
- <icons.Link className="w-3 h-3 text-muted-foreground" />
- <span className="text-xs text-muted-foreground">{r.source}</span>
+ <div className="inline-flex items-center gap-1 mt-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+ <icons.Link className="w-3 h-3 stroke-[1.5]" />
+ <span>{r.source}</span>
  </div>
  )}
  </div>
  {r.score !== undefined && (
- <span className={`text-xs px-2 py-0.5 rounded-full ${
- r.score > 0.8 ?'text-success bg-success/10' : r.score > 0.5 ?'text-warning bg-warning/10' :'text-muted-foreground bg-muted'
- }`}>
+ <span className={cn('text-[11px] font-medium uppercase tracking-[0.16em] tabular-nums shrink-0', scoreClass)}>
  {(r.score * 100).toFixed(0)}%
  </span>
  )}
  </div>
- </div>
- ))}
- </div>
+ </li>
+ )
+ })}
+ </ol>
  </div>
  )}
 
  {hasSearched && !loading && results.length === 0 && !ragAnswer && (
- <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
- <icons.FileSearch className="w-12 h-12 mb-3 opacity-30" />
- <p className="text-sm">未找到相关结果</p>
+ <div className="text-center py-16">
+ <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-4">
+ Empty · 无结果
+ </div>
+ <icons.FileSearch className="w-10 h-10 stroke-[1] text-foreground/20 mx-auto mb-3" />
+ <p className="text-[13px] text-muted-foreground">未找到相关结果</p>
  </div>
  )}
  </div>
@@ -664,17 +702,20 @@ export default function DueDiligence() {
  return (
  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
  <icons.Search className="w-16 h-16 mb-4 opacity-20" />
- <p className="text-lg font-medium mb-2">尚未开始调查</p>
- <p className="text-sm opacity-60 mb-6 text-center max-w-md">
- 在上方搜索框输入企业名称，启动 AI 智能尽职调查，多 Agent 协同为您生成全方位企业调查报告
+ <p className="font-serif text-[22px] text-foreground mb-2">尚未开始调查</p>
+ <p className="text-[13px] text-muted-foreground mb-6 text-center max-w-md leading-relaxed">
+ 在上方搜索框输入企业名称，启动 AI 智能尽职调查，多 Agent 协同为您生成全方位企业调查报告。
  </p>
- <div className="flex items-center gap-2 text-xs text-muted-foreground">
- <span>试试：</span>
- {['阿里巴巴','腾讯','华为'].map(name => (
+ <div className="flex items-center gap-3 flex-wrap justify-center">
+ <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+ Try
+ </span>
+ {['阿里巴巴', '腾讯', '华为'].map((name) => (
  <button
  key={name}
+ type="button"
  onClick={() => { setSearchInput(name); handleInvestigate(name) }}
- className={`${buttonStyle.ghost} text-xs rounded-full`}
+ className="text-[12px] text-muted-foreground hover:text-foreground border border-border bg-card hover:bg-surface-2 px-3 py-1 transition-colors"
  >
  {name}
  </button>
@@ -753,68 +794,90 @@ export default function DueDiligence() {
  }
 
  return (
- <div data-analysis-shell className="h-full min-h-0 flex flex-col bg-surface-2">
- <div data-analysis-toolbar className="shrink-0 p-4 sm:p-5 lg:p-6 pb-0 space-y-3">
- <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
- <div>
- <h1 className={`${heading.page} flex flex-wrap items-end`}>智能调查</h1>
- <p className={`${heading.muted} mt-0.5`}>多 Agent 协同 · 一站式智能法律调查平台</p>
+ <div data-analysis-shell className="h-full min-h-0 flex flex-col bg-background">
+ <div data-analysis-toolbar className="shrink-0 px-6 sm:px-8 lg:px-12 xl:px-16 pt-8 lg:pt-10 pb-5 space-y-5 border-b border-border">
+ <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+ <div className="min-w-0 flex-1">
+ <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground mb-2">
+ Workspace
+ <span className="text-foreground/30 mx-1.5" aria-hidden>·</span>
+ <span className="text-foreground/70 normal-case tracking-normal">智能调查</span>
  </div>
- <div className="flex items-center gap-2">
+ <h1 className="font-serif text-[28px] sm:text-[32px] leading-tight tracking-[-0.02em] text-foreground">智能调查</h1>
+ <p className="mt-2 text-[14px] text-foreground/70 max-w-[60ch]">多 Agent 协同 · 一站式智能法律调查平台。</p>
+ </div>
+ <div className="flex items-center gap-2 shrink-0">
  <button
+ type="button"
  onClick={() => setUseDeepMode(!useDeepMode)}
- className={`${useDeepMode ?'bg-primary/10 text-primary border-primary/20' :'bg-muted text-muted-foreground border-transparent'} text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors`}
- title={useDeepMode ?'深度调查模式：包含迭代研究 + 多专家论坛' :'基础调查模式：快速数据采集'}
+ className={cn(
+ 'inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] border transition-colors',
+ useDeepMode ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+ )}
+ title={useDeepMode ? '深度调查模式：包含迭代研究 + 多专家论坛' : '基础调查模式：快速数据采集'}
  >
- <icons.Sparkles className="w-3.5 h-3.5" />
- {useDeepMode ?'深度模式' :'基础模式'}
+ <icons.Sparkles className="w-3 h-3 stroke-[1.5]" />
+ <span>{useDeepMode ? '深度模式' : '基础模式'}</span>
  </button>
  <button
+ type="button"
  onClick={() => setShowTimeRange(!showTimeRange)}
- className={`${showTimeRange || timeRangeStart ?'bg-primary/10 text-primary border-primary/20' :'bg-muted text-muted-foreground border-transparent'} text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-colors`}
+ className={cn(
+ 'inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] border transition-colors',
+ showTimeRange || timeRangeStart ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground',
+ )}
  title="设置历史时间范围，搜索过去N个月/年的数据"
  >
- <icons.Calendar className="w-3.5 h-3.5" />
- {timeRangeStart ? `${timeRangeStart.slice(0, 7)} ~` :'历史范围'}
+ <icons.Calendar className="w-3 h-3 stroke-[1.5]" />
+ <span>{timeRangeStart ? `${timeRangeStart.slice(0, 7)} ~` : '历史范围'}</span>
  </button>
  <button
+ type="button"
  onClick={() => { setShowSearch(!showSearch) }}
- className={`${showSearch ? buttonStyle.primary : buttonStyle.ghost} text-xs flex items-center gap-1.5`}
+ className={cn(
+ 'inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] transition-colors',
+ showSearch
+ ? 'bg-primary text-primary-foreground border border-primary'
+ : 'border border-border text-muted-foreground hover:text-foreground',
+ )}
  >
- <icons.Search className="w-3.5 h-3.5" />
- 知识搜索
+ <icons.Search className="w-3 h-3 stroke-[1.5]" />
+ <span>知识搜索</span>
  </button>
  </div>
  </div>
 
  {/* 历史时间范围选择器 */}
  {showTimeRange && !showSearch && (
- <div className={`${cardStyle.base} p-3 space-y-2`}>
+ <div className="border border-border bg-card p-4 space-y-3">
  <div className="flex items-center justify-between">
- <span className="text-xs font-medium text-foreground">选择调查时间范围</span>
+ <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+ Time Range · 选择调查时间范围
+ </div>
  {timeRangeStart && (
  <button
+ type="button"
  onClick={() => { setTimeRangeStart(''); setTimeRangeEnd(''); setSelectedPreset('') }}
- className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+ className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground transition-colors"
  >
- 清除
+ 清除 ×
  </button>
  )}
  </div>
- {/* 快捷预设 */}
  <div className="flex flex-wrap gap-1.5">
  {[
- { label:'近3个月', key:'3m', months: 3 },
- { label:'近6个月', key:'6m', months: 6 },
- { label:'近1年', key:'1y', months: 12 },
- { label:'近2年', key:'2y', months: 24 },
- { label:'近3年', key:'3y', months: 36 },
- { label:'近5年', key:'5y', months: 60 },
+ { label: '近3个月', key: '3m', months: 3 },
+ { label: '近6个月', key: '6m', months: 6 },
+ { label: '近1年',   key: '1y', months: 12 },
+ { label: '近2年',   key: '2y', months: 24 },
+ { label: '近3年',   key: '3y', months: 36 },
+ { label: '近5年',   key: '5y', months: 60 },
  ].map(preset => {
  const isActive = selectedPreset === preset.key
  return (
  <button
  key={preset.key}
+ type="button"
  onClick={() => {
  const end = new Date()
  const start = new Date()
@@ -823,59 +886,64 @@ export default function DueDiligence() {
  setTimeRangeEnd(end.toISOString().slice(0, 10))
  setSelectedPreset(preset.key)
  }}
- className={`${isActive ?'bg-primary text-primary-foreground' :'bg-muted text-muted-foreground hover:bg-muted/80'} text-xs px-2.5 py-1 rounded-md transition-colors`}
+ className={cn(
+ 'px-3 py-1 text-[11px] uppercase tracking-[0.12em] border transition-colors',
+ isActive
+ ? 'border-primary text-primary'
+ : 'border-border text-muted-foreground hover:text-foreground',
+ )}
  >
  {preset.label}
  </button>
  )
  })}
  </div>
- {/* 自定义日期范围 */}
  <div className="flex items-center gap-2">
  <input
  type="date"
  value={timeRangeStart}
  onChange={e => { setTimeRangeStart(e.target.value); setSelectedPreset('custom') }}
- className={`${inputStyle.search} text-xs px-2 py-1.5 rounded-md flex-1`}
+ className={`${editorialInput} text-[12px] px-2 py-1.5 flex-1`}
  />
- <span className="text-xs text-muted-foreground">至</span>
+ <span className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">至</span>
  <input
  type="date"
  value={timeRangeEnd}
  onChange={e => { setTimeRangeEnd(e.target.value); setSelectedPreset('custom') }}
  max={new Date().toISOString().slice(0, 10)}
- className={`${inputStyle.search} text-xs px-2 py-1.5 rounded-md flex-1`}
+ className={`${editorialInput} text-[12px] px-2 py-1.5 flex-1`}
  />
  </div>
  {timeRangeStart && (
- <p className="text-xs text-muted-foreground">
- 将搜索 {timeRangeStart} ~ {timeRangeEnd ||'至今'} 期间的历史数据，帮助您了解被调查目标在该时段的经营变化
+ <p className="text-[11px] text-muted-foreground leading-relaxed">
+ 将搜索 {timeRangeStart} ~ {timeRangeEnd || '至今'} 期间的历史数据，了解被调查目标在该时段的经营变化。
  </p>
  )}
  </div>
  )}
 
- {/* 调查搜索框 — 始终显示（非知识搜索模式下） */}
+ {/* 调查搜索框 */}
  {!showSearch && (
  <div className="flex gap-3 items-center">
  <div className="flex-1 relative">
- <icons.Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+ <icons.Building2 className="w-4 h-4 stroke-[1.5] absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
  <input
  type="text"
  value={searchInput}
  onChange={e => setSearchInput(e.target.value)}
- onKeyDown={e => e.key ==='Enter' && handleInvestigate(searchInput)}
- placeholder="输入企业名称，启动智能尽职调查..."
+ onKeyDown={e => e.key === 'Enter' && handleInvestigate(searchInput)}
+ placeholder="输入企业名称，启动智能尽职调查…"
  disabled={isSearching}
- className={`${inputStyle.search} pl-10 pr-32 py-3 rounded-xl disabled:opacity-50`}
+ className={`${editorialInput} pl-10 pr-36 py-3 disabled:opacity-50`}
  />
  <button
+ type="button"
  onClick={() => handleInvestigate(searchInput)}
  disabled={!searchInput.trim() || isSearching}
- className={`${buttonStyle.primary} absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 rounded-lg disabled:opacity-50 flex items-center gap-1.5 shadow-sm`}
+ className={`${editorialPrimary} absolute right-1 top-1/2 -translate-y-1/2 px-4 py-2 inline-flex items-center gap-1.5`}
  >
- {isSearching ? <icons.Loader2 className="w-4 h-4 animate-spin" /> : <icons.Sparkles className="w-4 h-4" />}
- {isSearching ?'调查中...' :'开始调查'}
+ {isSearching ? <icons.Loader2 className="w-4 h-4 stroke-[1.5] animate-spin" /> : <icons.Sparkles className="w-4 h-4 stroke-[1.5]" />}
+ <span>{isSearching ? '调查中…' : '开始调查'}</span>
  </button>
  </div>
  </div>
@@ -883,13 +951,16 @@ export default function DueDiligence() {
 
  {/* 快速开始 — 仅在示例模式下显示 */}
  {!showSearch && isDemo && (
- <div className="flex items-center gap-2">
- <span className="text-xs text-muted-foreground">快速开始：</span>
- {['阿里巴巴','腾讯','华为','字节跳动'].map(name => (
+ <div className="flex items-center gap-3 flex-wrap">
+ <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+ Quick Start · 快速开始
+ </span>
+ {['阿里巴巴', '腾讯', '华为', '字节跳动'].map(name => (
  <button
  key={name}
+ type="button"
  onClick={() => { setSearchInput(name); handleInvestigate(name) }}
- className={`${buttonStyle.ghost} text-xs rounded-full`}
+ className="text-[12px] text-muted-foreground hover:text-foreground border border-border bg-card hover:bg-surface-2 px-3 py-1 transition-colors"
  >
  {name}
  </button>

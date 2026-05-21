@@ -1,6 +1,8 @@
 # 前端开发规范
 
-> 强制规范。覆盖 React Web（`frontend/`）+ 移动 RN（`mobile/`）+ UniApp（`apps/uni-mobile/`）+ 小程序（`mini-program/`）。
+> 强制规范。覆盖 React Web（`frontend/`）+ 移动 RN（`mobile/`）+ 小程序（`mini-program/`）。
+>
+> 2026-05 调整：原 `apps/uni-mobile/` UniApp 端已终止，相关规范条目（§17）保留为历史段落，但**不再适用**于当前开发。
 
 ## 1. 工具链
 
@@ -9,7 +11,6 @@
 | Web | React 18 + Vite 7 + TS 5 + Tailwind 3 | eslint | tsc | vitest + playwright | vite |
 | 桌面（共用 Web） | Tauri 2 | 同上 | 同上 | 同上 | tauri build |
 | 移动 | RN 0.76 + Expo 52 | eslint | tsc | vitest | expo |
-| UniApp | Vue 3 + Vite | eslint | tsc | vitest | uniapp |
 | 小程序 | Taro 3.6 + React | eslint | tsc | — | taro |
 
 ## 2. 组件命名
@@ -293,12 +294,9 @@ Feature-detection，禁止 hardcode `window.__TAURI__`。
 - 安全存储：`expo-secure-store`（不用 AsyncStorage 存 token）
 - 生物识别：`expo-local-authentication`
 
-## 17. UniApp (apps/uni-mobile/) 特殊规则
+## 17. UniApp（已终止 — 历史段落）
 
-- Vue 3 `<script setup>` 语法
-- TypeScript 必须
-- 跨端 API：`uni.xxx`
-- 平台条件编译：`// #ifdef H5` ... `// #endif`
+> 2026-05 UniApp 跨端方案终止；本节保留以避免历史 PR 引用断链。新代码不应再涉及 UniApp。
 
 ## 18. 小程序 (mini-program/) 特殊规则
 
@@ -328,10 +326,6 @@ npm run lint && npm run typecheck && npm run test && npm run build
 # Mobile
 cd mobile
 npm run typecheck && npm run test
-
-# UniApp
-cd apps/uni-mobile
-npm run typecheck
 
 # 小程序
 cd mini-program

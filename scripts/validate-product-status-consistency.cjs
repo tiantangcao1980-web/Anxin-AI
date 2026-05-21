@@ -8,13 +8,12 @@ const checks = [
     required: [
       '最后更新：2026-05-09',
       '桌面端代码级 MVP 与本地门禁推进中；商业发布仍缺签名/真机/外部 API 证据',
-      'Mobile + Mini Program, uni-app',
+      'Mobile (Expo RN) + Mini Program (Taro)',
       '当前代码级能力',
       '不等于商业发布完成',
       'shared-staging/signed runtime 证据待补',
       'Quick Query 独立窗口',
       '真实托盘图标 drop',
-      'DCloud App 云打包',
       '代码级 rehearsal',
     ],
     forbidden: [
@@ -27,6 +26,9 @@ const checks = [
       'P0-1 ~ P0-3 完成',
       'iOS / Android 移动端 UI 适配',
       'TestFlight / 应用宝 Beta',
+      'apps/uni-mobile',
+      'uni-app',
+      'DCloud',
     ],
   },
   {
@@ -36,13 +38,14 @@ const checks = [
       '尚未达到商业交付完成态',
       'scripts/commercial-readiness-gate.sh --quick',
       '桌面优先',
-      'apps/uni-mobile/',
-      'DCloud App 云打包/签名',
       'V2 架构核心基础设施已就绪；**不等于商业可上线完成态**',
     ],
     forbidden: [
       'V2 架构核心基础设施已就绪，可部署到生产环境',
       '后续为持续迭代：支付渠道真实对接、跨模式数据同步、企业私有化定制',
+      'apps/uni-mobile',
+      'uni-app',
+      'DCloud',
     ],
   },
   {
