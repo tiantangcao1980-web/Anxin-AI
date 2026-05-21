@@ -1,68 +1,7 @@
 # 安心智能助手 DESIGN.md
 
-> **单一设计真相源**（视觉令牌 / 排版 / 组件外观 / 布局 / 动效 / Icon 体系）。
-> 工程实现规则（命名 / 状态管理 / API / 路由 / 测试）见 [`docs/standards/frontend-standard.md`](docs/standards/frontend-standard.md)。
-> `docs/design-system.md` 保留实现说明与历史背景；当三者冲突时，**本文件为准**。
+> 单一设计真相源。`docs/design-system.md` 保留实现说明与历史背景；当两者冲突时，以本文件为准。
 > 适用范围：`frontend/` Web 主界面优先，随后同步到 `mobile/` 与 `mini-program/`。
-
----
-
-## ⚠️ 2026-05 Reset 公告（必读）
-
-PR #9 上轮 V3 升级落地了「8 业务域 × 8 高饱和色拼盘 + emoji 图标 + Inter 字体」方案，
-违反 `ui-design` skill 多条硬性禁令（FORBIDDEN COLORS / FORBIDDEN FONTS / NEVER USE EMOJI），
-也违反本文件 §1 写的「不像 SaaS 控制台 / 不强调 AI 感」原则。
-
-**2026-05 Reset 后的设计方向**：
-- **Aesthetic Direction**：**Editorial Luxury**（克制的奢华 · 编辑级排版）
-- **业务域可视化**：不用色彩区分（见 §10）。用序号 01–08 + 衬线域名 + Lucide 图标 + 字距层次
-- **品牌色**：单一琥珀橙 `--primary` 仅出现在 CTA / 1px active 线 / 焦点环
-- **字体**：中文系统字体（PingFang SC / Microsoft YaHei / Noto Sans SC）+ Editorial Serif（Noto Serif SC）
-- **图标**：Lucide（Web）/ Ionicons（RN 平台 API） — 全单色线性，**禁用 emoji 作 UI 图标**
-
-详细 Reset 记录：[docs/design/ui-audit-and-upgrade-2026-05.md](docs/design/ui-audit-and-upgrade-2026-05.md)
-独立 Prototype：[docs/design/v3-prototype-editorial.html](docs/design/v3-prototype-editorial.html)
-
-下文 §1-§9 的内容仍是设计真相源，但 §3 字体表与 §10（新增）覆盖了 Reset 后的最终决策；如有冲突以 Reset 章节为准。
-
----
-
-## ⚙️ 2026-05-21 S9 工程协作密度增量（必读补充）
-
-**目标**：保留 Editorial Luxury 在「品牌入口 / 内容阅读」上的资产（Login / Hero / Display / Editorial Serif），同时在「应用功能容器」（chat / personas / admin / case-center 等）层向**飞书 / 企业微信工程协作密度**靠拢。
-
-**飞书 / 企业微信参考点**：
-- 应用 navbar 48-56px（紧凑）
-- 卡片圆角 8-12px、按钮圆角 6-8px（克制，不张扬）
-- 阴影极轻，主要靠 1px 边框 + `border/60` 描边
-- 列表行高 36-40px（紧凑扫描）
-- 工作台卡片化模块直达
-
-**S9 实际落地的 token 收紧**（详见 `frontend/src/lib/design-tokens.ts`）：
-
-| Token | Reset 后（Editorial Luxury） | S9 后（应用容器层）| 备注 |
-|---|---|---|---|
-| `radius.button` | `rounded-2xl` (16px) | **`rounded-lg` (8px)** | 飞书风按钮 |
-| `radius.card` | `rounded-3xl` (24px) | **`rounded-xl` (12px)** | 飞书风卡片 |
-| `radius.bubble` | `rounded-2xl` (16px) | **`rounded-xl` (12px)** | 紧凑气泡 |
-| `radius.small` | `rounded-lg` (8px) | **`rounded-md` (6px)** | 小控件 |
-| `radius.hero` | — | **`rounded-3xl` (24px)** | **新增**，保留 Editorial Hero 大圆角语义 |
-| `cardStyle.base` shadow | `shadow-card` | **`shadow-sm`** | 弱阴影 |
-| `cardStyle.base` border | `border/40` | **`border/60`** | 加强边框描边 |
-| Layout navbar | `h-[60px]` | **`h-14` (56px)** | 紧凑导航 |
-| 按钮 hover | `hover:-translate-y-0.5` | 移除（直接颜色变化）| 工程协作风去除"浮动"动画 |
-
-**保留的 Editorial 资产**：
-- Login / WelcomeGuide / DomainHomePage 的 Display Hero（48px Noto Serif SC）
-- 业务域名仍用衬线展示
-- 品牌琥珀橙不变
-- 文档预览区仍用 Editorial 字号体系
-
-**判断准则**：你正在做的是「**功能容器**」还是「**品牌入口 / 内容阅读**」？
-- 前者用 S9 紧凑 token（飞书风）
-- 后者用 Editorial Hero token（保留 Reset 后定型）
-
----
 
 ## 1. Visual Theme & Atmosphere
 
@@ -127,26 +66,23 @@ PR #9 上轮 V3 升级落地了「8 业务域 × 8 高饱和色拼盘 + emoji �
 
 ## 3. Typography Rules
 
-### Font Families (Reset 后)
-- **Primary Sans**: `"PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`
-  - ❌ 禁用 `Inter` / `Roboto` / `Arial` / `Helvetica` / `Helvetica Neue` / `system-ui` / `-apple-system` / `BlinkMacSystemFont`（`ui-design` skill FORBIDDEN FONTS）
-- **Secondary Serif**: `"Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif`
-  - Reset 后**升级为 Display + H1 + 业务域名 + 文档预览的主担字体**（承载 Editorial Luxury 气质）
-- **Monospace**: `"JetBrains Mono", "SF Mono", "Menlo", "Monaco", "Consolas", monospace`
+### Font Families
+- **Primary Sans**: `"Inter", "PingFang SC", "Microsoft YaHei UI", "Noto Sans SC", system-ui, sans-serif`
+- **Secondary Serif**: `"Source Han Serif SC", "Songti SC", "STSong", serif`，仅用于打印文档或正式文书预览。
+- **Monospace**: `"JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace`
 
-### Hierarchy Table (Reset 后 — Editorial Luxury)
+### Hierarchy Table
 
 | Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
 |------|------|------|--------|-------------|----------------|-------|
-| Display Hero | **Secondary Serif** | 48px | 500 | 1.1 | -0.04em | Login / DomainHomePage / WelcomeGuide |
-| Page Title (H1) | **Secondary Serif** | 32px | 500 | 1.2 | -0.02em | 业务子页主标题、业务域名 |
-| Section Title (H2) | Primary Sans | 24px | 500 | 1.3 | -0.01em | 区块标题 |
-| Panel Title (H3) | Primary Sans | 18px | 600 | 1.4 | -0.005em | 卡片/面板标题 |
+| Display Hero | Primary Sans | 40px | 500 | 1.2 | -0.03em | 仅首页/品牌展示 |
+| Page Title | Primary Sans | 32px | 500 | 1.25 | -0.02em | 一级页面标题 |
+| Section Title | Primary Sans | 24px | 500 | 1.3 | -0.01em | 区块标题 |
+| Panel Title | Primary Sans | 20px | 500 | 1.35 | -0.01em | 卡片/面板标题 |
 | Lead Body | Primary Sans | 16px | 400 | 1.75 | 0 | 长文本、AI 回复 |
-| Body | Primary Sans | 15px | 400 | 1.65 | 0 | 标准正文 |
+| Body | Primary Sans | 14px | 400 | 1.65 | 0 | 标准正文 |
 | Small Body | Primary Sans | 13px | 400 | 1.6 | 0 | 表格、说明 |
-| Caption | Primary Sans | 13px | 400 | 1.5 | 0.01em | 时间戳、弱标签 |
-| **Micro tracker** | **Primary Sans** | **11px** | **500** | **1.4** | **0.16em** UPPERCASE | Editorial 标志细节 — 「LEGAL · 01」「INDEX · 业务域目录」类元信息 |
+| Caption | Primary Sans | 12px | 400 | 1.5 | 0.01em | 时间戳、弱标签 |
 | Data Emphasis | Primary Sans | 14px | 500 | 1.5 | 0 | 指标和数值 |
 | Code / Token | Monospace | 12px | 500 | 1.5 | 0 | 标识符、命令、日志 |
 
@@ -267,7 +203,6 @@ PR #9 上轮 V3 升级落地了「8 业务域 × 8 高饱和色拼盘 + emoji �
 - 节点、图例、数据系列必须映射到统一扩展 token：`entity`, `law`, `document`, `conclusion`, `query`
 - 禁止在组件内部直接写 hex 作为长期设计值
 
-<a id="icon-system"></a>
 ### Icon System
 
 **Primary Icon Library**
@@ -413,11 +348,224 @@ PR #9 上轮 V3 升级落地了「8 业务域 × 8 高饱和色拼盘 + emoji �
 - 这个标题是否真的需要 `font-bold`？
 - 这个间距和圆角是否落在定义尺度内？
 
-## 10. 业务域可视化（V3 Reset 后核心规范）
+## 10. 飞书 / 企业微信参照规范（2026-05-22 新增）
+
+> 自 [产品蓝图 2026-05-22](docs/plans/2026-05-22-product-blueprint.md) 起，安心智能助手的产品形态对标"飞书 / 企业微信"：桌面 + 移动是主入口，Web 仅作官网与后台。本节定义对标后的视觉细则，与本文件第 1-9 节并存（冲突以本节为准）。
+
+### 10.1 双品牌色策略
+
+| 角色 | Token | 用途 |
+|---|---|---|
+| Brand（琥珀橙） | `--primary` = `hsl(25 95% 53%)` | 品牌身份、关键 CTA、激活态、品牌徽章 |
+| IM Blue（飞书蓝） | `--im-primary` = `hsl(217 100% 55%)`（`#1664FF`） | 消息高亮、@ 提及、链接、信息提示、在线状态描边 |
+| Neutral（中性灰） | `--surface-*` `--border-*` | 工作台基底，淡化品牌噪声 |
+
+> **关键原则**：橙色是"品牌锚"，蓝色是"沟通锚"。聊天气泡、链接、@提及用蓝；按钮 CTA、激活模块、品牌徽章用橙。**不能让橙色承担信息蓝的语义**。
+
+### 10.2 三栏桌面布局（飞书风）
+
+```
+┌─ 左导航条 56px ─┬─ 中列表 280-320px ─┬─ 右内容 自适应 ─────────┐
+│ avatar 32px    │ 列表标题            │ 顶部 chrome 8px       │
+│ ───            │ 搜索 32px           │ 工具栏 40px            │
+│ 消息    📩     │ ─── 12px            │ ─────                  │
+│ 任务    ✅     │ 列表项 64-72px      │ 内容（artifact-first）  │
+│ 工作台  🧰     │   ├ avatar 36       │                        │
+│ 知识    📚     │   ├ 标题 14/500     │                        │
+│ ─── flex-1    │   ├ 摘要 12/400     │                        │
+│ 设置    ⚙️     │   └ 时间 12/400     │                        │
+│ avatar 28px    │                    │                        │
+└────────────────┴────────────────────┴─────────────────────────┘
+       │ 状态栏 24px ─ 模式 · 同步 · 在线 · ⌘K 命令面板          │
+```
+
+**关键尺寸**：
+
+| 元素 | 飞书 | 企微 | 我们 |
+|---|---|---|---|
+| 左导航条宽 | 64 | 56 | **56px** |
+| 中列表宽 | 280-320 | 260-300 | **280px**（可拖拽 240-360） |
+| 顶部 chrome | 28（macOS）/ 32（Windows） | 同 | **同（系统原生）** |
+| 工具栏 | 40 | 40 | **40px** |
+| 状态栏 | 24 | 22 | **24px** |
+| 列表项 | 64-72 | 56-64 | **64px** |
+| 头像 | 32/36/40 | 32/36 | **32/36/40** |
+
+### 10.3 移动 4 tab 规范
+
+| Tab | 图标（lucide） | 标签 | 路由 |
+|---|---|---|---|
+| 消息 | `MessageSquare` | 消息 | `(tabs)/messages` |
+| 任务 | `ListChecks` | 任务 | `(tabs)/tasks` |
+| 工作台 | `LayoutGrid` | 工作台 | `(tabs)/workbench` |
+| 我 | `User` | 我 | `(tabs)/me` |
+
+**尺寸**：
+- Tab 高 56 + safe-area
+- Tab 图标 24px，激活态描边 + brand 色
+- 标签字号 11/500，激活 brand，未激活 `text-muted`
+- 列表项最小高 64px，触控点不小于 44px
+
+### 10.4 圆角阶梯（飞书风：克制）
+
+原 DESIGN.md 默认大圆角（16/24px）偏"消费 App"。对标飞书后改：
+
+| 用途 | 原 token | 新 token | 说明 |
+|---|---|---|---|
+| 标签 / 徽章 | `--radius-subtle` 4px | **4px** 不变 | |
+| 表格 / 紧凑控件 | `--radius-sm` 6px | **6px** 不变 | |
+| 标准按钮 / 输入框 | `--radius-md` 8px | **8px**（原 16px → 8px） | 与飞书一致 |
+| 卡片 / 面板 | `--radius-xl` 16px | **12px**（原 24px → 12px） | 卡片不要太圆 |
+| 抽屉 / 弹层 | `--radius-2xl` 20px | **16px**（原 24px → 16px） | |
+| 头像 / 胶囊 | `--radius-pill` 9999px | **9999px** 不变 | |
+
+> **过渡策略**：DESIGN.md 第 5.2 节"Radius Scale"保持表述；实施时只调 `tailwind.config.js` 和 token css 变量，业务组件不需改类名。
+
+### 10.5 列表项规范（飞书风：扁平 + 高密度）
+
+会话/任务/通知列表项统一结构：
+
+```tsx
+<li className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2">
+  <Avatar size={36} />
+  <div className="flex-1 min-w-0">
+    <div className="flex items-center justify-between">
+      <span className="text-sm font-medium truncate">{title}</span>
+      <time className="text-xs text-muted-foreground">{time}</time>
+    </div>
+    <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{preview}</p>
+  </div>
+  {unread > 0 && <Badge>{unread}</Badge>}
+</li>
+```
+
+**约束**：
+- 不允许在列表项加阴影；hover 用 `--surface-2`，激活用 `--primary/10`；
+- 头像永远圆形；
+- 未读徽章使用 `--im-primary`（蓝），不用品牌橙；
+- 时间戳 `--text-tertiary`，不用 `--muted-foreground`（避免与摘要同色）。
+
+### 10.6 聊天气泡规范（飞书风）
+
+| 角色 | 背景 | 文字 | 圆角 |
+|---|---|---|---|
+| 我（发送方） | `--im-primary`（飞书蓝） | white | `rounded-2xl rounded-br-md` |
+| 对方 / Agent | `--surface-1` + `border` | `--foreground` | `rounded-2xl rounded-bl-md` |
+| 系统 | `--surface-2` + 居中 | `--muted-foreground` | `rounded-md` |
+| Artifact 引用 | `--surface-1` + `--border-strong` + 左边 4px brand 色条 | `--foreground` | `rounded-md` |
+| AI 思考态 | `--ai-surface` | `--ai` | `rounded-2xl` |
+
+> 原 DESIGN.md 第 4 节定义"User 用 primary 底"。本节改为**用 IM 蓝**：避免聊天界面被品牌橙占据，与飞书 / 企微视觉对齐。品牌橙保留给 CTA / 激活态。
+
+### 10.7 命令面板（Cmd+K）
+
+参照飞书 `⌘K` / VS Code `⌘P`：
+
+- 触发：桌面 `⌘K`（macOS） / `Ctrl+K`（Windows/Linux）；移动暂不开放
+- 浮层：屏幕中上方，宽 560px，最大高 480px，`--shadow-float` + `--radius-2xl`
+- 结构：搜索框 + 分组结果（最近 / 智能体 / 任务 / 文档 / Skill / 跳转）
+- 行项 height 36px，左 icon 20px + 右 hint 12px
+- 键盘：`↑ ↓` 移动，`Enter` 执行，`Esc` 关闭
+- 入口：状态栏右下角"⌘K"提示永驻
+
+### 10.8 状态栏（底部 24px）
+
+桌面底部固定 24px 状态栏，左到右：
+
+```
+[●在线] 本地模式 · 已同步 14:32 · 12 条待处理任务 · 张三@anxinai.com               ⌘K
+```
+
+- 在线圆点：8px，颜色按 `online/busy/offline`（success / warning / muted）
+- 模式：`本地` / `混合` / `云端`，可点击切换（二次确认）
+- 同步状态：`已同步 14:32` / `同步中...` / `离线（X 条待推送）` / `冲突 X`（冲突可点击进入解决页）
+- 字号 12px，中间用 `·` 分隔，文本 `--text-tertiary`
+
+### 10.9 三态模式视觉（本地 / 混合 / 云端）
+
+| 模式 | 状态栏文案 | 顶部条左侧徽章 | 颜色 |
+|---|---|---|---|
+| 🔒 本地 | "本地模式 · 数据不出设备" | 🔒 本地 | `--success` |
+| 🔄 混合 | "混合模式 · 敏感本地" | 🔄 混合 | `--info` |
+| ☁️ 云端 | "云端模式 · 全云端" | ☁️ 云端 | `--im-primary` |
+
+切换需二次确认弹窗，列出"会影响哪些数据 / 哪些功能"。
+
+### 10.10 飞书风 Do / Don't
+
+**Do**
+- 主导航条 56px 窄，图标 + 文字标签上下结构
+- 列表项 hover/active 状态明确，但不加阴影
+- 在线状态在头像右下角显示 10px 圆点 + 1.5px 描边
+- 长任务在消息流里以"任务卡"形式 inline（步骤可折叠、可暂停）
+- 工具栏图标 20px，按钮 32x32 触控盒
+- 多人协作头像组叠加显示，最多 3 个 + "+N"
+
+**Don't**
+- 不要用大圆角 24px 卡片（飞书是 8-12px）
+- 不要让品牌橙占据聊天/链接/在线状态（飞书是蓝）
+- 不要在导航条同时使用图标 + 文字 + 颜色三种激活态（选其一：底色高亮）
+- 不要把"远控授权"放在"我"tab 而不在"消息"流里出现 —— 它本质是请求，应该和聊天混排
+- 不要在桌面端用大装饰插图（飞书工作台保持克制）
+
+### 10.11 Token 落地约束
+
+所有端必须最终落到**唯一一份语义 token**，按端转译：
+
+| Token | Web (HSL) | Mobile (HEX) | Desktop (HSL) | MP (HEX) | UniApp (HEX) |
+|---|---|---|---|---|---|
+| `primary` | `25 95% 53%` | `#F97316` | `25 95% 53%` | `#F97316` | `#F97316` |
+| `im-primary` | `217 100% 55%` | `#1664FF` | `217 100% 55%` | `#1664FF` | `#1664FF` |
+| `success` | `142 76% 36%` | `#16A34A` | `142 76% 36%` | `#16A34A` | `#16A34A` |
+| `warning` | `38 92% 50%` | `#F59E0B` | `38 92% 50%` | `#F59E0B` | `#F59E0B` |
+| `destructive` | `0 72% 51%` | `#DC2626` | `0 72% 51%` | `#DC2626` | `#DC2626` |
+| `info` | `217 91% 60%` | `#3B82F6` | `217 91% 60%` | `#3B82F6` | `#3B82F6` |
+| `background` | `0 0% 100%` | `#FFFFFF` | `0 0% 100%` | `#FFFFFF` | `#FFFFFF` |
+| `surface-1` | `0 0% 100%` | `#FFFFFF` | `0 0% 100%` | `#FFFFFF` | `#FFFFFF` |
+| `surface-2` | `30 14% 98%` | `#FAF8F6` | `30 14% 98%` | `#FAF8F6` | `#FAF8F6` |
+| `border` | `30 13% 91%` | `#E8E5E0` | `30 13% 91%` | `#E8E5E0` | `#E8E5E0` |
+| `foreground` | `20 14% 10%` | `#1C1A17` | `20 14% 10%` | `#1C1A17` | `#1C1A17` |
+| `muted-foreground` | `20 9% 46%` | `#7A736D` | `20 9% 46%` | `#7A736D` | `#7A736D` |
+
+> 旧 mobile `#D4A574` 偏褐色，与 Web `#F97316` 不一致；统一为 `#F97316`（注意保留品牌身份）。
+
+### 10.12 验收
+
+UI 升级完成的判据：
+
+- [ ] 桌面三栏 + 5 一级模块 + 状态栏 + ⌘K
+- [ ] 移动 4 tab 命名为"消息 / 任务 / 工作台 / 我"
+- [ ] 聊天气泡 user 端用蓝、不用橙
+- [ ] 列表项符合 10.5 节规范，0 阴影
+- [ ] 圆角全局收到 8/12/16px 阶梯
+- [ ] Mobile token `#D4A574` 残留 = 0
+- [ ] grep `安心法务` = 0（除归档文档）
+- [ ] grep `text-\[#` `bg-\[#` 全仓 = 0
+
+## Changelog
+
+| Date | Change | Reason | Scope |
+|------|--------|--------|-------|
+| 2026-05-22 | 第 10 节飞书 / 企微对标 | 产品蓝图从"全端工作台"调整为"桌面+移动主战场，Web 官网" | DESIGN.md + 各端 token |
+| 2026-04-12 | Initial DESIGN.md | 将审计结论沉淀为项目级设计真相源 | Web design system |
+| 2026-04-12 | Token layer Phase 2 | 补全缺失 token、修正 radius/weight 与规范对齐 | index.css, tailwind.config.js, design-tokens.ts |
+| 2026-04-12 | Phase 3-5 全站治理 | font-bold/semibold→medium; tracking-wide→caption; 572处hardcoded色→0; focus-visible补齐; DOM嵌套修复 | 138+ files |
+| 2026-04-15 | Batch 1 标题层级对齐 | heading token 从 ad-hoc 尺寸对齐到 text-h1/h2/h3 精确 fontSize；新增 heading.display/label | design-tokens.ts, PageContainer.tsx |
+| 2026-04-15 | Batch 2 CenterLayout + embedded | 统一中心页面（CaseCenter/ManagementCenter）；PageContainer 新增 embedded 模式解决嵌套标题重复 | 新建 CenterLayout.tsx + 4 pages |
+| 2026-04-15 | Batch 3 剩余页面迁移 | MonitoringCenter/Investigation/KnowledgeBase 全部迁移到 PageContainer；92% 页面使用标准布局容器 | 3 pages + RiskAlertPanel |
+| 2026-04-15 | Batch 4 硬编码清理 | 硬编码标题 24→0；p-6 padding 34→0；按钮 rounded-lg→rounded-2xl（主要按钮）；tracking-tight→heading tokens | 25+ files |
+| 2026-04-15 | 新增统一状态组件 | EmptyState/LoadingState/ErrorState 三组统一 UI 状态组件，替代 72+122+142 文件各自为政的实现 | src/components/common/ |
+| 2026-04-15 | Batch 5 桌面端 MVP | Tauri 全局快捷键 Cmd+Shift+Space；参考 ClawX/Qclaw 呼出式交互；多端产品路线图 PRODUCT_ROADMAP.md | desktop/ + PRODUCT_ROADMAP.md |
+
+---
+
+## 11. 业务域可视化（V3 Reset 后核心规范）
+
+> 本节与 §10 飞书规范并存：§10 定义跨端布局/token，§11 定义业务域的"无色彩区分"可视化语言。
 
 V3 安心智能助手覆盖 8 大业务域：法务 / 财务 / 税务 / 合规 / 经营管理 / 调研获客 / 内容产出 / 出海跨境。
 
-### 10.1 核心原则
+### 11.1 核心原则
 > **业务域不用色彩区分。** 单一品牌琥珀橙作为唯一彩色锚点，不扩散到 8 个域。
 
 理由（综合 `ui-design` skill + DESIGN.md §1）：
@@ -425,7 +573,7 @@ V3 安心智能助手覆盖 8 大业务域：法务 / 财务 / 税务 / 合规 /
 - 紫色族业务域色（曾用于"经营管理"）违反 `ui-design` skill FORBIDDEN COLORS
 - 业务域是「分类」，不是「状态」；状态色 (`--success/--warning/--destructive`) 才需要色彩
 
-### 10.2 区分手段（克制 → Editorial）
+### 11.2 区分手段（克制 → Editorial）
 | 手段 | 用法 |
 |------|------|
 | **序号 01–08** | serif tabular-nums，承载「目录感」 |
@@ -436,7 +584,7 @@ V3 安心智能助手覆盖 8 大业务域：法务 / 财务 / 税务 / 合规 /
 
 ❌ **禁止用** 8 种颜色卡片墙、emoji 图标、域色 stripe、域色 dot、域色 underline。
 
-### 10.3 业务域元数据真相源
+### 11.3 业务域元数据真相源
 唯一注册表：[`frontend/src/lib/domains.ts`](frontend/src/lib/domains.ts)
 - `DOMAINS: readonly DomainMeta[]` — 按固定顺序 (legal → global) 暴露
 - `DomainMeta` 字段：`id / label / labelEn / tagline / defaultPath / icon`（**无 color/surface/cssVar**）
@@ -446,7 +594,7 @@ V3 安心智能助手覆盖 8 大业务域：法务 / 财务 / 税务 / 合规 /
 - `mobile/src/theme/colors.ts` → `domainMeta`（仅 labelZh/labelEn）
 - `mini-program/src/styles/design-tokens.ts` → `domainMeta`（同上）
 
-### 10.4 落地组件（5 个原子）
+### 11.4 落地组件（5 个原子）
 | 组件 | 文件 | 用途 |
 |------|------|------|
 | `<DomainBadge>` | `components/ui/domain.tsx` | micro UPPERCASE 文字「LEGAL · 法务」 |
@@ -455,17 +603,7 @@ V3 安心智能助手覆盖 8 大业务域：法务 / 财务 / 税务 / 合规 /
 | `<DomainGrid>` | 同上 | 编辑级 2 列目录（**不是** 4×2 卡片墙） |
 | `<DomainBreadcrumb>` | `components/ui/DomainBreadcrumb.tsx` | 纯文字 micro UPPERCASE「LEGAL · 法务 · 合同审查」 |
 
-### 10.5 落地页面
-| 页面 | 关键设计 |
-|------|----------|
-| Login (`/login`) | 7+5 不对称 grid · 左侧 serif Display + 8 域 serif 编号目录 |
-| DomainHomePage (`/domains`) | 4+8 编辑部双栏 · 左 8 业务域 serif 名录 · 右当前域子页列 |
-| WelcomeGuide modal | 首登触发 · 编辑部目录式 8 行 · 单 CTA「打开 AI 对话」 |
-| Layout 顶栏 | active = 1px primary underline（**非业务域色** underline）|
-| Layout 侧栏 | active = 1px primary 左线（**非业务域** stripe / dot）|
-| 业务子页 | `<DomainBreadcrumb>` + 序号 + 衬线 H1，**不要** `<DomainStripe>` 4pt 彩条 |
-
-### 10.6 守护断言（防回归）
+### 11.5 守护断言（防回归）
 跨端 vitest 已对以下违规行为加反向断链 fail：
 - 任何 `--domain-*` CSS 变量
 - 任何 `colors.domain.*` Tailwind utility
@@ -475,20 +613,3 @@ V3 安心智能助手覆盖 8 大业务域：法务 / 财务 / 税务 / 合规 /
 - emoji 字面值在业务组件源码
 
 详细 95+ 条断言：`frontend/src/brand-consistency.test.ts` + `mobile/src/brand-consistency.test.ts` + `mini-program/src/styles/design-tokens.test.ts` 等
-
----
-
-## Changelog
-
-| Date | Change | Reason | Scope |
-|------|--------|--------|-------|
-| 2026-04-12 | Initial DESIGN.md | 将审计结论沉淀为项目级设计真相源 | Web design system |
-| 2026-04-12 | Token layer Phase 2 | 补全缺失 token、修正 radius/weight 与规范对齐 | index.css, tailwind.config.js, design-tokens.ts |
-| 2026-04-12 | Phase 3-5 全站治理 | font-bold/semibold→medium; tracking-wide→caption; 572处hardcoded色→0; focus-visible补齐; DOM嵌套修复 | 138+ files |
-| 2026-04-15 | Batch 1 标题层级对齐 | heading token 从 ad-hoc 尺寸对齐到 text-h1/h2/h3 精确 fontSize；新增 heading.display/label | design-tokens.ts, PageContainer.tsx |
-| 2026-04-15 | Batch 2 CenterLayout + embedded | 统一中心页面（CaseCenter/ManagementCenter）；PageContainer 新增 embedded 模式解决嵌套标题重复 | 新建 CenterLayout.tsx + 4 pages |
-| 2026-04-15 | Batch 3 剩余页面迁移 | MonitoringCenter/Investigation/KnowledgeBase 全部迁移到 PageContainer；92% 页面使用标准布局容器 | 3 pages + RiskAlertPanel |
-| 2026-04-15 | Batch 4 硬编码清理 | 硬编码标题 24→0；p-6 padding 34→0；按钮 rounded-lg→rounded-2xl（主要按钮）；tracking-tight→heading tokens | 25+ files |
-| 2026-04-15 | 新增统一状态组件 | EmptyState/LoadingState/ErrorState 三组统一 UI 状态组件，替代 72+122+142 文件各自为政的实现 | src/components/common/ |
-| 2026-04-15 | Batch 5 桌面端 MVP | Tauri 全局快捷键 Cmd+Shift+Space；参考 ClawX/Qclaw 呼出式交互；多端产品路线图 PRODUCT_ROADMAP.md | desktop/ + PRODUCT_ROADMAP.md |
-| 2026-05-20 | **Editorial Luxury Reset** | 按 `ui-design` skill 标准全量 Reset：删 8 域高饱和色（含违禁紫色）+ 删 Inter/system-ui FORBIDDEN FONTS + 删 emoji 图标。Aesthetic Direction 确认为 Editorial Luxury。8 业务域改用 序号+衬线+Lucide 区分。新增 §10 业务域可视化规范 + 95+ 跨端反向断链守护。 | 三端 token + 5 原子组件 + 4 落地页 + DESIGN.md + ui-audit doc |

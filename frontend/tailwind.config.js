@@ -124,6 +124,16 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        // IM 沟通色（飞书蓝） — DESIGN.md §10.1
+        "im-primary": {
+          DEFAULT: "hsl(var(--im-primary))",
+          foreground: "hsl(var(--im-primary-foreground))",
+          50: "hsl(var(--im-primary-50))",
+          100: "hsl(var(--im-primary-100))",
+          500: "hsl(var(--im-primary-500))",
+          600: "hsl(var(--im-primary-600))",
+          surface: "hsl(var(--im-primary-surface))",
+        },
         // AI 语义色
         ai: {
           DEFAULT: "hsl(var(--ai))",

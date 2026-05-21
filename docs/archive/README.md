@@ -16,6 +16,19 @@
 
 **总计 54 个文件**已从工作树移除。
 
+## 2026-05-22 归档批次
+
+`2026-05-22-pre-blueprint/` 归档了**蓝图升级前的过时大文档**（不再作为权威）：
+
+| 原路径 | 文件 | 取代者 |
+|---|---|---|
+| `/PROJECT_STATUS.md` | 73KB 状态快照 | `docs/audit/summary.md` + `CHANGELOG.md` |
+| `/PRODUCT_ROADMAP.md` | 多端产品路线（旧） | `docs/plans/2026-05-22-product-blueprint.md` |
+| `/ROADMAP.md` | 工程路线（旧） | `docs/v3/roadmap.md` |
+| `docs/plans/2026-05-09-workstation-admin-ia-boundary.md` | 旧 IA 边界 | `docs/plans/2026-05-22-product-blueprint.md` §3 |
+
+依据：[docs/plans/2026-05-22-product-blueprint.md §5.1](../plans/2026-05-22-product-blueprint.md)。
+
 ## 如何追溯历史
 
 所有历史文档**永久保留在 git history 中**，需要追溯时：

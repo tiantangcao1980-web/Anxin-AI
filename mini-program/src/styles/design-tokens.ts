@@ -6,8 +6,9 @@
 // 与 frontend/mobile 跨端对齐。详见 docs/design/ui-audit-and-upgrade-2026-05.md
 
 export const miniProgramTheme = {
-  brandPrimary: '#D4A574',
-  brandPrimaryDark: '#B8864E',
+  brandPrimary: '#F97316',
+  brandPrimaryDark: '#EA580C',
+  imPrimary: '#1664FF',
   background: '#FAF8F5',
   surface: '#FFFFFF',
   textPrimary: '#1C1A18',

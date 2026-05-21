@@ -113,7 +113,7 @@ export default function ScheduledTasksPage() {
               <Switch
                 className='st-switch'
                 checked={task.status === 'active'}
-                color='#D4A574'
+                color='#F97316'
                 onChange={(e) => onToggle(task, e.detail.value)}
               />
             </View>

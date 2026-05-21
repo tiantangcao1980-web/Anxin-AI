@@ -1,6 +1,6 @@
 // -*- coding: utf-8 -*-
 /**
- * V2 简易调色板（兼容层）。
+ * V2 简易调色板（兼容层）。已对齐飞书风蓝图（2026-05-22）：brand 用 #F97316 琥珀橙。
  *
  * 2026-05 起，新业务页应优先使用 V3 主题：
  *
@@ -17,29 +17,29 @@
  */
 
 export const Colors = {
-  primary: '#D4A574',
-  primaryLight: '#E8C9A8',
-  primaryDark: '#B8895A',
+  primary: '#F97316',
+  primaryLight: '#FDBA74',
+  primaryDark: '#EA580C',
+  imPrimary: '#1664FF',
   background: '#FFFFFF',
-  surface: '#F8F8F8',
-  text: '#1C1C1E',
-  // 2026-05 调和：与 V3 lightTheme（ink500/ink400）对齐，
-  // 次要文本对比度从 4.6:1 提升至 6.3:1，更符合 WCAG AA。
-  textSecondary: '#6E6E73',
-  textMuted: '#8E8E93',
-  border: '#E5E5EA',
-  success: '#34C759',
-  warning: '#FF9500',
-  error: '#FF3B30',
-  info: '#007AFF',
+  // 与 V3 palette/lightTheme 共有字段保持一致（colors.test.ts 守护）
+  surface: '#FAF8F6',
+  text: '#1C1A17',
+  textSecondary: '#7A736D',
+  textMuted: '#9A938D',
+  border: '#E8E5E0',
+  success: '#16A34A',
+  warning: '#F59E0B',
+  error: '#DC2626',
+  info: '#3B82F6',
   white: '#FFFFFF',
   black: '#000000',
 }
 
 export const DarkColors = {
   ...Colors,
-  background: '#1C1C1E',
-  surface: '#2C2C2E',
+  background: '#0F0F11',
+  surface: '#1C1C1E',
   text: '#FFFFFF',
   textSecondary: '#AEAEB2',
   border: '#3C3C43',

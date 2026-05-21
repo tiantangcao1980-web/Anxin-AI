@@ -242,7 +242,7 @@ export default function ContractsScreen() {
 
         {loading && contracts.length === 0 && !error ? (
           <View style={styles.centered}>
-            <ActivityIndicator color="#D4A574" size="large" />
+            <ActivityIndicator color="#F97316" size="large" />
           </View>
         ) : (
           <FlatList
@@ -253,7 +253,7 @@ export default function ContractsScreen() {
             ListFooterComponent={
               loadingMore ? (
                 <View style={styles.footerLoading}>
-                  <ActivityIndicator color="#D4A574" />
+                  <ActivityIndicator color="#F97316" />
                 </View>
               ) : null
             }
@@ -265,7 +265,7 @@ export default function ContractsScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor="#D4A574"
+                tintColor="#F97316"
               />
             }
             onEndReached={onEndReached}
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     marginRight: 8,
   },
-  tabActive: { backgroundColor: '#D4A574' },
+  tabActive: { backgroundColor: '#F97316' },
   tabText: { fontSize: 13, color: '#666' },
   tabTextActive: { color: '#FFF', fontWeight: '600' },
   listContent: { paddingHorizontal: 16, paddingBottom: 20 },
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: '#D4A574',
+    backgroundColor: '#F97316',
     borderRadius: 8,
   },
   retryBtnText: { color: '#FFF', fontSize: 14, fontWeight: '500' },

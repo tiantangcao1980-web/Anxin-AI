@@ -104,7 +104,7 @@ export default function SkillsPage() {
                         <Switch
                           className='sk-switch'
                           checked={skill.enabled}
-                          color='#D4A574'
+                          color='#F97316'
                           onChange={(e) => onToggle(skill, e.detail.value)}
                         />
                       </View>

@@ -1,57 +1,67 @@
 // -*- coding: utf-8 -*-
 /**
- * V3 颜色令牌（与 frontend/src/lib/design-tokens.ts 对齐）。
+ * V3 颜色令牌（飞书 / 企微对标版 — 2026-05-22）。
  *
- * 设计基调：暖色主色调（#D4A574 古铜驼）+ 中性灰阶背景，参考
- * 苹果/影石/Linear/Stripe 的克制企业级语言，无蓝紫渐变 / 无 AI 味。
+ * 设计基调：暖橙品牌色 (#F97316) + 飞书蓝沟通色 (#1664FF) + 暖灰中性背景。
+ * Brand 用于 CTA / 激活态 / 品牌徽章；IM Blue 用于消息高亮 / 链接 / @ 提及 / 在线状态。
  *
- * 与现有 src/constants/colors.ts 共存：constants/colors 是 V2 简易调色板，
- * V3 业务页统一从 `@/theme` 导入；老页面尚未迁移时仍可用旧文件。
+ * 与 frontend/src/index.css 和 DESIGN.md §10.11 token contract 一致。
  */
 
 export const palette = {
-  // ===== 主色（暖色驼黄系） =====
-  primary: '#D4A574',
-  primary50: '#FAF3EA',
-  primary100: '#F2E3CC',
-  primary200: '#E8C9A8',
-  primary300: '#DDAF82',
-  primary400: '#D4A574',
-  primary500: '#C18C56',
-  primary600: '#B8895A',
-  primary700: '#996F44',
-  primary800: '#7A5734',
-  primary900: '#5C4126',
+  // ===== 品牌琥珀橙（与 Web --primary 对齐） =====
+  primary: '#F97316',
+  primary50: '#FFF7ED',
+  primary100: '#FFEDD5',
+  primary200: '#FED7AA',
+  primary300: '#FDBA74',
+  primary400: '#FB923C',
+  primary500: '#F97316',
+  primary600: '#EA580C',
+  primary700: '#C2410C',
+  primary800: '#9A3412',
+  primary900: '#7C2D12',
+
+  // ===== IM 蓝（飞书风沟通色） =====
+  imPrimary: '#1664FF',
+  imPrimary50: '#EBF2FF',
+  imPrimary100: '#D6E4FF',
+  imPrimary200: '#ADC8FF',
+  imPrimary300: '#85ADFF',
+  imPrimary400: '#5C91FF',
+  imPrimary500: '#1664FF',
+  imPrimary600: '#0050E6',
+  imPrimary700: '#003FB3',
 
   // ===== 中性 =====
-  ink900: '#1C1C1E',
-  ink800: '#2C2C2E',
-  ink700: '#3C3C43',
-  ink600: '#4D4D52',
-  ink500: '#6E6E73',
-  ink400: '#8E8E93',
+  ink900: '#1C1A17',
+  ink800: '#2C2A26',
+  ink700: '#3C3A35',
+  ink600: '#4D4A45',
+  ink500: '#7A736D',
+  ink400: '#9A938D',
   ink300: '#AEAEB2',
   ink200: '#D1D1D6',
-  ink100: '#E5E5EA',
-  ink50: '#F2F2F7',
+  ink100: '#E8E5E0',
+  ink50: '#FAF8F6',
 
   // ===== 表面 =====
   bg: '#FFFFFF',
-  bgMuted: '#F8F8FA',
+  bgMuted: '#FAF8F6',
   surface1: '#FFFFFF',
-  surface2: '#F2F2F7',
-  border: '#E5E5EA',
-  borderSoft: 'rgba(229,229,234,0.6)',
+  surface2: '#FAF8F6',
+  border: '#E8E5E0',
+  borderSoft: 'rgba(232,229,224,0.6)',
 
   // ===== 状态色 =====
-  success: '#34C759',
-  successSoft: '#E6F8EC',
-  warning: '#FF9500',
-  warningSoft: '#FFF1DC',
-  error: '#FF3B30',
-  errorSoft: '#FFE5E3',
-  info: '#007AFF',
-  infoSoft: '#E0EFFF',
+  success: '#16A34A',
+  successSoft: '#E8F6EE',
+  warning: '#F59E0B',
+  warningSoft: '#FFF4E0',
+  error: '#DC2626',
+  errorSoft: '#FFE5E5',
+  info: '#3B82F6',
+  infoSoft: '#E0EDFF',
 
   // ===== AI 强调 =====
   ai: '#7C5CFF',
@@ -95,7 +105,6 @@ export const domainMeta = {
 export type DomainId = keyof typeof domainMeta
 
 export interface ThemeColors {
-  // 复制 palette 的所有 key 但放宽为 string，使 light/dark 可互替
   primary: string
   primary50: string
   primary100: string
@@ -107,6 +116,15 @@ export interface ThemeColors {
   primary700: string
   primary800: string
   primary900: string
+  imPrimary: string
+  imPrimary50: string
+  imPrimary100: string
+  imPrimary200: string
+  imPrimary300: string
+  imPrimary400: string
+  imPrimary500: string
+  imPrimary600: string
+  imPrimary700: string
   ink900: string
   ink800: string
   ink700: string
@@ -172,7 +190,7 @@ export const lightTheme: ThemeColors = {
   textMuted: palette.ink400,
   border: palette.border,
   divider: palette.ink100,
-  shadow: 'rgba(28,28,30,0.06)',
+  shadow: 'rgba(28,26,23,0.06)',
 }
 
 export const darkTheme: ThemeColors = {

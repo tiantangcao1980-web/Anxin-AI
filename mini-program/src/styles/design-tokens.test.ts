@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest'
 import { domainMeta, miniProgramTheme, riskTier, type DomainId } from './design-tokens'
 
 describe('mini-program · design-tokens (Reset)', () => {
-  it('品牌主色 #D4A574 不变', () => {
-    expect(miniProgramTheme.brandPrimary).toBe('#D4A574')
+  it('品牌主色 #F97316（飞书风琥珀橙 — 2026-05-22 蓝图）', () => {
+    expect(miniProgramTheme.brandPrimary).toBe('#F97316')
   })
 
   it('风险三档保留（与 frontend 跨端对齐）', () => {

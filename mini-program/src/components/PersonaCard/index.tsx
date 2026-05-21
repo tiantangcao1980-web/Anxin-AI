@@ -21,8 +21,8 @@ interface PersonaCardProps {
 export default function PersonaCard(props: PersonaCardProps) {
   const { persona, compact = false, onClick } = props
   const accent = persona.domain
-    ? domainPalette[persona.domain] || '#D4A574'
-    : '#D4A574'
+    ? domainPalette[persona.domain] || '#F97316'
+    : '#F97316'
 
   const handle = () => {
     onClick?.(persona)

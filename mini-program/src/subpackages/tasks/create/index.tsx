@@ -143,7 +143,7 @@ export default function CreateTask() {
           <Switch
             checked={remote}
             onChange={(e) => setRemote(e.detail.value)}
-            color='#D4A574'
+            color='#F97316'
           />
         </View>
 

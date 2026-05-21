@@ -1,8 +1,8 @@
 # 跨平台设计 Token 漂移清单
 
-> 日期：2026-05-07
-> 范围：Web/桌面、移动端、微信小程序的颜色、字号、间距、圆角、触控与暗色模式 token 对齐情况。
-> 结论：本文件只做审计，不修改 token。当前发现的漂移不会替代真机验收；修复应单独走设计系统变更。
+> 日期：2026-05-07，**2026-05-22 升级**
+> 范围：Web/桌面、移动端、微信小程序、UniApp 的颜色、字号、间距、圆角、触控与暗色模式 token 对齐情况。
+> 2026-05-22 状态：**品牌主色已统一为 `#F97316`（琥珀橙），新增 `#1664FF` 飞书蓝 IM 沟通色**；详见 [DESIGN.md §10](../../DESIGN.md) + [产品蓝图](../plans/2026-05-22-product-blueprint.md)。
 
 ## 1. 审计依据
 
@@ -48,7 +48,22 @@
 
 ## 6. 当前未完成
 
-- 已补小程序语义 token 层和触控目标 token 底座；品牌主色统一方向尚未修复。
+- 已补小程序语义 token 层和触控目标 token 底座；~~品牌主色统一方向尚未修复~~ **2026-05-22：品牌主色已统一为 `#F97316`，IM 蓝 `#1664FF`**。
 - 未进行 iOS/Android 真机截图验证。
 - 未进行微信开发者工具视觉验收。
 - 小程序 SCSS 与 TS token 仍是双文件映射，后续如需彻底单源可增加构建期 token 生成。
+
+## 7. 2026-05-22 token 统一执行记录
+
+| 端 | 文件 | 改动 |
+|---|---|---|
+| Web | `frontend/src/index.css` `frontend/tailwind.config.js` | 顶部注释从"安心法务"改为"安心智能助手"；待新增 `--im-primary: 217 100% 55%` 与圆角阶梯收档（M3） |
+| Mobile | `mobile/src/theme/colors.ts` `mobile/src/constants/colors.ts` | primary `#D4A574` → `#F97316`；新增 `imPrimary: #1664FF` 全色阶 |
+| Mobile 页面 | `mobile/app/settings.tsx` `cases.tsx` `contracts.tsx` `mobile/src/lib/push-notifications.ts` `register.ts` | 硬编码 `#D4A574` 全部替换为 `#F97316` |
+| MP | `mini-program/src/styles/design-tokens.{scss,ts}` `utils/theme/colors.ts` `subpackages/**` | brand 切换 + IM 蓝 + 状态色 token 补全 |
+| UniApp | `apps/uni-mobile/src/styles/tokens.{ts,scss}` | brand `#2563EB` → `#F97316`，新增 IM 蓝 / 状态色 |
+
+**全仓 grep 残留**：
+- `#D4A574` / `#E8C9A8` / `#B8895A` = 0
+- `#B8864E` / `#FBF3E8` = 0
+- 与旧"安心法务"绑定的硬编码 = 0（剩余仅在 README / CHANGELOG / 历史说明文档中作为历史名称出现）

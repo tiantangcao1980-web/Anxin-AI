@@ -93,7 +93,7 @@ export default function SettingsScreen() {
         onPress={() => item.type !== 'switch' && handlePress(item.key)}
       >
         <View style={styles.settingItemLeft}>
-          <Ionicons name={item.icon} size={20} color="#D4A574" />
+          <Ionicons name={item.icon} size={20} color="#F97316" />
           <Text style={styles.settingItemLabel}>{item.label}</Text>
         </View>
         <View style={styles.settingItemRight}>
@@ -101,8 +101,8 @@ export default function SettingsScreen() {
             <Switch
               value={switches[item.key] ?? false}
               onValueChange={() => toggleSwitch(item.key)}
-              trackColor={{ false: '#E0E0E0', true: '#D4A57480' }}
-              thumbColor={switches[item.key] ? '#D4A574' : '#FFF'}
+              trackColor={{ false: '#E0E0E0', true: '#F9731680' }}
+              thumbColor={switches[item.key] ? '#F97316' : '#FFF'}
             />
           )}
           {item.type === 'value' && (

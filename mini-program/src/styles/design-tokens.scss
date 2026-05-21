@@ -3,11 +3,16 @@
 // 这里记录小程序当前平台映射，避免页面继续散写 hex/rpx。
 // 详见 docs/design/ui-audit-and-upgrade-2026-05.md
 
-// ===== 品牌色 =====
-$color-brand-primary: #D4A574;
-$color-brand-primary-light: #E8C9A8;
-$color-brand-primary-dark: #B8864E;
+// ===== 品牌色（飞书风 — 2026-05-22 蓝图：琥珀橙） =====
+$color-brand-primary: #F97316;
+$color-brand-primary-light: #FDBA74;
+$color-brand-primary-dark: #EA580C;
 $color-brand-gradient: linear-gradient(135deg, $color-brand-primary 0%, $color-brand-primary-dark 100%);
+
+// ===== IM 沟通色（飞书蓝） =====
+$color-im-primary: #1664FF;
+$color-im-primary-light: #5C91FF;
+$color-im-primary-dark: #003FB3;
 
 // ===== 文本（语义化层级） =====
 $color-text-primary: #1C1A18;
@@ -24,7 +29,7 @@ $color-border: #E5E0DA;
 $color-border-subtle: #EFEBE5;
 $color-skeleton: #F0EBE4;
 
-$color-brand-tint: rgba(212, 165, 116, 0.1);
+$color-brand-tint: rgba(249, 115, 22, 0.1);
 $color-inverse-weak: rgba(255, 255, 255, 0.8);
 $color-inverse-muted: rgba(255, 255, 255, 0.6);
 $color-inverse-surface: rgba(255, 255, 255, 0.3);

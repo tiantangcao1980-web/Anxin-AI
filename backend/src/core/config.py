@@ -448,7 +448,7 @@ class Settings(BaseSettings):
     # Fernet base64-urlsafe key（生成: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"）
     # 支持逗号分隔多 key 用于 key rotation（首位为新 key，其余为待淘汰旧 key）
     OAUTH_TOKEN_ENCRYPTION_KEY: str = ""
-    # 第三方授权回调基础 URL（不含 /api/v1/...），如 https://api.anxin-fawu.com
+    # 第三方授权回调基础 URL（不含 /api/v1/...），如 https://api.anxinai.com
     APP_AUTH_REDIRECT_BASE_URL: str = "http://localhost:8001"
 
     # ===== 钉钉 OAuth Provider（P4-C） =====

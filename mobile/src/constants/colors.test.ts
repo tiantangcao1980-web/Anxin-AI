@@ -10,9 +10,9 @@ import { Colors, DarkColors } from './colors'
 import { palette, lightTheme, darkTheme } from '../theme/colors'
 
 describe('mobile · V2 Colors ↔ V3 palette 跨调色板一致性', () => {
-  it('品牌主色 Colors.primary === palette.primary（琥珀橙 #D4A574）', () => {
+  it('品牌主色 Colors.primary === palette.primary（飞书风琥珀橙 #F97316）', () => {
     expect(Colors.primary).toBe(palette.primary)
-    expect(Colors.primary).toBe('#D4A574')
+    expect(Colors.primary).toBe('#F97316')
   })
 
   it('文本三档与 V3 lightTheme 完全对齐（text / textSecondary / textMuted）', () => {

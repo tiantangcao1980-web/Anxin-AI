@@ -11,9 +11,9 @@ import { describe, expect, it } from 'vitest'
 import { domainMeta, darkTheme, lightTheme, palette, type DomainId } from './colors'
 
 describe('mobile theme/colors · V3 (Reset)', () => {
-  it('品牌主色 #D4A574 不变', () => {
-    expect(palette.primary).toBe('#D4A574')
-    expect(palette.primary500).toBe('#C18C56')
+  it('品牌主色 #F97316（飞书风琥珀橙 — 2026-05-22 蓝图）', () => {
+    expect(palette.primary).toBe('#F97316')
+    expect(palette.primary500).toBe('#F97316')
   })
 
   it('AI 语义三态 + 风险三档 + 置信度三档保留', () => {
