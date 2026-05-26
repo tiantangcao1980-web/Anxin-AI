@@ -35,6 +35,8 @@ import { InputOrchestrationBar } from'@/components/chat/InputOrchestrationBar';
 import { SlashCommandPalette, useSlashCommand, type SlashCommand } from'@/components/chat/SlashCommandPalette';
 import { ThinkingIndicator, type ThinkingStatus } from'@/components/chat/ThinkingIndicator';
 import { ClarificationBubble } from'@/components/chat/ClarificationBubble';
+import { useLlmStatus } from'@/hooks/useLlmStatus';
+import { LlmRequiredPlaceholder } from'@/components/onboarding';
 import {
  getWorkflowAction,
  getWorkflowPlaceholder,
@@ -65,6 +67,7 @@ import { WELCOME_MESSAGE } from'@/components/chat/types';
 // ========== 主组件 ==========
 
 export default function Chat() {
+ const { status: llmStatus, loading: llmLoading } = useLlmStatus();
  const store = useChatStore();
  const { mode } = usePrivacy();
 
@@ -2115,6 +2118,12 @@ export default function Chat() {
  };
 
  // ========== JSX ==========
+
+ // 未配置 LLM 时不渲染主界面，引导到 /private-llm
+ // 关联：docs/plans/2026-05-22-desktop-bootstrap.md §4.3
+ if (!llmLoading && llmStatus && !llmStatus.configured) {
+ return <LlmRequiredPlaceholder feature="智能对话" />;
+ }
 
  return (
  <div className="relative flex h-full min-h-0 bg-surface-2">

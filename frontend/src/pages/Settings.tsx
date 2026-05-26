@@ -22,6 +22,7 @@ import { useAuthStore, useUIStore } from'@/lib/store'
 import { ErrorState, LoadingState } from'@/components/ui-unified'
 import { usePermission } from'@/hooks/usePermission'
 import { DesktopWorkstationPanel } from'@/components/desktop/DesktopWorkstationPanel'
+import { AboutPanel } from'@/components/settings/AboutPanel'
 import { buildLlmConfigSavePayload, getLlmCredentialSummary } from './llmSettingsModel'
 import { buildMcpSavePayload, getPersistedEnvKeys, maskMcpEnvValue } from './mcpSettingsModel'
 import { normalizeSettingsTab } from'./settingsTabs'
@@ -65,6 +66,10 @@ export default function Settings() {
  <icons.Notification className={`${iconSize.sm} shrink-0`} />
  <span className="whitespace-nowrap">通知偏好</span>
  </TabsTrigger>
+ <TabsTrigger value="about" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+ <icons.Sparkles className={`${iconSize.sm} shrink-0`} />
+ <span className="whitespace-nowrap">关于</span>
+ </TabsTrigger>
  </TabsList>
 
  <TabsContent value="profile" className="min-w-0 space-y-4">
@@ -77,6 +82,10 @@ export default function Settings() {
 
  <TabsContent value="notifications" className="min-w-0 space-y-4">
  <NotificationPreferencesPanel />
+ </TabsContent>
+
+ <TabsContent value="about" className="min-w-0 space-y-4">
+ <AboutPanel />
  </TabsContent>
  </Tabs>
  </PageContainer>

@@ -6,3 +6,4 @@
 
 export { OnboardingWizard, ONBOARDING_KEY } from './OnboardingWizard'
 export { LlmNotConfiguredBanner } from './LlmNotConfiguredBanner'
+export { LlmRequiredPlaceholder } from './LlmRequiredPlaceholder'

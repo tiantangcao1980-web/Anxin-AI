@@ -17,10 +17,13 @@ import { PersonaCapabilityRunner } from '@/components/v3/personas/PersonaCapabil
 import { PersonaWorkspaceLayout } from '@/components/v3/personas/PersonaWorkspaceLayout'
 
 import { usePersonasStore } from '@/lib/store/personasStore'
+import { useLlmStatus } from '@/hooks/useLlmStatus'
+import { LlmRequiredPlaceholder } from '@/components/onboarding'
 
 export default function PersonaWorkspacePage() {
   const { personaId } = useParams<{ personaId: string }>()
   const navigate = useNavigate()
+  const { status: llmStatus, loading: llmLoading } = useLlmStatus()
 
   const personas = usePersonasStore((s) => s.personas)
   const loading = usePersonasStore((s) => s.loading)
@@ -71,6 +74,12 @@ export default function PersonaWorkspacePage() {
         正在加载 persona……
       </div>
     )
+  }
+
+  // 未配置 LLM → 阻断工作台主界面，引导到 /private-llm
+  // 关联：docs/plans/2026-05-22-desktop-bootstrap.md §4.3
+  if (!llmLoading && llmStatus && !llmStatus.configured) {
+    return <LlmRequiredPlaceholder feature={persona ? `${persona.name} 工作台` : '智能体工作台'} />
   }
 
   return (
