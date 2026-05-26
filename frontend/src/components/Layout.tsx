@@ -32,6 +32,7 @@ import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
 import { DesktopTitleBarControls, handleDesktopTitleBarDoubleClick } from '@/components/desktop/TitleBar'
 import { startDraggingCurrentWindow } from '@/lib/tauri-bridge'
+import { OnboardingWizard, LlmNotConfiguredBanner } from '@/components/onboarding'
 
 // Heroicons 组件类型
 type HeroIcon = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -503,10 +504,17 @@ export default function Layout() {
         {!currentPath.startsWith('/chat') && !currentPath.startsWith('/messages') && !currentPath.startsWith('/tasks') && !currentPath.startsWith('/settings') && (
           <ModuleSidebar currentPath={currentPath} onNavigate={handleNavClick} />
         )}
-        <main className="min-w-0 flex-1 overflow-hidden bg-surface-2">
-          <Outlet />
+        <main className="min-w-0 flex-1 overflow-hidden bg-surface-2 flex flex-col">
+          {/* 全局：未配置 LLM 提示（首启 OnboardingWizard 之外的常驻提示，关闭后 24h 不再显示） */}
+          <LlmNotConfiguredBanner />
+          <div className="flex-1 overflow-hidden">
+            <Outlet />
+          </div>
         </main>
       </div>
+
+      {/* ===== 首次启动引导（仅首次启动 / 设置中"重新查看"触发） ===== */}
+      <OnboardingWizard />
 
       {/* ===== 移动端底部 Tab 栏 ===== */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-surface-1/95 backdrop-blur-xl" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
