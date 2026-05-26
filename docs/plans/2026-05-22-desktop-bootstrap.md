@@ -250,16 +250,18 @@ OnboardingWizard 必须严格遵守 DESIGN §10：
 
 ## 7. 实施清单（本周 M3 前置）
 
-| 任务 | 文件 | 优先 |
-|---|---|---|
-| 1. 修 `tauri.conf.json` updater endpoint 域名 | `desktop/tauri.conf.json` | P0 |
-| 2. 新增 `frontend/src/lib/llm-status.ts` | 新文件 | P0 |
-| 3. 新增 `frontend/src/components/onboarding/OnboardingWizard.tsx` | 新文件 | P0 |
-| 4. 新增 `frontend/src/components/onboarding/LlmNotConfiguredBanner.tsx` | 新文件 | P0 |
-| 5. App.tsx 挂载 OnboardingWizard（在 Layout 内） | `frontend/src/App.tsx` | P0 |
-| 6. 删除孤儿 `frontend/src/components/WelcomeGuide.tsx`（被 OnboardingWizard 取代） | 删除 | P1 |
-| 7. Chat / Persona Workspace 检测 LLM 未配置时占位 | `frontend/src/pages/Chat.tsx` | P1 |
-| 8. Tauri sidecar 嵌入式后端 PoC | `desktop/scripts/` | P3（推到 M5 后） |
+| 任务 | 文件 | 优先 | 状态 |
+|---|---|---|---|
+| 1. 修 `tauri.conf.json` updater endpoint 域名 | `desktop/tauri.conf.json` | P0 | ✅ |
+| 2. 新增 `frontend/src/lib/llm-status.ts` | 新文件 | P0 | ✅ |
+| 3. 新增 `frontend/src/components/onboarding/OnboardingWizard.tsx` | 新文件 | P0 | ✅ |
+| 4. 新增 `frontend/src/components/onboarding/LlmNotConfiguredBanner.tsx` | 新文件 | P0 | ✅ |
+| 5. Layout.tsx 挂载 OnboardingWizard + Banner | `frontend/src/components/Layout.tsx` | P0 | ✅ |
+| 6. 删除孤儿 `frontend/src/components/WelcomeGuide.tsx`（被 OnboardingWizard 取代） | 删除 | P1 | ✅ |
+| 7. Chat / Persona Workspace 检测 LLM 未配置时占位 | `LlmRequiredPlaceholder` + `useLlmStatus` | P1 | ✅ |
+| 8. Settings → 关于段 + "重新查看新手引导" | `frontend/src/components/settings/AboutPanel.tsx` | P1 | ✅ |
+| 9. Tauri sidecar 嵌入式后端 PoC | `docs/plans/2026-05-22-desktop-sidecar-poc.md` | P3（推到 M5 后） | 📝 方案完成，未实施 |
+| 10. Linux AppImage / Windows NSIS / updater pubkey | `desktop/tauri.conf.json` + CI | P2 | ⏭ 待 M5 |
 
 ---
 
