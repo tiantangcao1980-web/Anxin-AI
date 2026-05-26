@@ -32,6 +32,8 @@ import { SyncStatus } from '@/components/mode-switcher/SyncStatus'
 import { MobileNavBar } from '@/components/mobile/MobileNavBar'
 import { DesktopTitleBarControls, handleDesktopTitleBarDoubleClick } from '@/components/desktop/TitleBar'
 import { startDraggingCurrentWindow } from '@/lib/tauri-bridge'
+import { DesktopStatusBar } from '@/components/desktop/StatusBar'
+import { CommandPalette } from '@/components/desktop/CommandPalette'
 import { OnboardingWizard, LlmNotConfiguredBanner } from '@/components/onboarding'
 
 // Heroicons 组件类型
@@ -315,6 +317,26 @@ export default function Layout() {
       module.paths.some(p => currentPath === p || currentPath.startsWith(p + '/'))
     )
 
+  // ⌘K 命令面板状态（DESIGN §10.7 / desktop-bootstrap.md）
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Cmd+K (macOS) / Ctrl+K (Windows/Linux) — 忽略已在输入框时（不打扰打字）
+      const isCmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'
+      if (!isCmdK) return
+      const target = e.target as HTMLElement | null
+      const isTyping =
+        target && ['INPUT', 'TEXTAREA'].includes(target.tagName) ||
+        target?.isContentEditable
+      // 但允许 ⌘K 始终触发（飞书风）；如要避免冲突可加 if (isTyping) return
+      void isTyping
+      e.preventDefault()
+      setCommandPaletteOpen((prev) => !prev)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-surface-2">
       {/* ===== 固定顶部导航栏 (Tauri 桌面端：mousedown 启动 startDragging) ===== */}
@@ -512,6 +534,12 @@ export default function Layout() {
           </div>
         </main>
       </div>
+
+      {/* ===== 桌面底部状态栏（飞书风 24px，移动端隐藏） ===== */}
+      <DesktopStatusBar onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
+
+      {/* ===== ⌘K 命令面板 ===== */}
+      <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
 
       {/* ===== 首次启动引导（仅首次启动 / 设置中"重新查看"触发） ===== */}
       <OnboardingWizard />

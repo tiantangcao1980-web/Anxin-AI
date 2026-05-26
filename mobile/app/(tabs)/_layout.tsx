@@ -4,25 +4,25 @@ import { Platform } from 'react-native'
 import { Tabs } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
-  Bot,
+  LayoutGrid,
   ListChecks,
-  Sparkles,
+  MessageSquare,
   User,
 } from 'lucide-react-native'
 import { useV3Theme } from '@/theme'
 
 /**
- * V3 移动端底部 4 Tab 导航。
+ * 移动端底部 4 Tab 导航（飞书 / 企微对标 — 2026-05-22）。
  *
- * 对齐 V3 PRD：
- *   1. 智能体  -> personas.tsx        10 个 persona 入口（待 P17-B）
- *   2. 任务    -> tasks.tsx           agent 任务中心（待 P17-C）
- *   3. 能力    -> capabilities.tsx    5 个能力中心（待 P17-D）
- *   4. 我      -> me.tsx              账号 / 订阅 / 推送 / 登出
+ * 对齐 DESIGN §10.3 / 产品蓝图 §3.2：
+ *   1. 消息    -> messages.tsx     人 / agent / 群 / 系统通知（含远控授权 inline）
+ *   2. 任务    -> tasks.tsx        Agent 任务中心 + 状态筛选
+ *   3. 工作台  -> workbench.tsx    10 personas 按业务域分组（原 personas.tsx 重命名）
+ *   4. 我      -> me.tsx           账号 / 订阅 / 桌面配对 / 设置
  *
- * 2026-05 清理：V2 老 Tab（index / chat / collaboration / profile / tasks-legacy）
- * 已物理删除。仍保留的 V2 残留页（investigation / knowledge）作为 smoke 守护对象
- * 暂时通过 `href: null` 隐藏，等 P17-B/C/D 验收后再决定迁移或删除。
+ * 原 V2 tab（chat / collaboration / investigation / knowledge / profile / index）
+ * 仍保留在文件系统中（href: null 隐藏），通过 router.push 直链访问。
+ * capabilities tab 已并入"我"高级段（待 me.tsx 接入）。
  */
 export default function TabLayout() {
   const t = useV3Theme()
@@ -55,12 +55,12 @@ export default function TabLayout() {
         headerShadowVisible: false,
       }}
     >
-      {/* ===== V3 4 个 tab ===== */}
+      {/* ===== 飞书风 4 tab ===== */}
       <Tabs.Screen
-        name="personas"
+        name="messages"
         options={{
-          title: '智能体',
-          tabBarIcon: ({ color, size }) => <Bot color={color} size={size} />,
+          title: '消息',
+          tabBarIcon: ({ color, size }) => <MessageSquare color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -71,10 +71,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="capabilities"
+        name="workbench"
         options={{
-          title: '能力',
-          tabBarIcon: ({ color, size }) => <Sparkles color={color} size={size} />,
+          title: '工作台',
+          tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -85,9 +85,14 @@ export default function TabLayout() {
         }}
       />
 
-      {/* ===== V2 残留 Tab：仍在文件系统中、被 smoke 脚本引用，暂从底部栏隐藏 ===== */}
+      {/* ===== V2 老页面 / 已合并 tab：保留文件但从底部 tab 隐藏 ===== */}
+      <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="chat" options={{ href: null }} />
+      <Tabs.Screen name="collaboration" options={{ href: null }} />
       <Tabs.Screen name="investigation" options={{ href: null }} />
       <Tabs.Screen name="knowledge" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="capabilities" options={{ href: null }} />
     </Tabs>
   )
 }

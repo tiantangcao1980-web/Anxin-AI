@@ -39,7 +39,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["app", "dmg", "msi", "nsis", "deb", "appimage"],
     "icon": [
       "icons/icon.png"
     ],
@@ -63,7 +63,7 @@
       "endpoints": [
         "https://api.anxinai.com/api/v1/updates/{{target}}/{{arch}}/{{current_version}}"
       ],
-      "pubkey": ""
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZGRkM2RkRENDFFMjE0NkQKUldSdEZPSkIzVy84LzFrV3lIQWxNRkRXdXJINldRMTBoRmc2N2NXTnkrclZiQyt6cWFGQXMxMCsK"
     }
   }
 }
