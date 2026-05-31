@@ -158,7 +158,8 @@ export function OnboardingWizard({ forceOpen = false, onClose }: OnboardingWizar
     setSelectedMode(modeId)
     // 同步到全局 store；桌面端 ModeGate / Tauri runtime_config 会在用户进入相应路由时
     // 通过 set_app_mode IPC 命令持久化到本地 runtime-config.json。
-    setMode(modeId)
+    // PrivacyMode.id 的 'local' 对应 AppMode 的 'top-secret'（本地/涉密模式）。
+    setMode(modeId === 'local' ? 'top-secret' : modeId)
   }
 
   const handleFinish = (href?: string) => {

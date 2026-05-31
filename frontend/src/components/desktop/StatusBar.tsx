@@ -77,14 +77,14 @@ export function DesktopStatusBar({ onOpenCommandPalette }: StatusBarProps = {}) 
       {/* 同步状态 */}
       <button
         type="button"
-        onClick={() => syncStatus === 'conflict' && navigate('/sync-conflicts')}
+        onClick={() => syncStatus === 'error' && navigate('/sync-conflicts')}
         className={`px-1.5 hover:bg-surface-2 rounded transition-colors ${syncInfo.color} ${
-          syncStatus === 'conflict' ? 'cursor-pointer' : 'cursor-default'
+          syncStatus === 'error' ? 'cursor-pointer' : 'cursor-default'
         }`}
-        disabled={syncStatus !== 'conflict'}
+        disabled={syncStatus !== 'error'}
       >
         {syncInfo.text}
-        {lastSyncLabel && syncStatus === 'synced' ? ` ${lastSyncLabel}` : ''}
+        {lastSyncLabel && syncStatus === 'idle' ? ` ${lastSyncLabel}` : ''}
       </button>
 
       {/* 中间填充 */}

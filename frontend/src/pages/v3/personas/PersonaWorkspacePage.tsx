@@ -79,7 +79,7 @@ export default function PersonaWorkspacePage() {
   // 未配置 LLM → 阻断工作台主界面，引导到 /private-llm
   // 关联：docs/plans/2026-05-22-desktop-bootstrap.md §4.3
   if (!llmLoading && llmStatus && !llmStatus.configured) {
-    return <LlmRequiredPlaceholder feature={persona ? `${persona.name} 工作台` : '智能体工作台'} />
+    return <LlmRequiredPlaceholder feature={persona ? `${persona.display_name} 工作台` : '智能体工作台'} />
   }
 
   return (
