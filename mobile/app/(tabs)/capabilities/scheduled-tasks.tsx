@@ -14,15 +14,11 @@ import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import { ScheduledTaskRow } from '@/components/v3/capabilities-mobile/ScheduledTaskRow'
-// TODO(P17-E backend): 定时任务无对应后端端点 —— backend tasks.py 是项目
-// Kanban 任务、agent_tasks.py 是一次性异步 agent 运行，均不匹配本页的
-// ScheduledTask 契约（contract_expiry_alert / cron / cron_human 等周期任务）。
-// 待后端新增 /scheduled-tasks（或等价 cron 调度端点）后切真实 API；当前保留 mock。
 import {
   scheduledTasksApi,
   type ScheduledTask,
   type ScheduleKind,
-} from '@/lib/api/__mocks__/capabilities.mock'
+} from '@/lib/api/scheduledTasks'
 
 /**
  * 定时任务列表页 — 4 类预设 filter (P17-D)
@@ -54,12 +50,16 @@ export default function ScheduledTasksScreen() {
   const [tasks, setTasks] = useState<ScheduledTask[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterKey>('all')
 
   const load = useCallback(async () => {
     try {
       const data = await scheduledTasksApi.list()
       setTasks(data)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '加载定时任务失败')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -126,6 +126,21 @@ export default function ScheduledTasksScreen() {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
+      ) : error && tasks.length === 0 ? (
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={48} color={Colors.textMuted} />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => {
+              setLoading(true)
+              load()
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.retryText}>重试</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={filtered}
@@ -170,4 +185,13 @@ const styles = StyleSheet.create({
   chipTextActive: { color: Colors.white, fontWeight: '600' },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText: { color: Colors.textSecondary, fontSize: Layout.fontSize.sm },
+  errorText: { color: Colors.textSecondary, fontSize: Layout.fontSize.sm, marginTop: 12, textAlign: 'center', paddingHorizontal: 24 },
+  retryBtn: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+  },
+  retryText: { color: Colors.white, fontWeight: '600', fontSize: Layout.fontSize.sm },
 })

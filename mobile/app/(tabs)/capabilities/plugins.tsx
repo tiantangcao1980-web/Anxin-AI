@@ -8,20 +8,17 @@ import {
   RefreshControl,
   ActivityIndicator,
   Switch,
+  TouchableOpacity,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
-// TODO(P17-E backend): 插件无对应后端端点 —— backend 仅 mcp_routes.py 提供
-// /mcp/servers（MCP server 管理），不覆盖本页 Plugin 契约（official / private / mcp
-// 三类来源 + pending_review 审核态）。待后端新增 /plugins（或扩展 /mcp）后切真实 API；
-// 当前保留 mock。
 import {
   pluginsApi,
   type Plugin,
   type PluginSource,
-} from '@/lib/api/__mocks__/capabilities.mock'
+} from '@/lib/api/plugins'
 
 /**
  * 插件列表页 — 官方 / MCP / 私有 三类 (P17-D)
@@ -48,11 +45,15 @@ export default function PluginsScreen() {
   const [plugins, setPlugins] = useState<Plugin[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
       const data = await pluginsApi.list()
       setPlugins(data)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '加载插件失败')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -89,6 +90,21 @@ export default function PluginsScreen() {
       {loading && plugins.length === 0 ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      ) : error && plugins.length === 0 ? (
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={48} color={Colors.textMuted} />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={() => {
+              setLoading(true)
+              load()
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.retryText}>重试</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -174,4 +190,13 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 10, fontWeight: '600' },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText: { color: Colors.textSecondary },
+  errorText: { color: Colors.textSecondary, fontSize: Layout.fontSize.sm, marginTop: 12, textAlign: 'center', paddingHorizontal: 24 },
+  retryBtn: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+  },
+  retryText: { color: Colors.white, fontWeight: '600', fontSize: Layout.fontSize.sm },
 })

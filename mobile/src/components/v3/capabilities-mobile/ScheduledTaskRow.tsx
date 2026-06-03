@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Switch } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
-import type { ScheduledTask } from '@/lib/api/__mocks__/capabilities.mock'
+import type { ScheduledTask } from '@/lib/api/scheduledTasks'
 
 /**
  * ScheduledTaskRow — 定时任务行
