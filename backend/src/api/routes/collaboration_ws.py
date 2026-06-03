@@ -67,16 +67,15 @@ async def document_collaboration_websocket(
 
     # ===== [S-06 + S-07] WebSocket 认证：首条消息认证替代 URL 参数 =====
     # 原因：Token 在 URL 参数中会被记录到服务器访问日志、浏览器历史、代理日志
-    #       且原代码 TODO 未实现 Token 验证，任何人可匿名接入
-    # 修复方式：
-    #   1. URL 中的 token 参数仍保留（向后兼容），但优先使用首条 auth 消息
+    # 实现方式：
+    #   1. URL 中的 token 参数仍保留（向后兼容），先尝试验证
     #   2. 首条消息如果是 type="auth"，则验证 Token 并获取用户信息
     #   3. 如果 Token 无效，关闭连接
     user_id = "anonymous"
     user_name = "匿名用户"
     authenticated = False
 
-    # 向后兼容：如果 URL 中有 token，先尝试验证
+    # 向后兼容：URL 中有 token 时验证
     if token:
         try:
             verified_user_id = await verify_token_with_blacklist(token)

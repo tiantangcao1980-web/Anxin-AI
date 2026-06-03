@@ -172,6 +172,41 @@ async def _reset_rate_limiter():
     limiter._memory_windows.clear()
 
 
+# ============ 重置 webhook 安全 Redis 客户端（防止跨事件循环复用） ============
+#
+# webhook_security 模块持有一个模块级 lazy 单例 `_redis_client`。pytest-asyncio
+# `asyncio_mode = "auto"` 下每个测试函数都拿到一个**新的、独立的事件循环**，
+# 而 redis.asyncio 客户端在创建时绑定了当时的循环。第一个 webhook 测试创建并
+# 缓存了客户端后，后续测试在新循环里复用它时会触发
+# `RuntimeError: Event loop is closed`，被 verify() 的 except 捕获后 fail-closed
+# 返回 403 —— 这是 harness 跨循环复用单例导致的假阴性，而非生产 bug。
+#
+# 这里每个测试前后把该单例复位为 None（并尽量优雅关闭旧客户端），让 verify()
+# 在当前测试的活动循环里重新 lazy 创建一个绑定正确循环的客户端。
+# 注意：只复位测试 seam，不改动 verify() 的 fail-closed 生产语义。
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_webhook_redis_client():
+    """每个测试前后复位 webhook_security 的 Redis 单例，避免跨事件循环复用。"""
+    from src.services import webhook_security
+
+    async def _close_existing() -> None:
+        client = webhook_security._redis_client
+        webhook_security._set_redis_client_for_test(None)
+        # 旧的 lock 也绑定了上一个循环，一并丢弃，让 _get_redis 重新创建。
+        webhook_security._redis_lock = None
+        if client is not None:
+            try:
+                await client.aclose()
+            except Exception:
+                pass
+
+    await _close_existing()
+    yield
+    await _close_existing()
+
+
 # ============ 数据库Fixtures ============
 
 
