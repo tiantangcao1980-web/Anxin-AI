@@ -166,89 +166,6 @@ export function subscribeTaskEvents(
   }
 }
 
-/**
- * 移动端临时事件订阅：固定间隔轮询任务状态。
- * P17-B 接入任务详情时可替换为 RN-EventSource polyfill 或 WebSocket。
- */
-export function pollTaskUntilDone(
-  id: string,
-  onUpdate: (task: AgentTask) => void,
-  options: { intervalMs?: number; signal?: AbortSignal } = {},
-): () => void {
-  const interval = options.intervalMs ?? 3000
-  let stopped = false
-  let timer: ReturnType<typeof setTimeout> | null = null
-
-  const tick = async () => {
-    if (stopped) return
-    try {
-      const task = await getTask(id)
-      onUpdate(task)
-      if (['done', 'failed', 'cancelled'].includes(task.status)) {
-        stopped = true
-        return
-      }
-    } catch {
-      // 静默重试
-    }
-    if (!stopped) {
-      timer = setTimeout(tick, interval)
-    }
-  }
-
-  tick()
-
-  return () => {
-    stopped = true
-    if (timer) clearTimeout(timer)
-  }
-}
-
-/**
- * 事件订阅：基于 `pollTaskUntilDone` 合成 TaskEvent 流。
- *
- * 设计取舍：后端 `/agent-tasks/{id}/events` 是 SSE，RN 无原生 EventSource。
- * P17-B 阶段会接入 RN-EventSource polyfill 直读 SSE；当前先通过轮询任务状态
- * 合成 `status_changed` / `done` / `error` 三种事件，保证详情页订阅 API 可用、
- * Store 的 `appendEvent` 去重逻辑（timestamp + event_type）正常工作。
- */
-export function subscribeTaskEvents(
-  id: string,
-  onEvent: (ev: TaskEvent) => void,
-  options: { intervalMs?: number } = {},
-): () => void {
-  let prevStatus: AgentTaskStatus | null = null
-  return pollTaskUntilDone(
-    id,
-    (task) => {
-      if (task.status === prevStatus) return
-      prevStatus = task.status
-      onEvent({
-        task_id: task.id,
-        event_type: 'status_changed',
-        payload: { status: task.status },
-        timestamp: task.updated_at,
-      })
-      if (task.status === 'done') {
-        onEvent({
-          task_id: task.id,
-          event_type: 'done',
-          payload: task.result ?? {},
-          timestamp: task.finished_at ?? task.updated_at,
-        })
-      } else if (task.status === 'failed') {
-        onEvent({
-          task_id: task.id,
-          event_type: 'error',
-          payload: task.error ?? {},
-          timestamp: task.finished_at ?? task.updated_at,
-        })
-      }
-    },
-    options,
-  )
-}
-
 export const agentTasksApi = {
   listTasks,
   createTask,
@@ -257,6 +174,5 @@ export const agentTasksApi = {
   approveTask,
   rejectTask,
   getTaskResult,
-  pollTaskUntilDone,
   subscribeTaskEvents,
 }

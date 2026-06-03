@@ -9,7 +9,7 @@
  *   - agentTasksApi.listTasks({ limit: 50 }) 拉列表
  *   - 按 status 分组：进行中 / 待审批 / 已完成 / 失败
  *   - 进入详情用 router.push(`/(tabs)/tasks/${id}`)
- *   - 用 pollTaskUntilDone 实时刷新进行中任务
+ *   - 用 agentTasksApi.subscribeTaskEvents 实时刷新进行中任务
  */
 
 import React from 'react'
