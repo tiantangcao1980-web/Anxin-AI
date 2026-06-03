@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
-import type { IMChannel, IMChannelType } from '@/lib/api/__mocks__/capabilities.mock'
+import type { IMChannel, IMChannelType } from '@/lib/api/imChannels'
 
 /**
  * IMChannelCard — IM 渠道卡 (5 平台)

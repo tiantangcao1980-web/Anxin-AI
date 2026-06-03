@@ -6,13 +6,15 @@ import { router, Stack } from 'expo-router'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
 import { CapabilityCategoryCard } from '@/components/v3/capabilities-mobile/CapabilityCategoryCard'
+// 真实后端：技能 / 应用授权 / IM 渠道 / 配对审批
+import { skillsApi } from '@/lib/api/skills'
+import { appAuthApi } from '@/lib/api/appAuthorizations'
+import { imChannelsApi } from '@/lib/api/imChannels'
+import { pairingApi } from '@/lib/api/imPairing'
+// 保留 mock（后端缺端点，详见各子页 TODO）：定时任务 / 插件
 import {
   scheduledTasksApi,
-  appAuthApi,
-  skillsApi,
   pluginsApi,
-  imChannelsApi,
-  pairingApi,
 } from '@/lib/api/__mocks__/capabilities.mock'
 
 /**

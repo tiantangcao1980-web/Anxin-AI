@@ -95,6 +95,7 @@ export async function testConnection(id: string): Promise<TestConnectionResult> 
 }
 
 export const imChannelsApi = {
+  list: listChannels,
   listChannels,
   setupChannel,
   bindAgent,

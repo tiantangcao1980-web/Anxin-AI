@@ -20,17 +20,34 @@ import { Colors } from '../../src/constants/colors'
 import { Layout } from '../../src/constants/layout'
 import { PersonaCard } from '../../src/components/v3/personas-mobile/PersonaCard'
 import { PERSONAS, type PersonaMeta } from '../../src/lib/personas/registry'
-import { mockListPersonas } from '../../src/lib/api/__mocks__/personas.mock'
+import { personasApi } from '../../src/lib/api/personas'
 
 export default function PersonasIndexScreen() {
   const [personas, setPersonas] = useState<PersonaMeta[]>(PERSONAS)
   const [refreshing, setRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // 显示用本地 registry（含 tagline / domain / capabilities 等富字段），
+  // 同时拉取真实 `GET /personas`（personas.py:71 list_personas）做可达性校验
+  // 并用后端的 enabled/is_implemented 覆盖本地标记；列表接口字段更薄，
+  // 故仅做「覆盖」而非「替换」，确保卡片展示不退化。
   const load = useCallback(async () => {
     try {
-      const list = await mockListPersonas()
-      setPersonas(list)
+      const remote = await personasApi.list()
+      const byId = new Map(remote.map((p) => [p.persona_id, p]))
+      setPersonas(
+        PERSONAS.map((meta) => {
+          const r = byId.get(meta.persona_id)
+          if (!r) return meta
+          return {
+            ...meta,
+            is_implemented: r.is_implemented ?? r.enabled ?? meta.is_implemented,
+          }
+        }),
+      )
+    } catch {
+      // 离线 / 未登录：回退到本地 registry，保持页面可用。
+      setPersonas(PERSONAS)
     } finally {
       setLoading(false)
       setRefreshing(false)

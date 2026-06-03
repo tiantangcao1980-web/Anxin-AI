@@ -1,7 +1,11 @@
 /**
  * Personas API mock 适配（移动端 P17-C）
  *
- * 在 P17-A foundation 真接入前可以走这层让前端跑起来：
+ * @deprecated 已不再被任何屏幕引用。persona chat / capability 触发已切真实后端
+ * `POST /api/v1/personas/{id}/chat`（personas.py:101），列表走 `GET /personas`
+ * （personas.py:71）。此文件仅留作离线参考，可在后续清理中删除。
+ *
+ * 历史用途：
  * - listPersonas: 返回 registry 内 10 个 persona
  * - chatWithPersona: 接收 message,假 stream（每 200ms 吐 1 个字 token）
  * - runCapability: 返回结构化 mock 数据

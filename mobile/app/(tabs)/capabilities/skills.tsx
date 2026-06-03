@@ -19,7 +19,7 @@ import {
   skillsApi,
   type Skill,
   type SkillCategory,
-} from '@/lib/api/__mocks__/capabilities.mock'
+} from '@/lib/api/skills'
 
 /**
  * 技能列表页 — 按域分组的开关列表 (P17-D)

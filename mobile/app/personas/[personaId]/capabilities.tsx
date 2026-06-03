@@ -21,7 +21,7 @@ import { Layout } from '../../../src/constants/layout'
 import { CapabilityCard } from '../../../src/components/v3/personas-mobile/CapabilityCard'
 import { MarkdownRenderer } from '../../../src/components/v3/personas-mobile/MarkdownRenderer'
 import { getPersonaMeta, type PersonaCapability } from '../../../src/lib/personas/registry'
-import { mockRunCapability } from '../../../src/lib/api/__mocks__/personas.mock'
+import { chatWithPersona } from '../../../src/lib/api/personas'
 
 export default function PersonaCapabilitiesScreen() {
   const params = useLocalSearchParams<{ personaId: string }>()
@@ -38,7 +38,12 @@ export default function PersonaCapabilitiesScreen() {
       setResultLabel(cap.label)
       setResultContent(null)
       try {
-        const result = await mockRunCapability(personaId, cap.id)
+        // 真实接入：把该能力的 sample prompt 发往 `POST /personas/{id}/chat`
+        // （personas.py:101）。后端暂无「按 capability_id 直接路由」的通用 endpoint，
+        // 故复用通用对话；各 persona 专属结构化 endpoint 的逐能力映射留待 P17-E。
+        const result = await chatWithPersona(personaId, {
+          message: `[${cap.label}] ${cap.prompt}`,
+        })
         setResultContent(result.content)
       } catch (e) {
         setResultContent(`❌ 调用失败: ${e instanceof Error ? e.message : String(e)}`)

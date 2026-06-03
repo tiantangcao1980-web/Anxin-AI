@@ -37,7 +37,15 @@ export interface PersonaMeta {
   /** 详细描述（用于详情页） */
   description: string
   domain: PersonaDomain
-  /** 是否已有后端实装（决定 chat 是否走真实 endpoint） */
+  /**
+   * 是否已有后端实装（决定 chat 是否走真实 endpoint）。
+   *
+   * 10 个 persona 均已在 backend 注册并可经
+   * `POST /api/v1/personas/{persona_id}/chat` 走真实 LLM/agent
+   * （依据：backend/src/api/routes/personas.py:101 chat_with_persona
+   *  + backend/src/agents/personas/registry.py autoload 全部 10 个 persona 实现），
+   * 故全部置 true。
+   */
   is_implemented: boolean
   capabilities: PersonaCapability[]
   /** 工作台首屏的快速提问示例 */
@@ -57,7 +65,7 @@ export const PERSONAS: PersonaMeta[] = [
     description:
       '你的智能办公总管。自然语言路由 + 任务拆解 + 多智能体协作，让你只用一句话就能调动 9 个专家协同工作。',
     domain: '综合协调',
-    is_implemented: false,
+    is_implemented: true,
     capabilities: [
       { id: 'intent_route', label: '意图识别 / 路由', prompt: '我下周一要给客户做提案,你帮我安排一下' },
       { id: 'task_breakdown', label: '任务拆解', prompt: '帮我准备下周三去深圳见新供应商的全套材料' },
@@ -80,7 +88,7 @@ export const PERSONAS: PersonaMeta[] = [
     description:
       '你的随身法律大脑。对接北大法宝 / 威科 / 国务院政策库，结合公司业务上下文给出可执行建议（非泛泛而谈），带源链接 + 量化风险。',
     domain: '合规经营',
-    is_implemented: false,
+    is_implemented: true,
     capabilities: [
       { id: 'reg_search', label: '法规检索', prompt: '《劳动合同法》关于竞业限制的条款' },
       { id: 'consult', label: '法律咨询', prompt: '员工拒绝签竞业协议,我能强制要求吗?' },
@@ -111,7 +119,7 @@ export const PERSONAS: PersonaMeta[] = [
     description:
       '从起草、审查、谈判、签署到归档，每一份合同我帮你盯。200+ 模板库 + 智能填空 + 轨道修订 + 到期提醒。',
     domain: '合规经营',
-    is_implemented: false,
+    is_implemented: true,
     capabilities: [
       { id: 'draft', label: '合同起草', prompt: '帮我起草一份 OEM 合同,客户在深圳,标的 200 万' },
       { id: 'review', label: '合同审查', prompt: '客户发来的采购框架协议,看看哪里要改（附 PDF）' },
@@ -142,7 +150,7 @@ export const PERSONAS: PersonaMeta[] = [
     description:
       '见客户 / 投资 / 收购前，先让我看看对方家底。工商 + 法律 + 财务 + 舆情 四路并行，6 分钟出综合简报。',
     domain: '合规经营',
-    is_implemented: false,
+    is_implemented: true,
     capabilities: [
       { id: 'company', label: '工商尽调', prompt: '查 XX 制造有限公司的股权和实控人' },
       { id: 'legal_dd', label: '法律尽调', prompt: '查这家公司的诉讼和失信记录' },
@@ -173,7 +181,7 @@ export const PERSONAS: PersonaMeta[] = [
     description:
       '节税合规 + 财务健康，老板和会计的最佳搭档。增值税 / 企业所得税 / 个税合规检查 + 经济补偿金 / 加班费 / 工伤赔偿等专项计算。',
     domain: '合规经营',
-    is_implemented: false,
+    is_implemented: true,
     capabilities: [
       { id: 'tax_check', label: '税务合规检查', prompt: '帮我看看上季度的增值税申报有没有问题' },
       { id: 'tax_plan', label: '节税筹划', prompt: '年底要发 500 万奖金,怎么发最省税?' },

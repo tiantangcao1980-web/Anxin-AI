@@ -18,7 +18,7 @@ import {
   appAuthApi,
   type AppProvider,
   type AppAuthorization,
-} from '@/lib/api/__mocks__/capabilities.mock'
+} from '@/lib/api/appAuthorizations'
 import { openAuthSession } from '@/components/v3/capabilities-mobile/oauth-flow'
 
 /**
@@ -65,14 +65,11 @@ export default function AppAuthorizationsScreen() {
     setConnecting(provider.provider_id)
     try {
       const startResp = await appAuthApi.startConnect(provider.provider_id)
-      // 跳转 OAuth 页 (mock 立即返回)
+      // 跳转系统浏览器走 OAuth；回调由后端处理（无独立 completeConnect 端点）。
       await openAuthSession(startResp.authorize_url)
-      // mock 1.5s 后回到列表
-      const fresh = await appAuthApi.completeConnect(provider.provider_id)
-      setAuths((prev) => {
-        const exist = prev.find((a) => a.id === fresh.id)
-        return exist ? prev.map((a) => (a.id === fresh.id ? fresh : a)) : [...prev, fresh]
-      })
+      // 浏览器会话结束后重新拉取授权列表，以反映服务端落表结果。
+      const fresh = await appAuthApi.listAuthorizations()
+      setAuths(fresh)
     } catch (e) {
       Alert.alert('授权失败', e instanceof Error ? e.message : '未知错误')
     } finally {

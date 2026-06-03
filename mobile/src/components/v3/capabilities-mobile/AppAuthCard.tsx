@@ -6,7 +6,7 @@ import { Layout } from '@/constants/layout'
 import type {
   AppAuthorization,
   AppProvider,
-} from '@/lib/api/__mocks__/capabilities.mock'
+} from '@/lib/api/appAuthorizations'
 
 /**
  * AppAuthCard — 单个 OAuth 应用卡

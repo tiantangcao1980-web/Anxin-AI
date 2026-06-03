@@ -17,7 +17,7 @@ import { PairingRequestCard } from '@/components/v3/capabilities-mobile/PairingR
 import {
   pairingApi,
   type PairingRequest,
-} from '@/lib/api/__mocks__/capabilities.mock'
+} from '@/lib/api/imPairing'
 
 /**
  * 配对审批列表页 — 24h 倒计时 + swipe-to-action (P17-D)

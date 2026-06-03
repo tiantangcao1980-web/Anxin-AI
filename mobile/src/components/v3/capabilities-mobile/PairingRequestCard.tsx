@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
-import type { PairingRequest } from '@/lib/api/__mocks__/capabilities.mock'
+import type { PairingRequest } from '@/lib/api/imPairing'
 
 /**
  * PairingRequestCard — 配对请求卡 (含 swipe-to-action + 24h 倒计时)

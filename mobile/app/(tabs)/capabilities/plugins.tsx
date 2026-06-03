@@ -13,6 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
+// TODO(P17-E backend): 插件无对应后端端点 —— backend 仅 mcp_routes.py 提供
+// /mcp/servers（MCP server 管理），不覆盖本页 Plugin 契约（official / private / mcp
+// 三类来源 + pending_review 审核态）。待后端新增 /plugins（或扩展 /mcp）后切真实 API；
+// 当前保留 mock。
 import {
   pluginsApi,
   type Plugin,

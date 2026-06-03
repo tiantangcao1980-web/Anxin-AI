@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Switch } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '@/constants/colors'
 import { Layout } from '@/constants/layout'
-import type { Skill } from '@/lib/api/__mocks__/capabilities.mock'
+import type { Skill } from '@/lib/api/skills'
 
 /**
  * SkillToggleRow — 技能开关行 (按域分组的列表项)

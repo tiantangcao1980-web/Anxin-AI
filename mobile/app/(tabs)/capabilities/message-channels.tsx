@@ -17,7 +17,7 @@ import { IMChannelCard } from '@/components/v3/capabilities-mobile/IMChannelCard
 import {
   imChannelsApi,
   type IMChannel,
-} from '@/lib/api/__mocks__/capabilities.mock'
+} from '@/lib/api/imChannels'
 
 /**
  * 消息渠道列表页 — 5 IM 平台 (P17-D)
