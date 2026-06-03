@@ -1,11 +1,16 @@
+import os
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-# Demo 版跳过：需要 PG 数据库
-pytestmark = pytest.mark.skip(reason="Infra-gated: needs PostgreSQL for demo")
+# 基础设施门控：默认跳过以保持无依赖绿；CI/本地提供 PG 后设 ANXIN_RUN_INFRA_TESTS=1
+# 即可运行（这些测试本身用 dependency_overrides + mock，仅 app lifespan 需可达 DB）。
+pytestmark = pytest.mark.skipif(
+    not os.getenv("ANXIN_RUN_INFRA_TESTS"),
+    reason="Infra-gated: 设 ANXIN_RUN_INFRA_TESTS=1 且提供 PostgreSQL 后运行",
+)
 
 from src.core.database import get_db
 from src.services.im_hub import im_manager

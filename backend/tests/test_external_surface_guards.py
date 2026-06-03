@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import os
 import time
 from datetime import UTC, date, datetime, timedelta
 from unittest.mock import AsyncMock, patch
@@ -12,9 +13,11 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
-# Demo 版跳过：需要 Redis + PG + 真实支付/电签凭据
-pytestmark = pytest.mark.skip(
-    reason="Infra-gated: needs Redis/PG + real payment/esign credentials for demo"
+# 基础设施门控：默认跳过以保持无依赖绿；CI/本地提供 PG+Redis 后设
+# ANXIN_RUN_INFRA_TESTS=1 即可运行，使支付/电签 webhook 缺陷在 CI 可见。
+pytestmark = pytest.mark.skipif(
+    not os.getenv("ANXIN_RUN_INFRA_TESTS"),
+    reason="Infra-gated: 设 ANXIN_RUN_INFRA_TESTS=1 且提供 Redis+PostgreSQL 后运行",
 )
 
 from src.core.config import settings

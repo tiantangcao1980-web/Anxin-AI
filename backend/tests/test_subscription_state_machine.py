@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import os
 import time
 from datetime import date, timedelta
 from urllib.parse import urlencode
@@ -8,8 +9,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
-# Demo 版跳过：需要 Redis + 真实支付凭据
-pytestmark = pytest.mark.skip(reason="Infra-gated: needs Redis + real payment credentials for demo")
+# 基础设施门控：默认跳过以保持无依赖绿；CI/本地提供 PG+Redis 后设
+# ANXIN_RUN_INFRA_TESTS=1 即可运行，使支付/订阅回调缺陷在 CI 可见。
+pytestmark = pytest.mark.skipif(
+    not os.getenv("ANXIN_RUN_INFRA_TESTS"),
+    reason="Infra-gated: 设 ANXIN_RUN_INFRA_TESTS=1 且提供 Redis+PostgreSQL 后运行",
+)
 
 from src.core.config import settings
 from src.models.billing import BillingPlan, Subscription, SubscriptionEvent
