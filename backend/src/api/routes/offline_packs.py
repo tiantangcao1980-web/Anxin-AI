@@ -22,6 +22,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import UTC, datetime
@@ -31,7 +32,26 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from src.services.object_storage_service import (
+    ObjectStorageError,
+    ObjectStorageService,
+    get_object_storage,
+)
+
 router = APIRouter()
+
+# 离线包二进制资产在对象存储中的根前缀；每个包占用 `${ROOT}/{pack_id}/` 目录。
+# 运维可通过环境变量覆盖以匹配 bucket 内的实际布局。
+OFFLINE_PACKS_OBJECT_PREFIX = os.environ.get(
+    "OFFLINE_PACKS_OBJECT_PREFIX", "offline-packs"
+).strip("/")
+
+
+def _pack_object_prefix(pack_id: str) -> str:
+    """返回某离线包在对象存储中的目录前缀。"""
+    if OFFLINE_PACKS_OBJECT_PREFIX:
+        return f"{OFFLINE_PACKS_OBJECT_PREFIX}/{pack_id}"
+    return pack_id
 
 
 # ============================================================================
@@ -179,24 +199,62 @@ async def get_pack(pack_id: str = Path(..., min_length=1)) -> OfflinePack:
     raise HTTPException(status_code=404, detail=f"pack {pack_id} not found")
 
 
+async def _build_manifest(pack: OfflinePack, storage: ObjectStorageService) -> PackManifest:
+    """从对象存储列举该包目录下文件，逐个算 sha256，组装 PackManifest。
+
+    - 通过 storage 抽象的 `list` 列出 `${prefix}/{pack_id}/` 下全部对象
+    - 逐个 `get` 读取字节并计算 sha256（客户端用于断点续传/差量校验）
+    - `PackFile.path` 为相对包目录的路径，便于客户端落盘
+    """
+    prefix = _pack_object_prefix(pack.id)
+    listed = await storage.list(prefix)
+
+    files: list[PackFile] = []
+    total_size = 0
+    strip_prefix = f"{prefix}/"
+    for item in listed:
+        content = await storage.get(item.object_key)
+        digest = hashlib.sha256(content).hexdigest()
+        rel_path = (
+            item.object_key[len(strip_prefix):]
+            if item.object_key.startswith(strip_prefix)
+            else item.object_key
+        )
+        files.append(
+            PackFile(path=rel_path, size_bytes=len(content), sha256=digest)
+        )
+        total_size += len(content)
+
+    return PackManifest(
+        id=pack.id,
+        version=pack.version,
+        files=files,
+        # 实际汇总字节数；空目录时回退到目录元数据声明的大小。
+        total_size=total_size if files else pack.size_bytes,
+        generated_at=datetime.now(UTC).isoformat(),
+    )
+
+
 @router.get("/{pack_id}/manifest", summary="获取离线包文件清单（用于断点续传/校验）")
 async def get_manifest(pack_id: str = Path(..., min_length=1)) -> PackManifest:
-    """实际应从对象存储读取每个文件的 sha256。
+    """从对象存储读取该包目录下每个文件并生成 sha256 清单。
 
-    当前实现：返回空 files 列表的占位 manifest，方便客户端先跑通骨架。
+    复用 `ObjectStorageService` 抽象（local / MinIO），不直连存储后端。
     离线包机制见 `docs/architecture-v2.md` 的本地模式资源下载设计。
     """
     packs = _load_packs()
-    for p in packs:
-        if p.id == pack_id:
-            return PackManifest(
-                id=p.id,
-                version=p.version,
-                files=[],  # TODO: 从 S3/MinIO listing 生成
-                total_size=p.size_bytes,
-                generated_at=datetime.now(UTC).isoformat(),
-            )
-    raise HTTPException(status_code=404, detail=f"pack {pack_id} not found")
+    pack = next((p for p in packs if p.id == pack_id), None)
+    if pack is None:
+        raise HTTPException(status_code=404, detail=f"pack {pack_id} not found")
+
+    storage = get_object_storage()
+    try:
+        return await _build_manifest(pack, storage)
+    except ObjectStorageError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"object storage unavailable for pack {pack_id}: {exc}",
+        ) from exc
 
 
 @router.get("/{pack_id}/download", summary="请求离线包下载链接（302）")

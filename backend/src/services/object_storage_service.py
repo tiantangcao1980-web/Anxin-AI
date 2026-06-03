@@ -27,6 +27,14 @@ class StoredObject:
     content_type: str | None = None
 
 
+@dataclass(frozen=True)
+class ListedObject:
+    """对象列举结果：用于离线包 manifest 等需要遍历前缀的场景。"""
+
+    object_key: str
+    size: int
+
+
 def _normalize_object_key(object_key: str) -> str:
     key = object_key.replace("\\", "/").lstrip("/")
     path = PurePosixPath(key)
@@ -53,6 +61,10 @@ class ObjectStorageService:
         raise NotImplementedError
 
     async def exists(self, object_key: str) -> bool:
+        raise NotImplementedError
+
+    async def list(self, prefix: str) -> list[ListedObject]:
+        """递归列出某前缀下的全部对象（不含目录条目），按 object_key 升序。"""
         raise NotImplementedError
 
     async def presigned_get_url(self, object_key: str, expires_seconds: int = 3600) -> str:
@@ -110,6 +122,29 @@ class LocalObjectStorageService(ObjectStorageService):
 
     async def exists(self, object_key: str) -> bool:
         return self._resolve_path(object_key).is_file()
+
+    async def list(self, prefix: str) -> list[ListedObject]:
+        base = self._resolve_path(prefix)
+
+        def walk() -> list[ListedObject]:
+            if not base.is_dir():
+                # 兼容把 prefix 直接当作单个对象的情况
+                if base.is_file():
+                    return [ListedObject(object_key=_normalize_object_key(prefix), size=base.stat().st_size)]
+                return []
+            root = self.root.resolve()
+            objects: list[ListedObject] = []
+            for path in base.rglob("*"):
+                if not path.is_file():
+                    continue
+                rel = path.resolve().relative_to(root)
+                objects.append(
+                    ListedObject(object_key=rel.as_posix(), size=path.stat().st_size)
+                )
+            objects.sort(key=lambda obj: obj.object_key)
+            return objects
+
+        return await asyncio.to_thread(walk)
 
     async def presigned_get_url(self, object_key: str, expires_seconds: int = 3600) -> str:
         normalized = _normalize_object_key(object_key)
@@ -204,6 +239,25 @@ class MinioObjectStorageService(ObjectStorageService):
                 return False
 
         return await asyncio.to_thread(stat)
+
+    async def list(self, prefix: str) -> list[ListedObject]:
+        normalized = _normalize_object_key(prefix)
+        await self._ensure_bucket()
+
+        def enumerate_objects() -> list[ListedObject]:
+            objects: list[ListedObject] = []
+            for obj in self.client.list_objects(
+                self.bucket, prefix=normalized, recursive=True
+            ):
+                # 跳过以 "/" 结尾的目录占位对象
+                name = obj.object_name
+                if name is None or name.endswith("/"):
+                    continue
+                objects.append(ListedObject(object_key=name, size=obj.size or 0))
+            objects.sort(key=lambda item: item.object_key)
+            return objects
+
+        return await asyncio.to_thread(enumerate_objects)
 
     async def presigned_get_url(self, object_key: str, expires_seconds: int = 3600) -> str:
         normalized = _normalize_object_key(object_key)
