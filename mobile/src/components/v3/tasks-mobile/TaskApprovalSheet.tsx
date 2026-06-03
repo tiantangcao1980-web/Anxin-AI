@@ -90,8 +90,7 @@ export function TaskApprovalSheet({ visible, task, onClose, onApprove, onReject 
             onPress={handleApprove}
             style={({ pressed }) => [
               styles.btn,
-              styles.approveBtn,
-              { opacity: pressed || submitting ? 0.7 : 1 },
+              { backgroundColor: t.success, opacity: pressed || submitting ? 0.7 : 1 },
             ]}
           >
             {submitting ? (
@@ -146,8 +145,8 @@ export function TaskApprovalSheet({ visible, task, onClose, onApprove, onReject 
               onPress={handleReject}
               style={({ pressed }) => [
                 styles.btn,
-                styles.dangerBtn,
                 {
+                  backgroundColor: t.error,
                   opacity:
                     submitting || reason.trim().length === 0 ? 0.5 : pressed ? 0.7 : 1,
                 },
@@ -194,9 +193,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  approveBtn: {
-    backgroundColor: '#137333',
-  },
   approveText: {
     color: '#fff',
     fontSize: 15,
@@ -223,8 +219,5 @@ const styles = StyleSheet.create({
     minHeight: 90,
     fontSize: 14,
     textAlignVertical: 'top',
-  },
-  dangerBtn: {
-    backgroundColor: '#C0392B',
   },
 })

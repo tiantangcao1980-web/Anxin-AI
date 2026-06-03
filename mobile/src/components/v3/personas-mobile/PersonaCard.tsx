@@ -8,6 +8,7 @@ import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { Colors } from '../../../constants/colors'
 import { Layout } from '../../../constants/layout'
+import { palette } from '../../../theme/colors'
 import { DOMAIN_COLOR, type PersonaMeta } from '../../../lib/personas/registry'
 
 interface PersonaCardProps {
@@ -30,13 +31,13 @@ export function PersonaCard({ persona, onPress }: PersonaCardProps) {
         <View
           style={[
             styles.statusBadge,
-            { backgroundColor: persona.is_implemented ? '#DCFCE7' : '#FEF3C7' },
+            { backgroundColor: persona.is_implemented ? palette.successSoft : palette.warningSoft },
           ]}
         >
           <Text
             style={[
               styles.statusText,
-              { color: persona.is_implemented ? '#15803D' : '#B45309' },
+              { color: persona.is_implemented ? palette.success : palette.warning },
             ]}
           >
             {persona.is_implemented ? '已实装' : '规划中'}
