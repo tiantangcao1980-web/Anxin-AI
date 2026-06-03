@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { imChannelsApi, IMChannel } from '../_mock'
+import { imChannelsApi, IMChannel } from '../../../utils/api/imChannels'
 import './index.scss'
 
 const STATUS: Record<IMChannel['status'], { text: string; cls: string }> = {

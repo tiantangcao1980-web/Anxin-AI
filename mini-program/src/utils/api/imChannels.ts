@@ -97,11 +97,28 @@ export async function testConnection(id: string): Promise<TestConnectionResult> 
   return apiClient.get<TestConnectionResult>(`/im/channels/${id}/test`)
 }
 
+/** 渠道类型 → emoji 图标（能力中心卡片用，原置于 capabilities/_mock）。 */
+const IM_CHANNEL_ICONS: Record<IMChannelType, string> = {
+  feishu: '🪶',
+  wechat: '💬',
+  dingtalk: '🟦',
+  telegram: '✈️',
+  discord: '🎮',
+  slack: '💬',
+}
+
+export function iconOf(channelType: IMChannelType): string {
+  return IM_CHANNEL_ICONS[channelType] ?? '💬'
+}
+
 export const imChannelsApi = {
   listChannels,
+  // 页面以 `imChannelsApi.list()` 调用（与原 mock 同名），保持兼容。
+  list: listChannels,
   setupChannel,
   bindAgent,
   enableChannel,
   disableChannel,
   testConnection,
+  iconOf,
 }

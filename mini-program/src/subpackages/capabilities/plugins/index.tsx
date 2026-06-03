@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+// TODO(backend): 插件市场后端暂无端点（backend/src/api/routes/ 无 plugins 路由）。
+// 待后端补 /plugins（list/toggle）后照 skills 套路接真实，目前保留 mock。
 import { pluginsApi, Plugin } from '../_mock'
 import './index.scss'
 

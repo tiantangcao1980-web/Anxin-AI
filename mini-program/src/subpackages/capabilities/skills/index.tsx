@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import {
   skillsApi, Skill, SkillCategory,
   DOMAIN_LABELS, DOMAIN_ORDER,
-} from '../_mock'
+} from '../../../utils/api/skills'
 import './index.scss'
 
 export default function SkillsPage() {

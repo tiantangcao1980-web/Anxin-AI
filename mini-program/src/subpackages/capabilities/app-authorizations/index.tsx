@@ -4,7 +4,7 @@ import Taro from '@tarojs/taro'
 import {
   appAuthApi, AppProvider, AppAuthorization,
   APP_CATEGORY_LABELS, APP_CATEGORY_ORDER, AppCategory,
-} from '../_mock'
+} from '../../../utils/api/appAuthorizations'
 import './index.scss'
 
 const PROVIDER_EMOJI: Record<string, string> = {

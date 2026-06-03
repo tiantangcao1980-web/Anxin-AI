@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView, Switch, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+// TODO(backend): 定时任务后端暂无端点（backend/src/api/routes/ 仅有
+// agent_tasks.py / tasks.py 为 agent 执行，非定时任务调度）。待后端补
+// /scheduled-tasks（list/toggle）后照 skills 套路接真实，目前保留 mock。
 import { scheduledTasksApi, ScheduledTask, ScheduleKind } from '../_mock'
 import './index.scss'
 

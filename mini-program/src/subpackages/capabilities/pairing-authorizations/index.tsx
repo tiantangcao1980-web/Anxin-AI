@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { pairingApi, PairingRequest, imChannelsApi } from '../_mock'
+import { pairingApi, PairingRequest } from '../../../utils/api/imPairing'
+import { imChannelsApi } from '../../../utils/api/imChannels'
 import './index.scss'
 
 type Tab = 'pending' | 'approved'
