@@ -53,6 +53,14 @@ from src.models.expert import Expert
 from src.models.feature_flag import FeatureFlag
 from src.models.firm_management import CaseAssignment, Invoice, Team, TeamMember, TimeEntry
 from src.models.im import IMConversation, IMMessage, IMParticipant
+from src.models.im_channel import (
+    IMBinding,
+    IMChannel,
+    IMChannelStatus,
+    IMChannelType,
+    PairingRequest,
+    PairingStatus,
+)
 from src.models.incident import Incident  # T5 (CREAO Slice 1)
 from src.models.investigation import (
     Investigation,
@@ -212,6 +220,13 @@ __all__ = [
     "IMConversation",
     "IMParticipant",
     "IMMessage",
+    # IM 网关渠道（im_gateway_channels，P3-C 渠道管理后端）
+    "IMChannel",
+    "IMChannelType",
+    "IMChannelStatus",
+    "IMBinding",
+    "PairingRequest",
+    "PairingStatus",
     # 律师评价
     "LawyerReview",
     # 律所管理

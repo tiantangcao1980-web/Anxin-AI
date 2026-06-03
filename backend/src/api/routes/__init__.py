@@ -40,6 +40,7 @@ from src.api.routes import (
     governance,
     harness,
     im,
+    im_channels,
     im_pairing,
     integrations,
     knowledge,
@@ -151,6 +152,7 @@ api_router.include_router(cli.router, tags=["CLI命令"])
 api_router.include_router(case_market.router, tags=["案源市场"])
 api_router.include_router(agent_tasks.router, prefix="/agent-tasks", tags=["异步任务"])
 api_router.include_router(im_pairing.router, prefix="/im/pairing", tags=["IM配对授权"])
+api_router.include_router(im_channels.router, prefix="/im", tags=["IM渠道管理"])
 api_router.include_router(
     app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"]
 )

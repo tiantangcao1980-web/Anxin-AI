@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     ForeignKey,
@@ -24,10 +25,15 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.base import GUID, Base, TimestampMixin, ValueEnum
+
+# 跨方言 JSON 列：PostgreSQL 渲染为 JSONB（保留索引/查询优势），
+# SQLite（测试）退化为通用 JSON 编解码，避免 create_all 报
+# "can't render element of type JSONB"。
+JSONB = JSON().with_variant(PG_JSONB(), "postgresql")
 
 
 class IMChannelType(str, enum.Enum):
@@ -39,6 +45,25 @@ class IMChannelType(str, enum.Enum):
     TELEGRAM = "telegram"
     SLACK = "slack"
     DISCORD = "discord"  # 预留
+
+
+class IMChannelStatus(str, enum.Enum):
+    """IM 通道连接状态（P3-C 渠道管理后端）。
+
+    与前端 contract（frontend/src/lib/api/imChannels.ts ``IMChannelStatus``）严格对齐::
+
+        unconfigured -> connecting -> connected
+                                   \\-> error
+
+    注意：当前后端**不做真实第三方协议握手**，状态仅依据 ``config`` 完整度
+    （见 ``channels_service._derive_status`` / ``_required_config_keys``）推导。
+    ``connecting`` 状态保留给未来异步握手流程，本期不会主动写入。
+    """
+
+    UNCONFIGURED = "unconfigured"
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    ERROR = "error"
 
 
 class PairingStatus(str, enum.Enum):
@@ -80,10 +105,36 @@ class IMChannel(Base, TimestampMixin):
         server_default="true",
         comment="是否启用",
     )
+    # --- P3-C 渠道管理后端新增列 ---
+    status: Mapped[IMChannelStatus] = mapped_column(
+        ValueEnum(IMChannelStatus, name="im_gateway_channel_status"),
+        nullable=False,
+        default=IMChannelStatus.UNCONFIGURED,
+        server_default=IMChannelStatus.UNCONFIGURED.value,
+        comment="连接状态（依据 config 完整度推导，非真实协议握手）",
+    )
+    bound_agent_persona: Mapped[str | None] = mapped_column(
+        String(128),
+        nullable=True,
+        comment="绑定的 agent persona key（如 anxin/legal/...）；未绑定为 NULL",
+    )
+    org_id: Mapped[str | None] = mapped_column(
+        GUID(),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="所属组织（按组织隔离；NULL 为历史/系统级通道）",
+    )
+    created_by: Mapped[str | None] = mapped_column(
+        GUID(),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="创建者用户 ID",
+    )
 
     __table_args__ = (
         Index("ix_im_gateway_channels_type", "channel_type"),
         Index("ix_im_gateway_channels_enabled", "enabled"),
+        Index("ix_im_gateway_channels_org_id", "org_id"),
     )
 
 
