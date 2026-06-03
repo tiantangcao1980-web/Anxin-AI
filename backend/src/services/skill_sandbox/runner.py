@@ -40,7 +40,6 @@ from src.services.skill_sandbox.manifest import (
     SandboxTier,
 )
 from src.services.skill_sandbox.policy_gate import (
-    PolicyDecision,
     PolicyGate,
     PolicyGateResult,
 )
@@ -217,7 +216,7 @@ class SkillSandboxRunner:
                 result = await self._run_in_process(skill, manifest, payload or {})
             else:
                 result = await self._run_via_provider(skill, manifest, payload or {})
-        except asyncio.TimeoutError:
+        except TimeoutError:
             result = SkillSandboxResult(
                 skill_name=skill.name,
                 status=SkillSandboxStatus.TIMEOUT,

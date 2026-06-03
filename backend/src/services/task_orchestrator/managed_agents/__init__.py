@@ -35,7 +35,7 @@ def _load(cookbook: str) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def register_beat_schedule(celery_app: "Celery") -> None:
+def register_beat_schedule(celery_app: Celery) -> None:
     """把 cookbook 的 cron 注入到 celery beat。
 
     在 task_orchestrator/celery_app.py 中调用：

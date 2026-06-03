@@ -12,8 +12,12 @@ from __future__ import annotations
 
 from typing import Any
 
+# 与 ai_assistant.py / case.py 等保持一致：用通用 JSON 别名为 JSONB，
+# 兼容 SQLite（测试内存库）与 PostgreSQL。该表由 create_all 自动建、无 Alembic
+# 迁移，故改类型零迁移风险。原 `dialects.postgresql.JSONB` 在 SQLite 上无法编译，
+# 会导致所有建 `client_errors` 表的测试在 setup 阶段报 visit_JSONB 错误。
+from sqlalchemy import JSON as JSONB
 from sqlalchemy import Index, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models.base import Base, TimestampMixin

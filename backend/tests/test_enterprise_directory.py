@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -26,7 +26,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.deps import Permission, UserRole
-from src.models import Department, Organization, User
+from src.models import Organization, User
 from src.services.enterprise_directory import (
     DepartmentService,
     MembershipService,
@@ -36,7 +36,6 @@ from src.services.enterprise_directory import (
     ScopeType,
     SubjectType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -202,8 +201,8 @@ async def test_role_binding_expiration() -> None:
     """is_effective 在过期时返回 False。"""
     from src.models.enterprise_directory import RoleBinding
 
-    past = datetime.now(timezone.utc) - timedelta(seconds=1)
-    future = datetime.now(timezone.utc) + timedelta(hours=1)
+    past = datetime.now(UTC) - timedelta(seconds=1)
+    future = datetime.now(UTC) + timedelta(hours=1)
 
     rb_expired = RoleBinding(is_active=True, expires_at=past)
     rb_active = RoleBinding(is_active=True, expires_at=future)
@@ -336,7 +335,7 @@ async def test_resolver_expired_binding_ignored(
         role=UserRole.PARTNER.value,
         scope_type=ScopeType.ORG,
         scope_id=org.id,
-        expires_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        expires_at=datetime.now(UTC) - timedelta(seconds=1),
     )
     resolver = PermissionResolver(db_session)
     perms = await resolver.resolve(basic_user, ScopeLocator.org(org.id))

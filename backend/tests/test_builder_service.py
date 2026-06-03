@@ -12,7 +12,7 @@ Builder Service 单元测试 — CREAO Slice 3 (A9, 2026-05-14)
 7. test_link_unknown_incident                 — 找不到时返回 ok=False
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
@@ -38,7 +38,7 @@ async def _clean(db_session: AsyncSession):
 
 
 def _make_incident(**kwargs) -> Incident:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     defaults = {
         "source": "output_validator",
         "severity": "P1",

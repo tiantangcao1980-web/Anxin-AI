@@ -16,7 +16,7 @@ import json
 import re
 from typing import Any, cast
 
-from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
+from src.agents._prompt_safety import wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 
 _SYSTEM_PROMPT = """你是一位资深的法律审查质量控制专家，负责验证合同审查结论的准确性和完整性。

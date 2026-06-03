@@ -16,13 +16,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.agents.personas.dd_models import (
-    CompanyBasicInfo,
     CreditFlag,
     DueDiligenceReport,
     LitigationRecord,
 )
 from src.agents.personas.due_diligence_expert import DueDiligenceExpertPersona
-
 
 # ---------------------------------------------------------------------------
 # 工厂：返回带 mock specialized agent + mock P6-C 源的 persona

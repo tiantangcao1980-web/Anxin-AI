@@ -69,7 +69,6 @@ async def _run_async(cookbook_name: str, window_days: int) -> dict[str, Any]:
 
     # 2. 给每个合同做风险打标 + 续约建议（不调真 LLM 以节省成本，按 CLAUDE.md 阈值评级）
     profile_path = REPO_ROOT / "plugins" / "contract-steward" / "CLAUDE.md"
-    profile_text = profile_path.read_text(encoding="utf-8")[:2000] if profile_path.exists() else ""
 
     items: list[dict[str, Any]] = []
     for row in rows:

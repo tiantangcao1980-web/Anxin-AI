@@ -15,7 +15,6 @@ SignatureVerifier 单测 + PolicyGate × Signature 集成验证
 from __future__ import annotations
 
 import base64
-import os
 
 import pytest
 
@@ -33,7 +32,6 @@ from src.services.skill_sandbox import (  # noqa: E402
 from src.services.skill_sandbox.signature import (  # noqa: E402
     load_publisher_keys_from_env_value,
 )
-
 
 # ---------------------------------------------------------------------------
 # helpers

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +27,6 @@ from src.core.deps import Permission, get_user_permissions
 from src.models.enterprise_directory import (
     Department,
     DepartmentMembership,
-    RoleBinding,
     UserGroupMember,
 )
 from src.models.user import User
@@ -48,11 +46,11 @@ class ScopeLocator:
     id: str     # org_id 或 department_id
 
     @classmethod
-    def org(cls, org_id: str) -> "ScopeLocator":
+    def org(cls, org_id: str) -> ScopeLocator:
         return cls(type="org", id=org_id)
 
     @classmethod
-    def department(cls, dept_id: str) -> "ScopeLocator":
+    def department(cls, dept_id: str) -> ScopeLocator:
         return cls(type="department", id=dept_id)
 
 
@@ -79,7 +77,7 @@ class PermissionResolver:
         user: User,
         scope: ScopeLocator,
         *,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
     ) -> set[Permission]:
         """计算 user 在 scope 下的有效权限集合。
 

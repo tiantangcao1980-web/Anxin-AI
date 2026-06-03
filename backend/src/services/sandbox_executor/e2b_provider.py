@@ -27,7 +27,8 @@ import asyncio
 import hashlib
 import os
 import time
-from typing import Any, AsyncIterator, ClassVar, Optional
+from collections.abc import AsyncIterator
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -121,8 +122,8 @@ class E2BProvider(BaseSandboxProvider):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         self._validate_cmd(cmd)
         sbx = sandbox.metadata.get("_sdk_handle")
@@ -148,7 +149,7 @@ class E2BProvider(BaseSandboxProvider):
             stdout = _truncate(getattr(result, "stdout", "") or "")
             stderr = _truncate(getattr(result, "stderr", "") or "")
             exit_code = int(getattr(result, "exit_code", 0) or 0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             killed = True
             stdout = ""
             stderr = "E2B exec timeout"

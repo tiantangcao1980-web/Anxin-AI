@@ -24,7 +24,6 @@ from collections import defaultdict, deque
 from threading import Lock
 from typing import Any
 
-
 _FINGERPRINT_WINDOW_SECONDS = 60
 _FINGERPRINT_BURST_LIMIT = 20
 _USER_WINDOW_SECONDS = 60
@@ -54,7 +53,7 @@ def check_burst(bucket: deque[float], window_seconds: int, limit: int) -> bool:
 
 def fingerprint_preview(url: str | None, message: str | None) -> str:
     """前置指纹预估; 与 collector 内部 fingerprint 不强耦合, 仅用于限流分桶。"""
-    raw = f"{url or ''}|{message or ''}".encode("utf-8")
+    raw = f"{url or ''}|{message or ''}".encode()
     return hashlib.sha256(raw).hexdigest()[:16]
 
 

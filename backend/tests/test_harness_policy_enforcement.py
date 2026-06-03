@@ -12,7 +12,6 @@ Harness Policy Enforcement 测试（H1 P0 followup）
 """
 
 import logging
-import os
 
 import pytest
 

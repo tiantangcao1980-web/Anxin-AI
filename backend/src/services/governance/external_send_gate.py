@@ -20,8 +20,9 @@ ExternalSendGate —— PEP-4 在 connector 层的统一入口
 """
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession

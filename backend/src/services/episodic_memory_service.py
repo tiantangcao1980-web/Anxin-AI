@@ -170,7 +170,7 @@ class EpisodicMemoryService:
             # E1 (2026-05-14): 优先用注入的 collector, 否则用 safely fallback
             if rating <= 2:
                 try:
-                    from src.schemas.incident import IncidentSource, IncidentSeverity
+                    from src.schemas.incident import IncidentSeverity, IncidentSource
 
                     _payload = {
                         "memory_id": str(memory_id),

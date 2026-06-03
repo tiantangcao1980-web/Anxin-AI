@@ -35,7 +35,6 @@ from src.services.enterprise_directory import (
     LdapUserRecord,
 )
 
-
 # ---------------------------------------------------------------------------
 # fixtures
 # ---------------------------------------------------------------------------
@@ -302,7 +301,6 @@ async def test_audit_hook_receives_report(
 
 def test_unknown_conflict_strategy_rejected() -> None:
     with pytest.raises(ValueError):
-        LdapSyncService.__init__  # touch
         LdapSyncService(
             session=None,  # type: ignore[arg-type]
             org_id="x",

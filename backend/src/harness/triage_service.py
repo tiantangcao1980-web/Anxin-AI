@@ -17,9 +17,8 @@ CREAO 自愈闭环 Slice 2 — Triage Service
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from loguru import logger
@@ -193,7 +192,7 @@ async def triage_open_incidents(
             "llm_calls": int,         # G7 实际 LLM 调用次数
         }
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cutoff_24h = now - timedelta(hours=24)
     cutoff_1h = now - timedelta(hours=1)
 
@@ -244,7 +243,7 @@ async def triage_open_incidents(
             # 兼容 naive datetime (SQLite 测试场景)
             last_seen = inc.last_seen_at
             if last_seen.tzinfo is None:
-                last_seen = last_seen.replace(tzinfo=timezone.utc)
+                last_seen = last_seen.replace(tzinfo=UTC)
             if last_seen >= cutoff_24h:
                 c.trend_24h += inc.occurrence_count or 1
             if last_seen >= cutoff_1h:

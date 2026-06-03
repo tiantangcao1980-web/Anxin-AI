@@ -178,7 +178,7 @@ class ContractService:
         lock_token = await self.review_lock.acquire(lock_key, ttl_seconds=lock_ttl)
 
         # T7: 创建 task_engine 状态机记录
-        from src.harness.task_engine import TaskState, task_engine, TaskContract
+        from src.harness.task_engine import TaskContract, TaskState, task_engine
         task_record = task_engine.create_task(
             description=f"合同审查: {contract.title[:80]}",
             route="contract_review",

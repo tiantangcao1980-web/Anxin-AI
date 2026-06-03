@@ -11,8 +11,6 @@ ConfirmInbox + ShadowRunner DB 集成测试
 """
 from __future__ import annotations
 
-import asyncio
-import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -20,10 +18,9 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.models.base import Base
 # 让 Base.metadata 知道 governance 表
 from src.models import governance as _gov  # noqa: F401
-from src.models.governance import ConfirmTicket, ConfirmTicketStatus, ShadowRun, ShadowRunStatus
+from src.models.governance import ConfirmTicket, ConfirmTicketStatus, ShadowRunStatus
 from src.services.governance import confirm_inbox, shadow_runner
 
 

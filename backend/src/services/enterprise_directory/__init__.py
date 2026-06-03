@@ -43,8 +43,8 @@ from src.services.enterprise_directory.permission_resolver import (
 )
 from src.services.enterprise_directory.role_binding_service import (
     RoleBindingService,
-    SubjectType,
     ScopeType,
+    SubjectType,
 )
 
 __all__ = [

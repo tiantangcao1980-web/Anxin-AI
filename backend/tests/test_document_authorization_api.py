@@ -124,7 +124,7 @@ async def test_analyze_document_returns_summary(
     monkeypatch,
 ):
     mock_workforce = MagicMock()
-    mock_workforce.process_task = AsyncMock(
+    mock_workforce.process_task_governed = AsyncMock(
         return_value={
             "final_result": {
                 "summary": "该文档主要涉及合同付款与违约条款。",

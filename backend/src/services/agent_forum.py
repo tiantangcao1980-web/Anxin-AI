@@ -254,7 +254,7 @@ class AgentForum:
                 # ===== CREAO 自愈闭环 Slice 1: 上报 incident =====
                 # E1 (2026-05-14): 优先用注入的 collector (测试), 否则用 safely fallback (生产)
                 try:
-                    from src.schemas.incident import IncidentSource, IncidentSeverity
+                    from src.schemas.incident import IncidentSeverity, IncidentSource
 
                     _payload = {
                         "agents": list(conflict.agents_involved),

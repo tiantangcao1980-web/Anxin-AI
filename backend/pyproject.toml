@@ -96,6 +96,7 @@ dev = [
     "pytest>=7.4.4",
     "pytest-asyncio>=0.23.3",
     "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.4.0",
     "aiosqlite>=0.19.0",
     "httpx>=0.26.0",
     "black>=23.12.1",
@@ -148,7 +149,12 @@ select = ["E", "F", "I", "N", "W", "B", "C4", "UP"]
 #   合法地出现在非 import 语句之后。
 # N806: PascalCase 局部别名（FetchRequestCls 等）刻意保留以镜像上游命名。
 # E741: 历史短变量名 `l`（line / list 迭代器）在上下文清晰处保留。
-ignore = ["E501", "B008", "E712", "W293", "UP042", "E402", "N806", "E741"]
+# UP009: 全项目刻意保留 `# -*- coding: utf-8 -*-` 文件头（团队编码规范要求），
+#   不接受 ruff 删除该声明。
+# N818: `XxxUnavailable` / `XxxNotAvailable` 系列异常刻意以"能力不可用"语义命名
+#   （OidcUnavailable、DockerNotAvailable 等），加 Error 后缀会弱化语义且需改动
+#   全部 raise/except 站点，风险高于收益。
+ignore = ["E501", "B008", "E712", "W293", "UP042", "E402", "N806", "E741", "UP009", "N818"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -158,6 +164,11 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# 每个测试 60s 硬超时：防止个别 await 外部调用/未 mock 的 async 测试无限阻塞、
+# 拖死整个套件（曾出现单测试卡死导致全量 pytest 挂 3 小时）。signal 法用 SIGALRM，
+# 能打断卡在主线程事件循环里的 async 测试（thread 法做不到）。需 pytest-timeout。
+timeout = 60
+timeout_method = "signal"
 filterwarnings = [
     "ignore:Relying on Driver's destructor to close the session is deprecated:DeprecationWarning:neo4j\\._sync\\.driver",
 ]

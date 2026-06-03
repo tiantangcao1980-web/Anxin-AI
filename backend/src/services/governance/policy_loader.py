@@ -17,12 +17,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import yaml
 from loguru import logger
@@ -58,7 +56,7 @@ class PolicyBundle:
     raw: dict = field(default_factory=dict)
 
     @classmethod
-    def from_dir(cls, policy_dir: Path = POLICY_DIR) -> "PolicyBundle":
+    def from_dir(cls, policy_dir: Path = POLICY_DIR) -> PolicyBundle:
         raw: dict[str, dict] = {}
         for fn in POLICY_FILES:
             p = policy_dir / fn
@@ -69,7 +67,7 @@ class PolicyBundle:
         cls._validate(raw)
         return cls(
             snapshot_id=snapshot_id,
-            loaded_at=datetime.now(timezone.utc),
+            loaded_at=datetime.now(UTC),
             access_matrix=raw["access-matrix.yaml"],
             trust_levels=raw["trust-levels.yaml"],
             data_classification=raw["data-classification.yaml"],

@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     JSON,
@@ -29,7 +29,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models.base import GUID, Base, TimestampMixin
 
 if TYPE_CHECKING:
-    from src.models.user import Organization, User
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +74,7 @@ class Department(Base, TimestampMixin):
     # 关系
     # 注：父/子关系故意**不在 ORM 层声明**，避免自引用 backref 触发懒加载；
     # 树遍历通过 materialized ``path`` 字段 + DepartmentService 完成。
-    memberships: Mapped[list["DepartmentMembership"]] = relationship(
+    memberships: Mapped[list[DepartmentMembership]] = relationship(
         "DepartmentMembership",
         back_populates="department",
         cascade="all, delete-orphan",
@@ -111,7 +111,7 @@ class DepartmentMembership(Base, TimestampMixin):
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    department: Mapped["Department"] = relationship("Department", back_populates="memberships")
+    department: Mapped[Department] = relationship("Department", back_populates="memberships")
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ class UserGroup(Base, TimestampMixin):
     group_type: Mapped[str] = mapped_column(String(50), default="static")  # static | dynamic
     rule: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    members: Mapped[list["UserGroupMember"]] = relationship(
+    members: Mapped[list[UserGroupMember]] = relationship(
         "UserGroupMember",
         back_populates="group",
         cascade="all, delete-orphan",
@@ -164,7 +164,7 @@ class UserGroupMember(Base, TimestampMixin):
     )
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="members")
+    group: Mapped[UserGroup] = relationship("UserGroup", back_populates="members")
 
 
 # ---------------------------------------------------------------------------

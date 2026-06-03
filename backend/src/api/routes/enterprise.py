@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from pydantic import BaseModel, Field
@@ -44,25 +44,25 @@ router = APIRouter()
 
 class DepartmentCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
-    parent_id: Optional[str] = None
-    code: Optional[str] = Field(default=None, max_length=100)
-    leader_id: Optional[str] = None
+    parent_id: str | None = None
+    code: str | None = Field(default=None, max_length=100)
+    leader_id: str | None = None
     order_idx: int = 0
 
 
 class DepartmentUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
-    parent_id: Optional[str] = None  # 移动
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    parent_id: str | None = None  # 移动
 
 
 class DepartmentOut(BaseModel):
     id: str
     org_id: str
-    parent_id: Optional[str]
+    parent_id: str | None
     name: str
-    code: Optional[str]
-    path: Optional[str]
-    leader_id: Optional[str]
+    code: str | None
+    path: str | None
+    leader_id: str | None
     order_idx: int
     is_active: bool
 
@@ -70,14 +70,14 @@ class DepartmentOut(BaseModel):
 class MembershipAdd(BaseModel):
     user_id: str
     is_primary: bool = False
-    position_title: Optional[str] = None
+    position_title: str | None = None
 
 
 class MembershipOut(BaseModel):
     user_id: str
     department_id: str
     is_primary: bool
-    position_title: Optional[str]
+    position_title: str | None
 
 
 class RoleBindingCreate(BaseModel):
@@ -86,8 +86,8 @@ class RoleBindingCreate(BaseModel):
     role: str
     scope_type: ScopeType
     scope_id: str
-    expires_at: Optional[datetime] = None
-    reason: Optional[str] = None
+    expires_at: datetime | None = None
+    reason: str | None = None
 
 
 class RoleBindingOut(BaseModel):
@@ -99,10 +99,10 @@ class RoleBindingOut(BaseModel):
     scope_type: str
     scope_id: str
     is_active: bool
-    expires_at: Optional[datetime]
-    granted_at: Optional[datetime]
-    granted_by: Optional[str]
-    reason: Optional[str]
+    expires_at: datetime | None
+    granted_at: datetime | None
+    granted_by: str | None
+    reason: str | None
 
 
 class EffectivePermissionsOut(BaseModel):

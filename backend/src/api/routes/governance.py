@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -23,14 +23,9 @@ from src.core.database import get_db
 from src.core.deps import UserRole, get_current_user_required
 from src.models.governance import (
     AuditEventDB,
-    ConfirmTicket,
-    ConfirmTicketStatus,
-    ShadowRun,
 )
 from src.models.user import User
 from src.services.governance import (
-    Decision,
-    audit,
     confirm_inbox,
     decide,
     get_policy,
@@ -232,7 +227,7 @@ async def audit_stats(
     user: User = Depends(_require_governance_role),
 ) -> dict[str, Any]:
     try:
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
         # 按 decision / event_type 统计
         by_decision = await db.execute(
             select(AuditEventDB.decision, func.count())

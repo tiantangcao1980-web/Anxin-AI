@@ -12,7 +12,6 @@ Governance Phase 5 集成测试
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 import pytest

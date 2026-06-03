@@ -456,7 +456,7 @@ class OutputValidator:
             # E1 (2026-05-14): incident_collector 显式注入优先 (测试场景),
             # 否则 fallback 到 collect_incident_safely (生产路径, 自带 db context)
             try:
-                from src.schemas.incident import IncidentSource, IncidentSeverity
+                from src.schemas.incident import IncidentSeverity, IncidentSource
 
                 # 兼容 dataclass / pydantic: 优先 to_dict, 回退到 __dict__
                 issues_payload = []

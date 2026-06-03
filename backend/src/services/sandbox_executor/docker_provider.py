@@ -33,8 +33,9 @@ import shutil
 import tempfile
 import time
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator, ClassVar, Optional
+from typing import ClassVar
 
 from loguru import logger
 
@@ -134,8 +135,8 @@ class DockerProvider(BaseSandboxProvider):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         """启动一个 ephemeral 容器执行 cmd，自动清理。"""
         await self._require_docker()
@@ -170,7 +171,7 @@ class DockerProvider(BaseSandboxProvider):
                 proc.communicate(input=stdin),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             killed = True
             # docker kill 比 SIGKILL host 进程更可靠
             try:
@@ -190,7 +191,7 @@ class DockerProvider(BaseSandboxProvider):
                 stdout_b, stderr_b = await asyncio.wait_for(
                     proc.communicate(), timeout=5
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 stdout_b, stderr_b = b"", b""
             logger.warning(
                 f"[DockerProvider] exec timeout killed sandbox={sandbox.id} timeout={timeout}s"

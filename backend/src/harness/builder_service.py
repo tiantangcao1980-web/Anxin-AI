@@ -23,7 +23,7 @@ Slice 3 拿一个 cluster (或单条 triaged incident) 做两件事:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -53,11 +53,11 @@ def _build_test_function_name(incident: Incident) -> str:
 def build_regression_test_draft(incident: Incident) -> str:
     """返回 pytest 测试草稿字符串. 不写盘, 由 admin 复制。"""
     fn_name = _build_test_function_name(incident)
-    when = (incident.first_seen_at or datetime.now(timezone.utc)).isoformat()
+    when = (incident.first_seen_at or datetime.now(UTC)).isoformat()
     payload_snippet = str(incident.payload)[:400].replace('"""', '\\"\\"\\"')
     return f"""# -*- coding: utf-8 -*-
 \"\"\"
-回归测试草稿 (CREAO Slice 3, 自动生成 {datetime.now(timezone.utc).isoformat()})
+回归测试草稿 (CREAO Slice 3, 自动生成 {datetime.now(UTC).isoformat()})
 
   源 incident: {incident.id}
   首次出现:   {when}
@@ -98,8 +98,8 @@ def build_github_issue_draft(
 ) -> dict[str, str]:
     """返回 GitHub Issue 草稿 (title + body), 不调 GitHub API."""
     title = f"[CREAO][{incident.severity}] {incident.source}: {incident.title[:80]}"
-    when = (incident.first_seen_at or datetime.now(timezone.utc)).isoformat()
-    last_when = (incident.last_seen_at or datetime.now(timezone.utc)).isoformat()
+    when = (incident.first_seen_at or datetime.now(UTC)).isoformat()
+    last_when = (incident.last_seen_at or datetime.now(UTC)).isoformat()
     body = (
         f"## CREAO 自愈闭环 Slice 3 自动生成草稿\n\n"
         f"- **incident id**: `{incident.id}`\n"
@@ -147,7 +147,7 @@ async def build_drafts_for_incident(
         "source": incident.source,
         "regression_test_draft": build_regression_test_draft(incident),
         "github_issue_draft": build_github_issue_draft(incident, repo_full_name=repo_full_name),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }
 
 

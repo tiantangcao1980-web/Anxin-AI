@@ -53,6 +53,7 @@ from src.models.expert import Expert
 from src.models.feature_flag import FeatureFlag
 from src.models.firm_management import CaseAssignment, Invoice, Team, TeamMember, TimeEntry
 from src.models.im import IMConversation, IMMessage, IMParticipant
+from src.models.incident import Incident  # T5 (CREAO Slice 1)
 from src.models.investigation import (
     Investigation,
     InvestigationRiskLevel,
@@ -83,8 +84,6 @@ from src.models.notification import (
 )
 from src.models.payment import PaymentOrder as PaymentOrderModel
 from src.models.review import LawyerReview
-from src.models.incident import Incident  # T5 (CREAO Slice 1)
-from src.models.user_token_usage import UserTokenUsage  # A4 (cost_tracker persistence)
 from src.models.sentiment import (
     AlertLevel,
     AlertType,
@@ -103,6 +102,7 @@ from src.models.sync import (
 )
 from src.models.task import Task
 from src.models.user import Organization, PasswordResetToken, User
+from src.models.user_token_usage import UserTokenUsage  # A4 (cost_tracker persistence)
 from src.models.webhook import WebhookReceived
 
 __all__ = [
@@ -134,6 +134,7 @@ __all__ = [
     # ??
     "Case",
     "CaseEvent",
+    "ClientError",
     "CaseRequest",
     "LawyerBid",
     "RequestStatus",

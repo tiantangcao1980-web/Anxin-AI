@@ -12,29 +12,27 @@ CREAO 自愈闭环 Slice 1: Incidents API
 - src.harness.incident_collector.IncidentCollector
 """
 
-from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from loguru import logger
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.core.deps import get_admin_user, get_current_user, rate_limit
-from src.models.user import User
+from src.harness.incident_collector import IncidentCollector
 
 # ===== Agent A 契约 =====
 from src.models.incident import Incident
+from src.models.user import User
 from src.schemas.incident import (
-    IncidentSource,
-    IncidentSeverity,
-    IncidentStatus,
     IncidentRead,
     IncidentReportIn,
+    IncidentSeverity,
+    IncidentSource,
+    IncidentStatus,
 )
-from src.harness.incident_collector import IncidentCollector
 from src.services.pii_service import pii_service
-
 
 router = APIRouter(tags=["Incidents"])
 
@@ -47,15 +45,25 @@ router = APIRouter(tags=["Incidents"])
 # 实现移到 src.utils.rate_limit_burst, 单测可不经 FastAPI 链路独立运行.
 
 from src.utils.rate_limit_burst import (
-    check_burst as _check_burst,
-    fingerprint_buckets as _fingerprint_buckets,
-    fingerprint_preview as _fingerprint_preview,
-    rate_lock as _rate_lock,
-    user_buckets as _user_buckets,
     _FINGERPRINT_BURST_LIMIT,
     _FINGERPRINT_WINDOW_SECONDS,
     _USER_BURST_LIMIT,
     _USER_WINDOW_SECONDS,
+)
+from src.utils.rate_limit_burst import (
+    check_burst as _check_burst,
+)
+from src.utils.rate_limit_burst import (
+    fingerprint_buckets as _fingerprint_buckets,
+)
+from src.utils.rate_limit_burst import (
+    fingerprint_preview as _fingerprint_preview,
+)
+from src.utils.rate_limit_burst import (
+    rate_lock as _rate_lock,
+)
+from src.utils.rate_limit_burst import (
+    user_buckets as _user_buckets,
 )
 
 
@@ -70,7 +78,7 @@ async def report_incident(
     payload: IncidentReportIn,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_current_user),
+    user: User | None = Depends(get_current_user),
     # 匿名也允许；按 IP 限频 5 req/min（by_user=False → 全部走 IP）
     _rl: None = Depends(
         rate_limit(limit=5, window=60, endpoint="incidents.report", by_user=False)
@@ -128,7 +136,7 @@ async def report_incident(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="incident 上报失败",
-        )
+        ) from exc
 
     return {"id": str(getattr(incident, "id", "")) or None}
 
@@ -140,9 +148,9 @@ async def report_incident(
 async def list_incidents(
     page: int = Query(1, ge=1, description="页码（从 1 开始）"),
     page_size: int = Query(20, ge=1, le=200, description="每页条数"),
-    source: Optional[IncidentSource] = Query(None),
-    severity: Optional[IncidentSeverity] = Query(None),
-    status_: Optional[IncidentStatus] = Query(None, alias="status"),
+    source: IncidentSource | None = Query(None),
+    severity: IncidentSeverity | None = Query(None),
+    status_: IncidentStatus | None = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(get_admin_user),
 ):
@@ -173,7 +181,7 @@ async def list_incidents(
     rows_result = await db.execute(stmt)
     rows = rows_result.scalars().all()
 
-    items: List[dict] = []
+    items: list[dict] = []
     for row in rows:
         item = IncidentRead.model_validate(row)
         items.append(item.model_dump(mode="json"))
@@ -191,8 +199,8 @@ async def list_incidents(
 # ============================================================
 
 from src.harness.triage_service import (
-    triage_open_incidents,
     get_triage_overview,
+    triage_open_incidents,
 )
 
 
@@ -240,6 +248,7 @@ async def admin_triage_overview(
 # ============================================================
 
 from pydantic import BaseModel
+
 from src.harness.builder_service import (
     build_drafts_for_incident,
     link_github_issue,

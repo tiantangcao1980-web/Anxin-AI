@@ -17,16 +17,13 @@ H0 体检发现：output_validator 是"软接入"——失败时只 log warning�
 
 import asyncio
 import logging
-import pytest
 
 from src.harness.output_validator import (
-    OutputValidator,
     ValidationIssue,
     ValidationLevel,
     ValidationResult,
 )
-from src.services.trace_sink import scrub, scrub_dict, cluster_id_for
-
+from src.services.trace_sink import cluster_id_for, scrub, scrub_dict
 
 # ===========================================================
 # A. PII 脱敏（trace_sink T1 已交付，本组测试可立即跑）

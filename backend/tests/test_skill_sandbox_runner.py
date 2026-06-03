@@ -25,12 +25,9 @@ from src.services.skill_registry import Skill
 from src.services.skill_sandbox import (
     PolicyGate,
     SandboxManifest,
-    SandboxTier,
-    SkillSandboxResult,
     SkillSandboxRunner,
 )
 from src.services.skill_sandbox.runner import SkillSandboxStatus
-
 
 # ---------------------------------------------------------------------------
 # helpers

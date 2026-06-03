@@ -13,22 +13,21 @@ Incident 模型 — CREAO 自愈闭环 Slice 1
 """
 
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import (
-    String,
-    Text,
-    DateTime,
-    ForeignKey,
-    Integer,
-    Index,
-    func,
-)
 # 使用 SQL 通用 JSON：Postgres 落 JSONB，SQLite 落 JSON，方便测试
 from sqlalchemy import JSON as JSONB
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, GUID
+from src.models.base import GUID, Base
 
 
 class Incident(Base):
@@ -67,22 +66,22 @@ class Incident(Base):
     )
 
     # --- 上下文 ---
-    user_id: Mapped[Optional[str]] = mapped_column(
+    user_id: Mapped[str | None] = mapped_column(
         GUID(),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    session_id: Mapped[Optional[str]] = mapped_column(
+    session_id: Mapped[str | None] = mapped_column(
         String(64), nullable=True, index=True,
     )
-    trace_id: Mapped[Optional[str]] = mapped_column(
+    trace_id: Mapped[str | None] = mapped_column(
         String(64), nullable=True, index=True,
     )
-    agent_name: Mapped[Optional[str]] = mapped_column(
+    agent_name: Mapped[str | None] = mapped_column(
         String(64), nullable=True,
     )
-    route: Mapped[Optional[str]] = mapped_column(
+    route: Mapped[str | None] = mapped_column(
         String(128), nullable=True,
     )
 
@@ -111,11 +110,11 @@ class Incident(Base):
     )
 
     # --- Slice 2 字段（先占位） ---
-    triage_summary: Mapped[Optional[str]] = mapped_column(
+    triage_summary: Mapped[str | None] = mapped_column(
         Text, nullable=True,
         comment="Slice 2: AI triage 总结",
     )
-    github_issue_url: Mapped[Optional[str]] = mapped_column(
+    github_issue_url: Mapped[str | None] = mapped_column(
         String(256), nullable=True,
         comment="Slice 2: 关联的 GitHub Issue URL",
     )

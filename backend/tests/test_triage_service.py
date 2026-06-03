@@ -13,7 +13,7 @@ Triage Service 单元测试 — CREAO Slice 2 (A3, 2026-05-14)
 8. test_overview_aggregates                   — get_triage_overview 三维度计数
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
@@ -47,7 +47,7 @@ def _make_incident(
     last_seen_offset: timedelta = timedelta(),
     status: str = "open",
 ) -> Incident:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return Incident(
         source=source,
         severity=severity,

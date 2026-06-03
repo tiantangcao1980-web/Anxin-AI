@@ -7,7 +7,7 @@ MembershipService —— 用户-部门关系管理
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +54,7 @@ class MembershipService:
             department_id=department_id,
             is_primary=is_primary,
             position_title=position_title,
-            joined_at=datetime.now(timezone.utc),
+            joined_at=datetime.now(UTC),
         )
         self.session.add(m)
         await self.session.flush()
@@ -64,7 +64,7 @@ class MembershipService:
         m = await self._get(user_id, department_id)
         if m is None:
             return False
-        m.left_at = datetime.now(timezone.utc)
+        m.left_at = datetime.now(UTC)
         await self.session.delete(m)
         await self.session.flush()
         return True

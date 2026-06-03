@@ -974,7 +974,7 @@ class DueDiligenceService:
         logger.info(f"开始企业调查: {company_name}, 类型: {investigation_type}")
 
         # T7: 创建 task_engine 状态机记录
-        from src.harness.task_engine import TaskState, task_engine, TaskContract
+        from src.harness.task_engine import TaskContract, TaskState, task_engine
         task_record = task_engine.create_task(
             description=f"企业尽调: {company_name[:60]} ({investigation_type})",
             route="due_diligence",

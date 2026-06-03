@@ -32,13 +32,13 @@ def _provider() -> DockerProvider:
 
 
 def _spec(**overrides) -> SandboxSpec:
-    base = dict(
-        image="python:3.11-slim",
-        env_vars={"FOO": "bar"},
-        resource_limits=ResourceLimits(cpu_millicores=1500, memory_mb=512, disk_mb=2048),
-        network_policy=NetworkPolicy(mode=NetworkPolicyMode.NONE),
-        timeout_sec=30,
-    )
+    base = {
+        "image": "python:3.11-slim",
+        "env_vars": {"FOO": "bar"},
+        "resource_limits": ResourceLimits(cpu_millicores=1500, memory_mb=512, disk_mb=2048),
+        "network_policy": NetworkPolicy(mode=NetworkPolicyMode.NONE),
+        "timeout_sec": 30,
+    }
     base.update(overrides)
     return SandboxSpec(**base)
 

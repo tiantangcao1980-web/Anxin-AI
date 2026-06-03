@@ -7,7 +7,7 @@ RoleBindingService —— 角色绑定 CRUD
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from sqlalchemy import select
@@ -81,7 +81,7 @@ class RoleBindingService:
             existing.expires_at = expires_at
             existing.reason = reason
             existing.granted_by = granted_by
-            existing.granted_at = datetime.now(timezone.utc)
+            existing.granted_at = datetime.now(UTC)
             existing.is_active = True
             await self.session.flush()
             return existing
@@ -94,7 +94,7 @@ class RoleBindingService:
             scope_type=c_type,
             scope_id=scope_id,
             granted_by=granted_by,
-            granted_at=datetime.now(timezone.utc),
+            granted_at=datetime.now(UTC),
             expires_at=expires_at,
             reason=reason,
             is_active=True,
@@ -150,7 +150,7 @@ class RoleBindingService:
         """批量查询多个主体的绑定，一次性返回；解析器用这个减少 SQL 次数。"""
         if not subjects:
             return []
-        from sqlalchemy import or_, and_
+        from sqlalchemy import and_, or_
 
         clauses = [
             and_(RoleBinding.subject_type == s_type, RoleBinding.subject_id == s_id)
@@ -176,11 +176,11 @@ class RoleBindingService:
             return False
         if binding.expires_at is None:
             return True
-        ref = now or datetime.now(timezone.utc)
+        ref = now or datetime.now(UTC)
         # binding.expires_at 可能是 naive，统一处理
         exp = binding.expires_at
         if exp.tzinfo is None:
-            exp = exp.replace(tzinfo=timezone.utc)
+            exp = exp.replace(tzinfo=UTC)
         return exp > ref
 
     # ------------------------------------------------------------------

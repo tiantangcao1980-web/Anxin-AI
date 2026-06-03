@@ -15,7 +15,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
@@ -28,7 +28,7 @@ class Event:
     type: str           # confirm.created / confirm.granted / confirm.denied / audit / shadow.* / lifecycle.*
     payload: dict[str, Any] = field(default_factory=dict)
     tenant_id: str | None = None
-    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    ts: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_json(self) -> str:
         return json.dumps(

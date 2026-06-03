@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import sys
 import types
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -32,7 +32,6 @@ from src.services.skill_sandbox import (
     SkillSandboxRunner,
 )
 from src.services.skill_sandbox.runner import SkillSandboxStatus
-
 
 # ---------------------------------------------------------------------------
 # InMemoryQuotaTracker
@@ -52,7 +51,7 @@ def test_calls_per_day_enforced() -> None:
     t = InMemoryQuotaTracker(
         default_specs={SandboxTier.T2: QuotaSpec(calls_per_day=2)}
     )
-    for i in range(2):
+    for _ in range(2):
         d = t.check_and_reserve(tenant_id="org-x", tier=SandboxTier.T2)
         assert d.allow
         t.record_usage(tenant_id="org-x", tier=SandboxTier.T2, compute_ms=10, success=True)
@@ -114,7 +113,7 @@ def test_tenant_override_takes_precedence() -> None:
 
 
 def test_period_resets_on_new_utc_day() -> None:
-    fake_now = [datetime(2026, 5, 14, 23, 50, tzinfo=timezone.utc)]
+    fake_now = [datetime(2026, 5, 14, 23, 50, tzinfo=UTC)]
     t = InMemoryQuotaTracker(
         default_specs={SandboxTier.T2: QuotaSpec(calls_per_day=1)},
         now_provider=lambda: fake_now[0],
@@ -125,7 +124,7 @@ def test_period_resets_on_new_utc_day() -> None:
     d = t.check_and_reserve(tenant_id="o", tier=SandboxTier.T2)
     assert not d.allow
     # 跨日
-    fake_now[0] = datetime(2026, 5, 15, 0, 5, tzinfo=timezone.utc)
+    fake_now[0] = datetime(2026, 5, 15, 0, 5, tzinfo=UTC)
     d2 = t.check_and_reserve(tenant_id="o", tier=SandboxTier.T2)
     assert d2.allow
 
@@ -151,11 +150,11 @@ async def test_runner_denies_on_quota_exceeded() -> None:
     # 用 mock provider 避免真起进程：提供一个 inline T2 runner overrides。
     from src.services.sandbox_executor import (
         BaseSandboxProvider,
+        ExecResult,
         Sandbox,
         SandboxProviderRegistry,
         SandboxSpec,
         SandboxStatus,
-        ExecResult,
     )
 
     class _FakeProvider(BaseSandboxProvider):

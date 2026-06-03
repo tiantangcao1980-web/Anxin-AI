@@ -11,6 +11,12 @@
 
 import pytest
 
+from scripts.self_heal.dispatcher import (
+    AGENT_FORBIDDEN_PATHS,
+    Assignee,
+    decide,
+    is_path_safe_for_agent,
+)
 from scripts.self_heal.severity import (
     ClusterSignal,
     Severity,
@@ -18,23 +24,17 @@ from scripts.self_heal.severity import (
     score_cluster,
     to_severity,
 )
-from scripts.self_heal.dispatcher import (
-    Assignee,
-    AGENT_FORBIDDEN_PATHS,
-    decide,
-    is_path_safe_for_agent,
-)
 
 
 def make_sig(**kw) -> ClusterSignal:
-    defaults = dict(
-        cluster_id="abc123",
-        occurrence_per_hour=10.0,
-        affected_users=5,
-        routes=["chat"],
-        error_class="llm",
-        business_critical=False,
-    )
+    defaults = {
+        "cluster_id": "abc123",
+        "occurrence_per_hour": 10.0,
+        "affected_users": 5,
+        "routes": ["chat"],
+        "error_class": "llm",
+        "business_critical": False,
+    }
     defaults.update(kw)
     return ClusterSignal(**defaults)
 

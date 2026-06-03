@@ -25,7 +25,8 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, AsyncIterator, ClassVar, Optional
+from collections.abc import AsyncIterator
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -140,8 +141,8 @@ class CodexCloudProvider(BaseSandboxProvider):
         self,
         sandbox: Sandbox,
         cmd: list[str],
-        stdin: Optional[bytes] = None,
-        timeout_sec: Optional[int] = None,
+        stdin: bytes | None = None,
+        timeout_sec: int | None = None,
     ) -> ExecResult:
         self._validate_cmd(cmd)
         sandbox_id = sandbox.metadata.get("sandbox_id")

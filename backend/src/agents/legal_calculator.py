@@ -19,7 +19,7 @@ import json
 import re
 from typing import Any
 
-from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
+from src.agents._prompt_safety import wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.prompts import load_prompt
 from src.services.legal_calculator_service import legal_calculator_service

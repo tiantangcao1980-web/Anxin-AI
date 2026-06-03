@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from src.services.enterprise_directory.ldap_sync import (
@@ -225,8 +225,7 @@ class FeishuDirectoryClient:
                 raise ImDirectoryUnavailable(f"飞书 list_users: {exc}") from exc
             if body.get("code") != 0:
                 raise ImDirectoryUnavailable(f"飞书 list_users resp={body}")
-            for u in (body.get("data") or {}).get("items", []):
-                yield u
+            yield from (body.get("data") or {}).get("items", [])
             page_token = (body.get("data") or {}).get("page_token")
             if not page_token:
                 break
@@ -379,8 +378,7 @@ class DingtalkDirectoryClient:
             if body.get("errcode") != 0:
                 raise ImDirectoryUnavailable(f"钉钉 user/list resp={body}")
             result = body.get("result") or {}
-            for u in result.get("list") or []:
-                yield u
+            yield from result.get("list") or []
             if not result.get("has_more"):
                 break
             cursor = result.get("next_cursor", 0)

@@ -21,10 +21,9 @@ Skills 沙箱执行配额跟踪
 from __future__ import annotations
 
 import logging
-import time
-from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
-from typing import Any, Optional, Protocol
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any, Protocol
 
 from src.services.skill_sandbox.manifest import SandboxTier
 
@@ -102,7 +101,7 @@ class QuotaTracker(Protocol):
 
 
 def _utc_today_key(now: datetime | None = None) -> str:
-    ref = now or datetime.now(timezone.utc)
+    ref = now or datetime.now(UTC)
     return ref.date().isoformat()
 
 
@@ -126,7 +125,7 @@ class InMemoryQuotaTracker:
         self._overrides = {
             tid: dict(specs) for tid, specs in (tenant_overrides or {}).items()
         }
-        self._now = now_provider or (lambda: datetime.now(timezone.utc))
+        self._now = now_provider or (lambda: datetime.now(UTC))
         # state[(tenant_id, tier)] -> QuotaUsage
         self._state: dict[tuple[str, str], QuotaUsage] = {}
 

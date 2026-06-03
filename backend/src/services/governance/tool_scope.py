@@ -14,8 +14,6 @@ import fnmatch
 from dataclasses import dataclass
 from enum import Enum
 
-from loguru import logger
-
 from src.services.governance.policy_loader import get_policy
 
 

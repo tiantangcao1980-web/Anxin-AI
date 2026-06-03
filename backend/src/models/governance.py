@@ -15,9 +15,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
-    Boolean,
     DateTime,
-    ForeignKey,
     Index,
     Integer,
     String,
@@ -25,7 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import GUID, Base
+from src.models.base import Base
 
 
 class ConfirmTicketStatus(str, _enum.Enum):

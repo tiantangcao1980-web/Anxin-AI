@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
@@ -107,7 +107,7 @@ def write_revoked(skill_id: str, version: str, reason: str, revoked_by: str) -> 
         "version": version,
         "reason": reason,
         "revoked_by": revoked_by,
-        "revoked_at": datetime.now(timezone.utc).isoformat(),
+        "revoked_at": datetime.now(UTC).isoformat(),
     })
     REVOKED_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.warning("Skill revoked: {}@{} reason={}", skill_id, version, reason)

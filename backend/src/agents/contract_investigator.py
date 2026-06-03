@@ -15,7 +15,6 @@
 import json
 from typing import Any, cast
 
-from src.agents._prompt_safety import USER_INPUT_BOUNDARY, wrap_user_input
 from src.agents.base import AgentConfig, AgentResponse, BaseLegalAgent
 from src.services.agent_rag_service import AgentRAGService
 

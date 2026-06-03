@@ -543,7 +543,8 @@ class TestTaskEngine:
         # 用对 task_engine 的间接观察: 调 list_by_route 看到新记录
         before = len(task_engine._tasks)
 
-        from unittest.mock import patch, AsyncMock
+        from unittest.mock import AsyncMock, patch
+
         from src.services import due_diligence_service as dd_module
 
         async def _run():
@@ -571,12 +572,12 @@ class TestTaskEngine:
         import asyncio
 
         from src.harness.task_engine import TaskState, task_engine
-        from src.services.batch_document_service import batch_document_service, DOCUMENT_TEMPLATES
+        from src.services.batch_document_service import DOCUMENT_TEMPLATES, batch_document_service
 
         # 选 property_demand_letter 模板, 至少有 1 个必填字段
         template_key = "property_demand_letter"
         required = DOCUMENT_TEMPLATES[template_key]["required_fields"]
-        recipient = {fld: "占位" for fld in required}
+        recipient = dict.fromkeys(required, "占位")
 
         async def _run():
             job = batch_document_service.create_batch_job(

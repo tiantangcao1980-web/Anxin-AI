@@ -80,7 +80,7 @@ class NetworkManifest(BaseModel):
     allowed_hosts: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _check_allowlist(self) -> "NetworkManifest":
+    def _check_allowlist(self) -> NetworkManifest:
         if self.mode == NetworkMode.ALLOWLIST and not self.allowed_hosts:
             raise ManifestValidationError(
                 "network.mode=allowlist 必须提供 allowed_hosts"
@@ -138,7 +138,7 @@ class SandboxManifest(BaseModel):
     # ------------------------------------------------------------------
 
     @model_validator(mode="after")
-    def _check_consistency(self) -> "SandboxManifest":
+    def _check_consistency(self) -> SandboxManifest:
         """跨字段一致性校验 —— 见设计文档 §3。"""
         # entrypoint 与 tier 必须配对
         if self.tier.is_code and not self.entrypoint:
@@ -175,7 +175,7 @@ class SandboxManifest(BaseModel):
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_frontmatter(cls, fm: dict[str, Any] | None) -> "SandboxManifest":
+    def from_frontmatter(cls, fm: dict[str, Any] | None) -> SandboxManifest:
         """从已解析的 frontmatter dict 构造 manifest。
 
         - ``fm`` 为 ``None`` / 不含 sandbox 块 → 默认 T0

@@ -22,12 +22,13 @@ doctrine 见 docs/governance/，policy 见 policy/*.yaml。
 """
 from __future__ import annotations
 
+from src.services.governance import confirm_inbox, shadow_runner
+from src.services.governance.audit import audit_log, write_event
 from src.services.governance.authz import (
     Decision,
     DecisionResult,
     decide,
 )
-from src.services.governance.audit import audit_log, write_event
 from src.services.governance.data_classifier import (
     Classification,
     PIIFinding,
@@ -35,6 +36,7 @@ from src.services.governance.data_classifier import (
     mask,
     unmask,
 )
+from src.services.governance.external_send_gate import guard_external_send
 from src.services.governance.policy_loader import (
     PolicyBundle,
     get_policy,
@@ -47,8 +49,6 @@ from src.services.governance.skill_lifecycle import (
 )
 from src.services.governance.tool_scope import enforce_tool_call
 from src.services.governance.trust import TrustLevel, evaluate_trust
-from src.services.governance import confirm_inbox, shadow_runner
-from src.services.governance.external_send_gate import guard_external_send
 
 __all__ = [
     # authz

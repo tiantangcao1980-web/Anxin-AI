@@ -12,8 +12,6 @@ DepartmentService —— 部门 CRUD + materialized path 维护
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -79,11 +77,11 @@ class DepartmentService:
         *,
         org_id: str,
         name: str,
-        parent_id: Optional[str] = None,
-        code: Optional[str] = None,
-        leader_id: Optional[str] = None,
-        external_id: Optional[str] = None,
-        ext_source: Optional[str] = None,
+        parent_id: str | None = None,
+        code: str | None = None,
+        leader_id: str | None = None,
+        external_id: str | None = None,
+        ext_source: str | None = None,
         order_idx: int = 0,
     ) -> Department:
         parent_path = ""
@@ -114,7 +112,7 @@ class DepartmentService:
         await self.session.flush()
         return dept
 
-    async def move(self, org_id: str, dept_id: str, new_parent_id: Optional[str]) -> Department:
+    async def move(self, org_id: str, dept_id: str, new_parent_id: str | None) -> Department:
         """把 dept 挂到新父节点下，批量更新所有后代 path。
 
         - new_parent_id=None → 设为根

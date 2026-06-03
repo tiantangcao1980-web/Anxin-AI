@@ -21,7 +21,7 @@ async def test_review_contract_persists_risks_and_summary(
 ):
     service = ContractService(db_session)
     service._workforce = MagicMock(
-        process_task=AsyncMock(
+        process_task_governed=AsyncMock(
             return_value={
                 "final_result": {
                     "summary": "合同存在较高付款与违约责任风险",
@@ -95,10 +95,10 @@ async def test_review_contract_rejects_concurrent_review(
         return {"final_result": {"summary": "并发审查完成", "risks": []}}
 
     service_a = ContractService(db_session)
-    service_a._workforce = MagicMock(process_task=AsyncMock(side_effect=slow_review))
+    service_a._workforce = MagicMock(process_task_governed=AsyncMock(side_effect=slow_review))
     service_b = ContractService(db_session)
     service_b._workforce = MagicMock(
-        process_task=AsyncMock(return_value={"final_result": {"summary": "不应执行"}})
+        process_task_governed=AsyncMock(return_value={"final_result": {"summary": "不应执行"}})
     )
 
     contract = await service_a.create_contract(
@@ -125,7 +125,7 @@ async def test_review_contract_rejects_concurrent_review(
 
     finish.set()
     await review_task
-    service_b._workforce.process_task.assert_not_awaited()
+    service_b._workforce.process_task_governed.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -144,7 +144,7 @@ async def test_review_contract_timeout_marks_failed_and_allows_retry(
         return {"final_result": {"summary": "不应返回"}}
 
     service = ContractService(db_session)
-    service._workforce = MagicMock(process_task=AsyncMock(side_effect=slow_review))
+    service._workforce = MagicMock(process_task_governed=AsyncMock(side_effect=slow_review))
     contract = await service.create_contract(
         title="超时审查合同",
         contract_type="service",
@@ -164,7 +164,7 @@ async def test_review_contract_timeout_marks_failed_and_allows_retry(
     assert contract.review_result["reason"] == "contract_review_timeout"
 
     service._workforce = MagicMock(
-        process_task=AsyncMock(return_value={"final_result": {"summary": "重试成功", "risks": []}})
+        process_task_governed=AsyncMock(return_value={"final_result": {"summary": "重试成功", "risks": []}})
     )
     result = await service.review_contract(
         contract_id=contract.id,

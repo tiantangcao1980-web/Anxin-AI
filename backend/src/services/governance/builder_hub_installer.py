@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,9 +23,7 @@ import yaml
 from loguru import logger
 
 from src.services.governance.audit import write_event
-from src.services.governance.policy_loader import get_policy
 from src.services.governance.trust import (
-    REVOKED_FILE,
     TrustLevel,
     evaluate_trust,
     write_revoked,
@@ -80,7 +78,7 @@ class ScanReport:
                 {"rule": f.rule, "severity": f.severity, "snippet": f.snippet[:140], "line": f.line}
                 for f in self.findings
             ],
-            "scanned_at": datetime.now(timezone.utc).isoformat(),
+            "scanned_at": datetime.now(UTC).isoformat(),
         }
 
 
@@ -146,8 +144,8 @@ def scan_skill_markdown(skill_md: Path, *, declared_license: str | None = None) 
     for m in re.finditer(r"\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b", text):
         try:
             y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
-            ref = datetime(y, mo, d, tzinfo=timezone.utc)
-            age = (datetime.now(timezone.utc) - ref).days
+            ref = datetime(y, mo, d, tzinfo=UTC)
+            age = (datetime.now(UTC) - ref).days
             if age > 30 and any(k in text for k in ["法规", "条例", "政策", "公告", "规章"]):
                 rep.findings.append(ScanFinding(rule="freshness/stale-30d", severity="warn",
                                                 snippet=f"reference {y}-{mo}-{d} aged {age}d"))
@@ -305,7 +303,7 @@ def _audit_install(
     """builder-hub-audit.jsonl 独立审计文件，便于供应链合规审查。"""
     AUDIT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     entry = {
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "action": action,
         "installer": installer or {},
         "skill_id": skill_id,

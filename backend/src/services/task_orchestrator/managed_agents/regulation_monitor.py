@@ -89,7 +89,7 @@ def _extract_items(html: str, base_url: str) -> list[dict[str, str]]:
 
 
 def _fingerprint(item: dict[str, str]) -> str:
-    return hashlib.sha256(f"{item.get('url','')}|{item.get('title','')}".encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha256(f"{item.get('url','')}|{item.get('title','')}".encode()).hexdigest()[:16]
 
 
 def _load_seen() -> set[str]:

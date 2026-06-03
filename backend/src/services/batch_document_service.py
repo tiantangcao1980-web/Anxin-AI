@@ -365,7 +365,7 @@ class BatchDocumentService:
             raise ValueError(f"任务不存在: {job_id}")
 
         # T7: 创建 task_engine 状态机记录
-        from src.harness.task_engine import TaskState, task_engine, TaskContract
+        from src.harness.task_engine import TaskContract, TaskState, task_engine
         task_record = task_engine.create_task(
             description=f"批量文档生成: {job.template_type} × {job.total} 份",
             route="document_drafting",
@@ -380,7 +380,7 @@ class BatchDocumentService:
         task_engine.transition(task_record.task_id, TaskState.RUNNING)
         # 把 task_id 挂回 job 便于路由层透出
         try:
-            setattr(job, "task_id", task_record.task_id)
+            job.task_id = task_record.task_id
         except Exception:
             pass
 

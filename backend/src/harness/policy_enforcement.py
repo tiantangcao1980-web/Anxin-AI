@@ -20,7 +20,7 @@ H0 体检发现 policy_engine 18 个策略已注册但**主路径 0 调用** —
 from __future__ import annotations
 
 import os
-from typing import Any, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -48,7 +48,7 @@ async def check_tool_call(
     org_id: str | None = None,
     requested_by: str | None = None,
     action_payload: dict[str, Any] | None = None,
-) -> Tuple[bool, dict[str, Any]]:
+) -> tuple[bool, dict[str, Any]]:
     """检查 agent 是否可调用 tool。
 
     Args:

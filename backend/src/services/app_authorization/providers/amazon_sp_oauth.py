@@ -34,13 +34,12 @@ Amazon SP-API 用 **LWA (Login with Amazon)** 做 OAuth；与 Shopify / 飞书�
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 from loguru import logger
-
 
 # ----- Base 类 + 注册装饰器 -----
 try:  # pragma: no cover
@@ -52,9 +51,9 @@ except ImportError:  # pragma: no cover - 单元测试 / 框架未合入时使�
     @dataclass
     class OAuthTokenBundle:  # type: ignore[no-redef]
         access_token: str
-        refresh_token: Optional[str] = None
+        refresh_token: str | None = None
         token_type: str = "bearer"
-        expires_at: Optional[datetime] = None
+        expires_at: datetime | None = None
         raw: dict[str, Any] = field(default_factory=dict)
 
     class BaseOAuthProvider:  # type: ignore[no-redef]
@@ -108,11 +107,11 @@ class AmazonSPOAuthProvider(BaseOAuthProvider):
     def __init__(
         self,
         *,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        redirect_uri: Optional[str] = None,
-        app_id: Optional[str] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        redirect_uri: str | None = None,
+        app_id: str | None = None,
+        http_client: httpx.AsyncClient | None = None,
         marketplace_region: str = DEFAULT_REGION,
         **kwargs: Any,
     ) -> None:
@@ -157,7 +156,7 @@ class AmazonSPOAuthProvider(BaseOAuthProvider):
         state: str,
         *,
         version: str = "beta",
-        scope: Optional[list[str]] = None,
+        scope: list[str] | None = None,
         **_: Any,
     ) -> str:
         """生成 Seller Central 授权同意页 URL。
@@ -180,7 +179,7 @@ class AmazonSPOAuthProvider(BaseOAuthProvider):
     async def exchange_code(
         self,
         code: str,
-        state: Optional[str] = None,
+        state: str | None = None,
         **_: Any,
     ) -> OAuthTokenBundle:
         """用 spapi_oauth_code 换 access_token + refresh_token。"""
@@ -243,7 +242,7 @@ class AmazonSPOAuthProvider(BaseOAuthProvider):
 
         expires_at = None
         if data.get("expires_in"):
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(data["expires_in"]))
+            expires_at = datetime.now(UTC) + timedelta(seconds=int(data["expires_in"]))
         return OAuthTokenBundle(
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token"),
@@ -260,7 +259,7 @@ async def get_access_token(
     *,
     org_id: str,
     region: str = "NA",
-) -> Optional[str]:
+) -> str | None:
     """从 TokenStore 取出某租户的 amazon-sp access_token；过期自动刷新。
 
     Returns None 时：表示该租户没绑定 Amazon Seller / token store 没就绪 / 网络异常。
@@ -280,7 +279,7 @@ async def get_access_token(
     if bundle is None:
         return None
     # 过期或临期（< 5 分钟）→ 刷新
-    if bundle.expires_at and bundle.expires_at <= datetime.now(timezone.utc) + timedelta(minutes=5):
+    if bundle.expires_at and bundle.expires_at <= datetime.now(UTC) + timedelta(minutes=5):
         if not bundle.refresh_token:
             logger.warning("amazon-sp token 已临期且无 refresh_token → 卖家需重新授权")
             return None

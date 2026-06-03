@@ -26,8 +26,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional, Protocol
+from datetime import UTC, datetime
+from typing import Any, Protocol
 from uuid import uuid4
 
 from sqlalchemy import select, update
@@ -357,7 +357,7 @@ class LdapSyncService:
                 )
                 # external_id 字段如果存在
                 if hasattr(new_user, "external_id"):
-                    setattr(new_user, "external_id", rec.external_id)
+                    new_user.external_id = rec.external_id
                 if not dry_run:
                     self.session.add(new_user)
                     await self.session.flush()
@@ -443,7 +443,7 @@ class LdapSyncService:
                             user_id=user.id,
                             department_id=dept.id,
                             is_primary=True,
-                            joined_at=datetime.now(timezone.utc),
+                            joined_at=datetime.now(UTC),
                         )
                     )
                     await self.session.flush()

@@ -14,17 +14,15 @@ Governance authz PDP 端到端测试。
 """
 from __future__ import annotations
 
-import pytest
-
 from src.services.governance import (
     Decision,
-    decide,
+    LifecycleStage,
+    can_transition,
     classify,
-    mask,
+    decide,
     enforce_tool_call,
     evaluate_trust,
-    can_transition,
-    LifecycleStage,
+    mask,
 )
 from src.services.governance.tool_scope import ToolDecision
 

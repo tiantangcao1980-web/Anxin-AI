@@ -14,8 +14,6 @@ PolicyGate 单测
 
 from __future__ import annotations
 
-import pytest
-
 from src.core.deps import Permission, UserRole
 from src.services.skill_sandbox import (
     PolicyDecision,

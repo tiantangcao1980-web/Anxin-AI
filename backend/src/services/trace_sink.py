@@ -18,11 +18,10 @@ import asyncio
 import hashlib
 import re
 from collections import deque
-from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from loguru import logger
-
 
 # ===== PII 脱敏（最小可用，H1 接 pii_service 替换） =====
 
@@ -36,7 +35,7 @@ _SCRUBBERS: list[tuple[re.Pattern, str]] = [
 ]
 
 
-def scrub(text: Optional[str]) -> Optional[str]:
+def scrub(text: str | None) -> str | None:
     """最小化 PII 脱敏（H1 替换为调用 pii_service.scrub）"""
     if not text:
         return text
@@ -93,14 +92,14 @@ class TraceSink:
         batch_size: int = 50,
         flush_interval_ms: int = 500,
         max_queue: int = 10_000,
-        writer: Optional[Callable[[list[dict]], Any]] = None,
+        writer: Callable[[list[dict]], Any] | None = None,
     ):
         self.batch_size = batch_size
         self.flush_interval = flush_interval_ms / 1000.0
         self.max_queue = max_queue
         self.writer = writer or self._default_writer
         self._queue: deque[dict] = deque()
-        self._worker_task: Optional[asyncio.Task] = None
+        self._worker_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
         self._dropped = 0
 
@@ -154,7 +153,7 @@ class TraceSink:
         while not self._stop_event.is_set():
             try:
                 await asyncio.wait_for(self._stop_event.wait(), timeout=self.flush_interval)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
             await self._flush()
 

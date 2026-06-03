@@ -9,10 +9,9 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 # ============ 枚举 ============
 
@@ -53,17 +52,17 @@ class IncidentRead(BaseModel):
     title: str
     payload: dict[str, Any] = Field(default_factory=dict)
     payload_classification: str = "CONFIDENTIAL"
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    trace_id: Optional[str] = None
-    agent_name: Optional[str] = None
-    route: Optional[str] = None
+    user_id: str | None = None
+    session_id: str | None = None
+    trace_id: str | None = None
+    agent_name: str | None = None
+    route: str | None = None
     status: IncidentStatus
     occurrence_count: int = 1
     first_seen_at: datetime
     last_seen_at: datetime
-    triage_summary: Optional[str] = None
-    github_issue_url: Optional[str] = None
+    triage_summary: str | None = None
+    github_issue_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -80,11 +79,11 @@ class IncidentReportIn(BaseModel):
 
     source: IncidentSource = IncidentSource.FRONTEND_ERROR
     title: str = Field(..., min_length=1, max_length=256)
-    message: Optional[str] = Field(None, max_length=4096)
-    stack: Optional[str] = Field(None, max_length=16384)
-    url: Optional[str] = Field(None, max_length=1024)
-    user_agent: Optional[str] = Field(None, max_length=512)
-    session_id: Optional[str] = Field(None, max_length=64)
+    message: str | None = Field(None, max_length=4096)
+    stack: str | None = Field(None, max_length=16384)
+    url: str | None = Field(None, max_length=1024)
+    user_agent: str | None = Field(None, max_length=512)
+    session_id: str | None = Field(None, max_length=64)
 
 
 # ============ 列表查询 ============
@@ -94,6 +93,6 @@ class IncidentListQuery(BaseModel):
 
     page: int = Field(1, ge=1)
     page_size: int = Field(20, ge=1, le=200)
-    source: Optional[IncidentSource] = None
-    severity: Optional[IncidentSeverity] = None
-    status: Optional[IncidentStatus] = None
+    source: IncidentSource | None = None
+    severity: IncidentSeverity | None = None
+    status: IncidentStatus | None = None

@@ -6,9 +6,9 @@ SkillLifecycle —— 状态机 + 状态迁移守门
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable
 
 from loguru import logger
 

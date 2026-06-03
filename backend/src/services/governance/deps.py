@@ -16,10 +16,9 @@ dependency 内部会从 `current_user` 推 subject，从 request 推 context，
 """
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, Request, status
-from loguru import logger
 
 from src.core.deps import get_current_user
 from src.models.user import User

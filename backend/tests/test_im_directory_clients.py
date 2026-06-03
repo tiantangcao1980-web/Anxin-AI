@@ -13,8 +13,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
 
 import pytest
 
@@ -27,7 +27,6 @@ from src.services.enterprise_directory import (
     WecomConfig,
     WecomDirectoryClient,
 )
-
 
 # ---------------------------------------------------------------------------
 # FakeHttp —— 模拟 httpx.Client

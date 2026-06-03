@@ -215,9 +215,10 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     # 包在 try/except 里，绝不能让 hook 自身错误影响主响应
     try:
         import traceback as _tb
+
         from src.core.database import get_db_context
         from src.harness.incident_collector import IncidentCollector
-        from src.schemas.incident import IncidentSource, IncidentSeverity
+        from src.schemas.incident import IncidentSeverity, IncidentSource
         from src.services.pii_service import pii_service
 
         path = str(request.url.path)

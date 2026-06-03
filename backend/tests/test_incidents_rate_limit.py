@@ -15,14 +15,14 @@ import time
 from collections import deque
 
 from src.utils.rate_limit_burst import (
-    check_burst,
-    fingerprint_buckets,
-    fingerprint_preview,
-    user_buckets,
     _FINGERPRINT_BURST_LIMIT,
     _FINGERPRINT_WINDOW_SECONDS,
     _USER_BURST_LIMIT,
     _USER_WINDOW_SECONDS,
+    check_burst,
+    fingerprint_buckets,
+    fingerprint_preview,
+    user_buckets,
 )
 
 
@@ -76,11 +76,11 @@ def test_window_expiry_resets():
 
 def test_check_burst_redis_fallback_when_no_redis(monkeypatch):
     """F2: RATE_LIMIT_REDIS_URL 未设置 → check_burst_redis 自动 fallback 到内存。"""
+    import src.utils.rate_limit_burst as mod
     from src.utils.rate_limit_burst import (
         _redis_fallback_buckets,
         check_burst_redis,
     )
-    import src.utils.rate_limit_burst as mod
 
     # 强制 init 重置
     monkeypatch.delenv("RATE_LIMIT_REDIS_URL", raising=False)

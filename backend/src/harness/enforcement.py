@@ -22,17 +22,13 @@ H0 体检发现：chat_service 中 output_validator 是软接入：
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 from loguru import logger
 
 from src.harness.output_validator import (
-    OutputValidator,
     ValidationLevel,
     ValidationResult,
     output_validator,
 )
-
 
 # ===== 统一文案 =====
 
@@ -49,7 +45,7 @@ DISCLAIMER_TEXT = (
 
 # ===== 同步：根据校验结果决定动作（纯函数，便于单测） =====
 
-def enforce_output(original_text: str, result: ValidationResult) -> Tuple[str, str]:
+def enforce_output(original_text: str, result: ValidationResult) -> tuple[str, str]:
     """根据校验结果决定最终响应文本和动作"""
     if result.has_critical:
         logger.warning(
@@ -83,9 +79,9 @@ async def run_validation(
     *,
     response_text: str,
     user_query: str,
-    agent_name: Optional[str] = None,
-    route: Optional[str] = None,
-) -> Tuple[str, str]:
+    agent_name: str | None = None,
+    route: str | None = None,
+) -> tuple[str, str]:
     """运行 validator 并应用强制策略。
 
     返回 (final_text, action)。action ∈ {pass, warned, retry, rejected, validator_error}

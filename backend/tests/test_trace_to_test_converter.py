@@ -12,7 +12,6 @@ Trace → Test 转换器测试（T2）
 
 import json
 import shutil
-from pathlib import Path
 
 import pytest
 
@@ -22,7 +21,6 @@ from scripts.trace_to_test.converter import (
     convert,
     trace_to_case,
 )
-
 
 SAMPLE_TRACE_FAILED = {
     "trace_id": "abc123def456",

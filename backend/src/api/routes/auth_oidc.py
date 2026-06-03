@@ -20,12 +20,10 @@ import logging
 import os
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from fastapi import Depends
 
 from src.core.database import get_db
 from src.core.oidc import OidcConfig, OidcError, OidcUnavailable, OidcVerifier
@@ -160,7 +158,7 @@ async def oidc_callback(
             is_active=True,
         )
         if hasattr(user, "external_id"):
-            setattr(user, "external_id", sub)
+            user.external_id = sub
         db.add(user)
         is_new_user = True
         await db.flush()

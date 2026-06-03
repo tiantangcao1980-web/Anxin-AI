@@ -24,7 +24,7 @@ class TestChatAPIResponses:
         # Mock智能体团队
         mock_workforce = MagicMock()
         mock_workforce.chat = AsyncMock(return_value="这是AI的回复")
-        mock_workforce.process_task = AsyncMock(
+        mock_workforce.process_task_governed = AsyncMock(
             return_value={"final_result": {"summary": "这是AI的回复"}}
         )
         mock_get_workforce.return_value = mock_workforce

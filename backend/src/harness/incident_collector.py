@@ -17,8 +17,8 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.incident import Incident
 from src.schemas.incident import IncidentSeverity, IncidentSource
 from src.services.pii_service import PIIService
-
 
 # 同 fingerprint 在 N 分钟内只 ++count，不新建
 DEDUPE_WINDOW = timedelta(minutes=5)
@@ -61,7 +60,7 @@ class IncidentCollector:
         source: IncidentSource,
         title: str,
         payload: dict[str, Any],
-        fingerprint_keys: Optional[list[str]],
+        fingerprint_keys: list[str] | None,
     ) -> str:
         """
         指纹算法：sha256(source + "|" + 序列化(选定 payload 子集 或 title 前 200))
@@ -72,7 +71,7 @@ class IncidentCollector:
             material = json.dumps(subset, sort_keys=True, ensure_ascii=False, default=str)
         else:
             material = title[:200]
-        raw = f"{source.value}|{material}".encode("utf-8")
+        raw = f"{source.value}|{material}".encode()
         return hashlib.sha256(raw).hexdigest()[:64]
 
     # ------------------------------------------------------------------
@@ -87,12 +86,12 @@ class IncidentCollector:
         payload: dict[str, Any],
         severity: IncidentSeverity = IncidentSeverity.P2,
         payload_classification: str = "CONFIDENTIAL",
-        user_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        trace_id: Optional[str] = None,
-        agent_name: Optional[str] = None,
-        route: Optional[str] = None,
-        fingerprint_keys: Optional[list[str]] = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        trace_id: str | None = None,
+        agent_name: str | None = None,
+        route: str | None = None,
+        fingerprint_keys: list[str] | None = None,
     ) -> Incident:
         """
         汇报一个失败信号。同 fingerprint 在 5 分钟内重复 → 仅 ++ count。
@@ -122,7 +121,7 @@ class IncidentCollector:
         )
 
         # 3) 5 分钟内去重：找同 fingerprint + open 的 last_seen_at >= now-5min
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         window_start = now - DEDUPE_WINDOW
 
         stmt = (

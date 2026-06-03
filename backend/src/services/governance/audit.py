@@ -13,12 +13,12 @@ import asyncio
 import functools
 import hashlib
 import json
-import os
 import secrets
 import threading
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from loguru import logger
 
@@ -44,7 +44,7 @@ def _fingerprint(event: dict) -> str:
 
 
 def _today_path() -> Path:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
     return AUDIT_DIR / f"{now.strftime('%Y-%m-%d')}.jsonl"
 
@@ -53,7 +53,7 @@ def write_event(event: dict) -> str:
     """写一条审计事件到 JSONL（DB 写入由调用方触发或后台 worker 异步同步）。"""
     event = {
         "schema_version": SCHEMA_VERSION,
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "event_id": event.get("event_id") or _ulid_like(),
         **event,
     }
@@ -97,7 +97,7 @@ async def _db_write_async(event: dict) -> None:
         actor = event.get("actor") or {}
         resource = event.get("resource") or {}
         ts_str = event.get("ts")
-        ts_dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00")) if ts_str else datetime.now(timezone.utc)
+        ts_dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00")) if ts_str else datetime.now(UTC)
 
         try:
             async with async_session_maker() as session:
@@ -156,7 +156,7 @@ def audit_log(
         if asyncio.iscoroutinefunction(fn):
             @functools.wraps(fn)
             async def aw(*args: Any, **kwargs: Any) -> Any:
-                started = datetime.now(timezone.utc)
+                started = datetime.now(UTC)
                 event: dict = {
                     "event_type": event_type,
                     "actor": kwargs.get("subject") or {},
@@ -169,7 +169,7 @@ def audit_log(
                         "outcome": (result or {}).get("outcome", "success"),
                         "resource": (result or {}).get("resource")
                                     or (extract_resource(*args, **kwargs) if extract_resource else None),
-                        "duration_ms": int((datetime.now(timezone.utc) - started).total_seconds() * 1000),
+                        "duration_ms": int((datetime.now(UTC) - started).total_seconds() * 1000),
                     })
                     write_event(event)
                     return result
@@ -177,7 +177,7 @@ def audit_log(
                     event.update({
                         "outcome": "failure",
                         "error": repr(e),
-                        "duration_ms": int((datetime.now(timezone.utc) - started).total_seconds() * 1000),
+                        "duration_ms": int((datetime.now(UTC) - started).total_seconds() * 1000),
                     })
                     write_event(event)
                     raise
@@ -185,7 +185,7 @@ def audit_log(
 
         @functools.wraps(fn)
         def sw(*args: Any, **kwargs: Any) -> Any:
-            started = datetime.now(timezone.utc)
+            started = datetime.now(UTC)
             event: dict = {
                 "event_type": event_type,
                 "actor": kwargs.get("subject") or {},
@@ -197,7 +197,7 @@ def audit_log(
                     "decision": (result or {}).get("decision") if isinstance(result, dict) else None,
                     "outcome": "success",
                     "resource": (result or {}).get("resource") if isinstance(result, dict) else None,
-                    "duration_ms": int((datetime.now(timezone.utc) - started).total_seconds() * 1000),
+                    "duration_ms": int((datetime.now(UTC) - started).total_seconds() * 1000),
                 })
                 write_event(event)
                 return result
@@ -205,7 +205,7 @@ def audit_log(
                 event.update({
                     "outcome": "failure",
                     "error": repr(e),
-                    "duration_ms": int((datetime.now(timezone.utc) - started).total_seconds() * 1000),
+                    "duration_ms": int((datetime.now(UTC) - started).total_seconds() * 1000),
                 })
                 write_event(event)
                 raise
