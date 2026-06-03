@@ -107,7 +107,9 @@ async function realListTasks(params: ListTasksParams = {}): Promise<AgentTask[]>
   if (params.offset !== undefined) qs.set('offset', String(params.offset))
   const query = qs.toString()
   const res = await authFetch(`/agent-tasks${query ? `?${query}` : ''}`)
-  return jsonOrThrow<AgentTask[]>(res)
+  // 后端 GET /agent-tasks 返回 AgentTaskListOut { items, limit, offset }，不是裸数组。
+  const data = await jsonOrThrow<{ items: AgentTask[]; limit: number; offset: number }>(res)
+  return data.items ?? []
 }
 
 async function realCreateTask(body: CreateTaskRequest): Promise<AgentTask> {

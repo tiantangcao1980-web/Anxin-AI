@@ -78,8 +78,12 @@ export interface RejectTaskRequest {
 
 export async function listTasks(params: ListTasksParams = {}): Promise<AgentTask[]> {
   const client = getApiClient()
-  const res = await client.get<AgentTask[]>('/agent-tasks', { params })
-  return res.data ?? []
+  // 后端 GET /agent-tasks 返回 AgentTaskListOut { items, limit, offset }，不是裸数组。
+  const res = await client.get<{ items: AgentTask[]; limit: number; offset: number }>(
+    '/agent-tasks',
+    { params },
+  )
+  return res.data?.items ?? []
 }
 
 export async function createTask(body: CreateTaskRequest): Promise<AgentTask> {

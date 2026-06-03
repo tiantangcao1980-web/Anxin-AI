@@ -24,11 +24,16 @@ export interface ListTasksParams {
 }
 
 export async function listTasks(params: ListTasksParams = {}): Promise<AgentTask[]> {
-  return apiClient.get<AgentTask[]>('/agent-tasks', {
-    status: params.status,
-    limit: params.limit,
-    offset: params.offset,
-  })
+  // 后端 GET /agent-tasks 返回 AgentTaskListOut { items, limit, offset }，不是裸数组。
+  const res = await apiClient.get<{ items: AgentTask[]; limit: number; offset: number }>(
+    '/agent-tasks',
+    {
+      status: params.status,
+      limit: params.limit,
+      offset: params.offset,
+    },
+  )
+  return res.items ?? []
 }
 
 export async function createTask(body: CreateTaskRequest): Promise<AgentTask> {
