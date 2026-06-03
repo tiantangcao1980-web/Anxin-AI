@@ -17,17 +17,7 @@
  * 单一真相源：DESIGN.md §业务域
  */
 
-import type { LucideIcon } from 'lucide-react'
-import {
-  Scale,         // 法务
-  Calculator,    // 财务
-  Landmark,      // 税务
-  ShieldCheck,   // 合规
-  LineChart,     // 经营管理
-  Compass,       // 调研获客
-  PenLine,       // 内容产出
-  Globe2,        // 出海跨境
-} from 'lucide-react'
+import { icons, type LucideIcon } from '@/lib/icons'
 
 export type DomainId =
   | 'legal'
@@ -62,14 +52,14 @@ export interface DomainMeta {
  *   3. mini-program/src/styles/design-tokens.ts 的 domainMeta
  */
 export const DOMAINS: readonly DomainMeta[] = [
-  { id: 'legal',      label: '法务',     labelEn: 'Legal',      tagline: '合同审查 · 案件管理 · 法律顾问',     defaultPath: '/case-center',      icon: Scale },
-  { id: 'finance',    label: '财务',     labelEn: 'Finance',    tagline: '记账 · 对账 · 报销 · 资金看板',        defaultPath: '/finance',          icon: Calculator },
-  { id: 'tax',        label: '税务',     labelEn: 'Tax',        tagline: '申报 · 税务筹划 · 政策跟踪',          defaultPath: '/tax',              icon: Landmark },
-  { id: 'compliance', label: '合规',     labelEn: 'Compliance', tagline: '风控 · 内审 · 监管红线',              defaultPath: '/compliance-check', icon: ShieldCheck },
-  { id: 'operations', label: '经营管理', labelEn: 'Operations', tagline: 'KPI · 决策驾驶舱 · 战略推演',          defaultPath: '/dashboard',        icon: LineChart },
-  { id: 'growth',     label: '调研获客', labelEn: 'Growth',     tagline: '市场调研 · 线索挖掘 · 舆情监测',       defaultPath: '/investigation',    icon: Compass },
-  { id: 'content',    label: '内容产出', labelEn: 'Content',    tagline: '文案 · 视频脚本 · 营销素材',           defaultPath: '/content',          icon: PenLine },
-  { id: 'global',     label: '出海跨境', labelEn: 'Global',     tagline: '国际化 · 海外合规 · 本地化',           defaultPath: '/global',           icon: Globe2 },
+  { id: 'legal',      label: '法务',     labelEn: 'Legal',      tagline: '合同审查 · 案件管理 · 法律顾问',     defaultPath: '/case-center',      icon: icons.Scale },
+  { id: 'finance',    label: '财务',     labelEn: 'Finance',    tagline: '记账 · 对账 · 报销 · 资金看板',        defaultPath: '/finance',          icon: icons.Calculator },
+  { id: 'tax',        label: '税务',     labelEn: 'Tax',        tagline: '申报 · 税务筹划 · 政策跟踪',          defaultPath: '/tax',              icon: icons.Landmark },
+  { id: 'compliance', label: '合规',     labelEn: 'Compliance', tagline: '风控 · 内审 · 监管红线',              defaultPath: '/compliance-check', icon: icons.ShieldCheck },
+  { id: 'operations', label: '经营管理', labelEn: 'Operations', tagline: 'KPI · 决策驾驶舱 · 战略推演',          defaultPath: '/dashboard',        icon: icons.LineChart },
+  { id: 'growth',     label: '调研获客', labelEn: 'Growth',     tagline: '市场调研 · 线索挖掘 · 舆情监测',       defaultPath: '/investigation',    icon: icons.Compass },
+  { id: 'content',    label: '内容产出', labelEn: 'Content',    tagline: '文案 · 视频脚本 · 营销素材',           defaultPath: '/content',          icon: icons.PenLine },
+  { id: 'global',     label: '出海跨境', labelEn: 'Global',     tagline: '国际化 · 海外合规 · 本地化',           defaultPath: '/global',           icon: icons.Globe2 },
 ] as const
 
 /** 按 id 快速查询 */

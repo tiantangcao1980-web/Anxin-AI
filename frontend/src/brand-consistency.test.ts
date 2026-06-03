@@ -105,12 +105,12 @@ describe('frontend · Reset 反向断链守护 (违反即 fail)', () => {
     const lines = css.split('\n')
     for (const line of lines) {
       // 跳过 --ai-* 变量行（DESIGN.md §2 保留）
-      if (/--ai[a-z\-]*:/i.test(line)) continue
+      if (/--ai[a-z-]*:/i.test(line)) continue
       // 跳过 --node-* 图谱节点色（业务隔离，DESIGN.md §6 保留 — 用于图算法 canvas）
-      if (/--node-[a-z\-]*:/i.test(line)) continue
+      if (/--node-[a-z-]*:/i.test(line)) continue
       // 跳过 --primary 系（琥珀橙 hue 25）— hsl 25 不会落在 violet 范围
       // 检查紫色 hue 在 token 变量行
-      if (/--[a-z\-]+:\s*(260|261|262|263|264|265|266|267|268|269|270|271|272|273|274|275|276|277|278|279|280|281|282|283|284|285|286|287|288|289|290)\s+/.test(line)) {
+      if (/--[a-z-]+:\s*(260|261|262|263|264|265|266|267|268|269|270|271|272|273|274|275|276|277|278|279|280|281|282|283|284|285|286|287|288|289|290)\s+/.test(line)) {
         throw new Error(`Reset 反向断言失败：发现紫色 hue 在 design token 变量中：\n${line.trim()}`)
       }
     }

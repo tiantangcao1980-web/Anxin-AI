@@ -79,6 +79,9 @@ export default function AdminEnterprise() {
  const [complianceRecords, setComplianceRecords] = useState<ComplianceRecord[]>([])
  const [riskItems, setRiskItems] = useState<RiskItem[]>([])
  const [riskTrend, setRiskTrend] = useState<RiskTrendItem[]>([])
+ // 当前账号所属组织 —— 给部门 / 角色绑定面板用。
+ // 必须在任何 early return 之前调用，遵守 React Hooks 规则（rules-of-hooks）。
+ const orgId = useAuthStore((s) => s.user?.org_id || null)
 
  useEffect(() => {
  let cancelled = false
@@ -167,9 +170,6 @@ export default function AdminEnterprise() {
  </PageContainer>
  )
  }
-
- // 当前账号所属组织 —— 给部门 / 角色绑定面板用
- const orgId = useAuthStore((s) => s.user?.org_id || null)
 
  return (
  <PageContainer title="企业管理" description="企业信息、合规监控、风险概览、组织目录与权限">

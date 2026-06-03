@@ -214,6 +214,10 @@ import {
   Slash,
   Unplug,
   UserPlus,
+  LineChart,
+  Compass,
+  PenLine,
+  Globe2,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -260,6 +264,14 @@ export const icons = {
   Academy: GraduationCap,
 
   // ===== 导航 - 业务域组图标 =====
+  /** 经营管理域（src/lib/domains.ts 用） */
+  LineChart: LineChart,
+  /** 调研获客域 */
+  Compass: Compass,
+  /** 内容产出域 */
+  PenLine: PenLine,
+  /** 出海跨境域 */
+  Globe2: Globe2,
   /** AI 智能助手域 */
   AILegal: Sparkles,
   /** 温和/喜爱 */

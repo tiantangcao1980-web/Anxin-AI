@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, X } from 'lucide-react'
+import { icons } from '@/lib/icons'
 
 import { DOMAINS } from '@/lib/domains'
 
@@ -37,7 +37,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
           aria-label="关闭"
           className="absolute top-5 right-5 z-10 p-2 hover:bg-surface-2 transition-colors"
         >
-          <X className="w-5 h-5 text-muted-foreground stroke-[1.5]" />
+          <icons.X className="w-5 h-5 text-muted-foreground stroke-[1.5]" />
         </button>
 
         {/* Header */}
@@ -77,7 +77,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
                     <div className="font-serif text-[20px] leading-tight text-foreground">{d.label}</div>
                     <div className="text-[13px] text-muted-foreground mt-1">{d.tagline}</div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all stroke-[1.5]" aria-hidden />
+                  <icons.ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 transition-all stroke-[1.5]" aria-hidden />
                 </button>
               </li>
             ))}
@@ -100,7 +100,7 @@ export function WelcomeGuide({ onClose, onSelectView }: WelcomeGuideProps) {
             className="shrink-0 inline-flex items-center gap-2 bg-primary hover:bg-primary-700 text-primary-foreground px-5 py-2.5 text-[14px] font-medium tracking-wide transition-colors"
           >
             <span>打开 AI 对话</span>
-            <ArrowRight className="w-4 h-4 stroke-[1.75]" />
+            <icons.ArrowRight className="w-4 h-4 stroke-[1.75]" />
           </button>
         </footer>
       </motion.div>

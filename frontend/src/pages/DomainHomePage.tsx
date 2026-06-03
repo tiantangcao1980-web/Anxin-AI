@@ -11,7 +11,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight } from 'lucide-react'
+import { icons } from '@/lib/icons'
 
 import { DOMAINS, type DomainId } from '@/lib/domains'
 
@@ -116,7 +116,7 @@ export default function DomainHomePage() {
                       </div>
                       <div className="text-[13px] text-muted-foreground mt-1">{d.tagline}</div>
                     </div>
-                    <ArrowRight className={`w-4 h-4 stroke-[1.5] transition-all ${
+                    <icons.ArrowRight className={`w-4 h-4 stroke-[1.5] transition-all ${
                       isActive ? 'text-foreground' : 'text-muted-foreground opacity-0 group-hover:opacity-100'
                     }`} aria-hidden />
                   </button>
@@ -159,7 +159,7 @@ export default function DomainHomePage() {
                       <div className="font-serif text-[18px] leading-tight text-foreground">{m.label}</div>
                       <div className="text-[13px] text-muted-foreground mt-1">{m.caption}</div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 stroke-[1.5] transition-all mt-1.5" aria-hidden />
+                    <icons.ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-foreground group-hover:translate-x-0.5 stroke-[1.5] transition-all mt-1.5" aria-hidden />
                   </Link>
                 </li>
               ))}
@@ -171,14 +171,14 @@ export default function DomainHomePage() {
                 className="inline-flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground transition-colors"
               >
                 <span>所有模块 / AI 引导</span>
-                <ArrowUpRight className="w-3 h-3 stroke-[1.5]" />
+                <icons.ArrowUpRight className="w-3 h-3 stroke-[1.5]" />
               </Link>
               <Link
                 to={activeDomain.defaultPath}
                 className="inline-flex items-center gap-2 bg-primary hover:bg-primary-700 text-primary-foreground px-5 py-2.5 text-[14px] font-medium transition-colors"
               >
                 <span>进入 {activeDomain.label}</span>
-                <ArrowRight className="w-4 h-4 stroke-[1.75]" />
+                <icons.ArrowRight className="w-4 h-4 stroke-[1.75]" />
               </Link>
             </div>
           </div>
