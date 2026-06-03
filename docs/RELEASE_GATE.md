@@ -76,7 +76,7 @@
 | **RAG full50 baseline** | 🚧 |
 | **支付沙箱 preflight + live** | ⏬ 降 P3 (商业化阶段, 2026-05-14) |
 | **电签沙箱 preflight + live** | ⏬ 降 P3 (商业化阶段) |
-| **政务签章 GDCA / 粤企签 placeholder** | ✅ (代码就位, 商务待启动) |
+| **政务签章 GDCA / 粤企签 框架占位** | 🟡 框架占位（未接入·调用即 raise，待商务对接 GDCA/粤企签凭据） |
 | Agent governance smoke | ✅ |
 
 ---

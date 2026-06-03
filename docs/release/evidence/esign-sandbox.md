@@ -7,7 +7,7 @@ Owner: TBD
 Environment: staging/sandbox
 Date range: TBD
 
-> **降级说明**: 见 [docs/DEVELOPMENT_PLAN.md §2.1 P8.D](../../DEVELOPMENT_PLAN.md) + [docs/integrations/guangdong-gov-signature.md](../../integrations/guangdong-gov-signature.md). 当前 ESIGN_PROVIDER 支持 5 渠道 (mock / gdca / yueqishang / esignbao / fadada); 商业化 e签宝/法大大降为 P3, 政务签章 GDCA/粤企签 placeholder 已就位待商务推动。
+> **降级说明**: 见 [docs/DEVELOPMENT_PLAN.md §2.1 P8.D](../../DEVELOPMENT_PLAN.md) + [docs/integrations/guangdong-gov-signature.md](../../integrations/guangdong-gov-signature.md). 当前 ESIGN_PROVIDER 支持 5 渠道 (mock / gdca / yueqishang / esignbao / fadada); 商业化 e签宝/法大大降为 P3, 政务签章 GDCA/粤企签 仅框架占位🟡（未接入·调用即 raise ESignProviderConfigError，待商务对接凭据后推动）。
 
 > Do not paste app secrets, access tokens, signing credentials, contract contents, signer phone numbers, or identity numbers into this file. Use redacted artifact references.
 

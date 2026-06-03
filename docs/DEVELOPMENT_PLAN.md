@@ -44,7 +44,7 @@
 🚧 P8 baseline 打磨（UI/UX 3 周计划进行中）
 🚧 图标体系 80 文件迁移
 🚧 桌面签名 / 公证（阻断）
-⏬ 支付 / 电签商业化沙箱（已降为 P3, PMF 后启动；政务签章 placeholder 已就位）
+⏬ 支付 / 电签商业化沙箱（已降为 P3, PMF 后启动；政务签章仅框架占位🟡，未接入·调用即 raise，待商务对接 GDCA/粤企签凭据）
 🚧 真机证据采集（阻断）
 
 🔜 P9 5 法务 persona 上层包装
@@ -101,13 +101,13 @@
 - ✅ **核心任务优先**: 核心功能 (Agent / RAG / 协作 / 知识库) PMF 验证先做
 - 🟡 **签约入口**: 接入广东省政务签章 (GDCA + 粤企签) 而非商业化 e签宝/法大大
   - 见 [docs/integrations/guangdong-gov-signature.md](integrations/guangdong-gov-signature.md)
-  - 代码层 Provider placeholder 已就位 (`ESIGN_PROVIDER=gdca/yueqishang`), 实际对接待业务方推动
+  - 代码层仅有**框架占位** Provider (`ESIGN_PROVIDER=gdca/yueqishang`)，**未接入**：未配置凭据时调用任何方法立即 raise `ESignProviderConfigError`（fail-fast，不会静默假成功），实际对接待业务方对接 GDCA / 粤企签凭据后推动
 - 🔴 **商业化支付**: 微信/支付宝沙箱凭证暂搁置, PMF 验证后再启动
 
 | 子任务 | 优先级 | 状态 | 阻断 |
 |---|---|---|---|
-| GDCA 政务签 Provider placeholder | P2 | ✅ 已就位 | 业务方 NDA + 商务 |
-| 粤企签 / 粤商通 Provider placeholder | P2 | ✅ 已就位 | 数字广东开发者权限 |
+| GDCA 政务签 Provider 框架占位 | P2 | 🟡 框架占位（未接入·调用即 raise，待商务对接 GDCA 凭据） | 业务方 NDA + 商务 |
+| 粤企签 / 粤商通 Provider 框架占位 | P2 | 🟡 框架占位（未接入·调用即 raise，待商务对接粤企签凭据） | 数字广东开发者权限 |
 | GDCA 真实接入 | P2 | 🚫 | GDCA 测试凭据 |
 | 粤企签真实接入 | P2 | 🚫 | 粤商通入驻 + 开发者权限 |
 | e签宝 / 法大大 商业化电子签 | P3 | 🟡 placeholder 已写好, 暂不启用 | PMF 验证后启动 |
@@ -147,7 +147,7 @@
 
 | Lane | 域 | 写入范围 | Completion Gate |
 |---|---|---|---|
-| **Lane 1** | 政务签章 / 商业化支付 | `backend/src/services/esign_service.py` (GDCA/粤企签 placeholder), `backend/src/services/payment_service.py` | 政务接入 ≥1 个 ✅, 商业化沙箱降为 P3 |
+| **Lane 1** | 政务签章 / 商业化支付 | `backend/src/services/esign_service.py` (GDCA/粤企签 框架占位), `backend/src/services/payment_service.py` | 政务接入 0 个🟡（仅框架占位，未接入·调用即 raise，待商务对接凭据）, 商业化沙箱降为 P3 |
 | **Lane 2** | 桌面 | `desktop/`, `docs/desktop/` | signed + notarized package ✅ |
 | **Lane 3** | RAG / 案件 / 律师市场 | `backend/src/services/rag/`, `backend/src/agents/personas/legal_*`, `frontend/src/pages/legal/` | full50 baseline ✅ + 5 persona eval ✅ |
 | **Lane 4** | 移动 / 小程序 | `mobile/`, `mini-program/`, `apps/uni-mobile/` | 真机 transcript ✅ + 小程序 smoke ✅ |

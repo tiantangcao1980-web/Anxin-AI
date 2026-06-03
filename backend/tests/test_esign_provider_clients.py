@@ -12,11 +12,24 @@ from src.services.esign_service import (
     ESignProviderConfigError,
     FaDaDaProvider,
     FlowStatus,
+    GdcaProvider,
     MockESignProvider,
     SignerInfo,
     SignType,
+    YueQiQianProvider,
     get_esign_provider,
     reset_esign_provider,
+)
+
+# 政务签章环境变量 — 测试前后清理以保证 placeholder 处于"未配置"状态
+_GOV_ESIGN_ENV_VARS = (
+    "GDCA_APP_ID",
+    "GDCA_APP_SECRET",
+    "GDCA_API_ENDPOINT",
+    "GDCA_CA_CERT_PATH",
+    "YUEQIQIAN_APP_ID",
+    "YUEQIQIAN_APP_SECRET",
+    "YUEQIQIAN_API_ENDPOINT",
 )
 
 
@@ -242,3 +255,81 @@ async def test_fadada_provider_uses_fasc_v51_signed_form_calls(monkeypatch):
     posted_body = json.loads(create_call["data"]["bizContent"])
     assert posted_body["signTaskSubject"] == "法大大测试合同"
     assert posted_body["transReferenceId"] == "contract-1"
+
+
+# ========== 政务签章 placeholder fail-fast 回归锁 ==========
+#
+# GDCA / 粤企签 当前仅为框架占位 (待商务对接凭据)。这些用例锁定其 fail-fast 行为:
+# 未配置凭据时调用任何业务方法必须立即 raise ESignProviderConfigError,
+# 既不发 HTTP 请求, 也绝不返回 mock 数据 — 防止回归成"静默假成功"被政务场景误用。
+
+
+@pytest.fixture
+def _clear_gov_esign_env(monkeypatch):
+    for name in _GOV_ESIGN_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+    yield
+
+
+@pytest.mark.asyncio
+async def test_gdca_raises_when_not_configured(_clear_gov_esign_env):
+    provider = GdcaProvider()
+
+    signers = [SignerInfo(signer_id="signer-1", name="张三", mobile="13800000000")]
+    with pytest.raises(ESignProviderConfigError, match="GDCA"):
+        await provider.create_sign_flow(contract_id="c-1", title="政务合同", signers=signers)
+    with pytest.raises(ESignProviderConfigError, match="GDCA"):
+        await provider.get_sign_url("flow-1", "signer-1")
+    with pytest.raises(ESignProviderConfigError, match="GDCA"):
+        await provider.get_flow_status("flow-1")
+    with pytest.raises(ESignProviderConfigError, match="GDCA"):
+        await provider.download_signed_doc("flow-1")
+    with pytest.raises(ESignProviderConfigError, match="GDCA"):
+        await provider.cancel_flow("flow-1", "撤销")
+
+
+@pytest.mark.asyncio
+async def test_yueqiqian_raises_when_not_configured(_clear_gov_esign_env):
+    provider = YueQiQianProvider()
+
+    signers = [SignerInfo(signer_id="signer-1", name="李四", mobile="13800000000")]
+    with pytest.raises(ESignProviderConfigError, match="粤企签"):
+        await provider.create_sign_flow(contract_id="c-1", title="政务合同", signers=signers)
+    with pytest.raises(ESignProviderConfigError, match="粤企签"):
+        await provider.get_sign_url("flow-1", "signer-1")
+    with pytest.raises(ESignProviderConfigError, match="粤企签"):
+        await provider.get_flow_status("flow-1")
+    with pytest.raises(ESignProviderConfigError, match="粤企签"):
+        await provider.download_signed_doc("flow-1")
+    with pytest.raises(ESignProviderConfigError, match="粤企签"):
+        await provider.cancel_flow("flow-1", "撤销")
+
+
+@pytest.mark.asyncio
+async def test_gov_placeholders_still_fail_fast_even_with_credentials(monkeypatch):
+    """即便凭据已配置, placeholder 仍是未接入状态 — 必须 raise, 绝不返回假数据。"""
+    for name in _GOV_ESIGN_ENV_VARS:
+        monkeypatch.setenv(name, "dummy-value")
+
+    signers = [SignerInfo(signer_id="signer-1", name="王五", mobile="13800000000")]
+
+    gdca = GdcaProvider()
+    with pytest.raises(ESignProviderConfigError):
+        await gdca.create_sign_flow(contract_id="c-1", title="政务合同", signers=signers)
+
+    yueqiqian = YueQiQianProvider()
+    with pytest.raises(ESignProviderConfigError):
+        await yueqiqian.create_sign_flow(contract_id="c-1", title="政务合同", signers=signers)
+
+
+def test_gov_placeholders_selectable_via_factory(monkeypatch):
+    """工厂可按 ESIGN_PROVIDER 返回政务 placeholder 实例 (开发环境)。"""
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+
+    monkeypatch.setenv("ESIGN_PROVIDER", "gdca")
+    reset_esign_provider()
+    assert isinstance(get_esign_provider(), GdcaProvider)
+
+    monkeypatch.setenv("ESIGN_PROVIDER", "yueqishang")
+    reset_esign_provider()
+    assert isinstance(get_esign_provider(), YueQiQianProvider)

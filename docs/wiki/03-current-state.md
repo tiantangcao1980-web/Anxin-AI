@@ -41,7 +41,7 @@ maintained_by: 每完成一个阶段任务即更新本文
 | **mypy** | harness/services 主要模块 **0 errors** ✅ (从 31 → 0) | — |
 | AI Review Gate | 4 reviewer + CODEOWNERS ✅ | [.github/workflows/ai-review.yml](../../.github/workflows/ai-review.yml) |
 | 文档规范 | 13 份 standards ✅ | [docs/standards/](../standards/) |
-| **政务签章** | GDCA + 粤企签 Provider placeholder ✅ (待商务接入) | [backend/src/services/esign_service.py](../../backend/src/services/esign_service.py), [docs/integrations/guangdong-gov-signature.md](../integrations/guangdong-gov-signature.md) |
+| **政务签章** | GDCA + 粤企签 Provider 框架占位🟡（未接入·调用即 raise ESignProviderConfigError，待商务对接凭据） | [backend/src/services/esign_service.py](../../backend/src/services/esign_service.py), [docs/integrations/guangdong-gov-signature.md](../integrations/guangdong-gov-signature.md) |
 
 ### 进行中 / 仍需推进
 
@@ -50,7 +50,7 @@ maintained_by: 每完成一个阶段任务即更新本文
 | **P8.A** | 桌面签名/公证证据 | 🚫 外部 | Apple Developer 账号 / Windows 签名证书 |
 | **P8.B** | UI/UX 优化 (4 项 P0 已完成本会话) | 🚧 持续 | 移动响应式/a11y/token 已加固; UI 三层目录整理仍待 |
 | **P8.C** | RAG full50 baseline | 🚫 外部 | corpus 50 份样本文档准备 |
-| **P8.D** | 政务签章接入 (代码 ✅, 商务待启) | 🟡 商务推动 | GDCA NDA + 粤商通入驻 |
+| **P8.D** | 政务签章接入 (仅框架占位🟡, 未接入, 商务待启) | 🟡 商务推动 | GDCA NDA + 粤商通入驻 |
 | **P8.D'** | 商业化支付/电签 | ⏬ **降 P3** (2026-05-14) | PMF 验证后启动 |
 | **P9** | 5 法务 persona | ✅ | — (复核完成) |
 | **P10** | RAG-Anything 知识库新版 | 🚧 持续 | — |
@@ -118,7 +118,7 @@ Skills 域:                4 office + 5 法律 + 5 电商
 文档规范:                 13/13   ✅
 品牌一致性:               100%    ✅
 图标体系一致性:           100%    ✅ (Phase B T1 收口 + ESLint 防回归)
-政务签章 placeholder:     2 渠道就位 (GDCA + 粤企签) ✅
+政务签章框架占位:        2 渠道占位 (GDCA + 粤企签) 🟡 未接入·调用即 raise，待商务对接凭据
 桌面签名:                 0%      🚫 (Apple Developer 阻断)
 真机证据:                 0%      🚫 (设备阻断)
 商业化支付/电签:           Phase F 降为 P3 ⏬ (PMF 后)

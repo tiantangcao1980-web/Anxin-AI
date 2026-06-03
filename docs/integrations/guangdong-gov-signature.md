@@ -158,7 +158,7 @@ ESIGN_PROVIDER=yueqishang  # or yueqiqian / yuesangtong (别名)
 > "签约和支付等设置付费的功能其实可以先不作为项目核心任务，因为目前我们的核心任务是先把项目的核心功能先验证了，再能谈后续的商业化。签约可以引入政府的平台，去看看广东省政府有没有数字签约的功能，添加上去即可。"
 
 **实施影响**:
-- ✅ 代码层 GDCA + 粤企签 Provider placeholder 已就位 (本次)
+- ✅ 代码层 GDCA + 粤企签 Provider **框架占位**已就位 (本次) — 🟡 **仅占位、未接入**：未配置凭据时调用任何方法立即 raise `ESignProviderConfigError`（fail-fast，绝不静默假成功），不发任何 HTTP 请求
 - ✅ ESIGN_PROVIDER 环境变量支持 5 种渠道 (mock / gdca / yueqishang / esignbao / fadada)
 - ✅ 文档化接入路径 (本文档)
 - 🟡 真实对接需业务方启动 Phase 1 商务对接

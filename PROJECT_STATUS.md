@@ -18,7 +18,7 @@
 **决策影响**:
 1. **优先级调整**: 商业化支付 / 商业化电签 (e签宝/法大大) 从 P0/P1 → **P3** (PMF 验证后启动)
 2. **政务签章接入**: 新增 **GDCA (广东省数字证书认证中心) + 粤企签 (数字广东 / 粤商通体系)** 作为政务场景默认签章方
-3. **代码层就位**: Provider placeholder 已写好, ESIGN_PROVIDER 环境变量切换即可启用 (待真凭据)
+3. **代码层框架占位🟡**: Provider **框架占位**已写好（**仅占位、未接入**）；ESIGN_PROVIDER 切到 gdca/yueqishang 后，未配置凭据时调用任何方法立即 raise `ESignProviderConfigError`（fail-fast，绝不静默假成功），**待商务对接 GDCA/粤企签真凭据后**才能真正启用
 
 ### 落地工作
 
