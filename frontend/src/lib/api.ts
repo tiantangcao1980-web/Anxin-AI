@@ -3871,6 +3871,10 @@ export const caseMarketApi = {
   listMyBids: (status?: string) =>
     request<any>(`/case-market/bids/mine${status ? `?status=${status}` : ''}`),
 
+  // 服务方：撤回投标
+  withdrawBid: (bidId: string) =>
+    request<any>(`/case-market/bids/${bidId}/withdraw`, { method: 'POST' }),
+
   // 双向评价
   rateService: (bidId: string, data: { rating: number; comment?: string }) =>
     request<any>(`/case-market/bids/${bidId}/rate`, { method: 'POST', body: JSON.stringify(data) }),

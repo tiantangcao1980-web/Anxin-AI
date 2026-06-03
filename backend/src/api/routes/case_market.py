@@ -318,6 +318,38 @@ async def list_my_bids(
     return UnifiedResponse.success(data=[_bid_to_dict(b) for b in bids])
 
 
+@router.post("/bids/{bid_id}/withdraw")
+async def withdraw_bid(
+    bid_id: str,
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """律师撤回投标
+
+    - 仅投标人本人可撤回
+    - 仅 PENDING 状态可撤回（已接受/已拒绝/已撤回均不可）
+    - 撤回后回滚需求的 bid_count
+    """
+    bid = await db.get(LawyerBid, bid_id)
+    if not bid:
+        raise HTTPException(404, "投标不存在")
+    if bid.lawyer_id != user.id:
+        raise HTTPException(403, "无权撤回该投标")
+    if bid.status != BidStatus.PENDING:
+        raise HTTPException(409, "当前状态不可撤回，仅待审核的投标可撤回")
+
+    bid.status = BidStatus.WITHDRAWN
+
+    # 回滚需求的投标计数
+    req = await db.get(CaseRequest, bid.case_request_id)
+    if req and (req.bid_count or 0) > 0:
+        req.bid_count = req.bid_count - 1
+
+    await db.commit()
+    await db.refresh(bid)
+    return UnifiedResponse.success(data=_bid_to_dict(bid), message="投标已撤回")
+
+
 @router.post("/bids/{bid_id}/rate")
 async def rate_service(
     bid_id: str,

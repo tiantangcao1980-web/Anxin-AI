@@ -90,6 +90,8 @@ export default function CaseMarket() {
 
   // 冲突警告
   const [conflictWarning, setConflictWarning] = useState<ConflictWarningData | null>(null)
+  // 触发冲突警告的投标 id（用于"撤回投标"）
+  const [conflictBidId, setConflictBidId] = useState<string | null>(null)
 
   const loadData = async () => {
     setLoading(true)
@@ -130,6 +132,7 @@ export default function CaseMarket() {
       // 检查冲突警告
       if (result?.conflict_warning) {
         setConflictWarning(result.conflict_warning)
+        setConflictBidId(result?.id ?? result?.bid_id ?? null)
       }
       toast.success(result?.message || '投标已提交')
       setBidDialogOpen(false)
@@ -137,6 +140,20 @@ export default function CaseMarket() {
       loadData()
     } catch (e: any) {
       toast.error(e?.message || '投标失败')
+    }
+  }
+
+  const handleWithdrawBid = async (bidId: string | null) => {
+    if (!bidId) {
+      toast.error('未找到要撤回的投标')
+      return
+    }
+    try {
+      await caseMarketApi.withdrawBid(bidId)
+      toast.success('投标已撤回')
+      await loadData()
+    } catch (e: any) {
+      toast.error(e?.message || '撤回失败')
     }
   }
 
@@ -214,7 +231,7 @@ export default function CaseMarket() {
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
       ) : tab === 'my-bids' ? (
-        <MyBidsList bids={myBids} />
+        <MyBidsList bids={myBids} onWithdraw={handleWithdrawBid} />
       ) : items.length === 0 ? (
         <div className="text-center py-16">
           <icons.Briefcase className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
@@ -387,20 +404,20 @@ export default function CaseMarket() {
       {/* 利益冲突警告 */}
       <ConflictWarning
         warning={conflictWarning}
-        onConfirmAnyway={() => { setConflictWarning(null); toast.info('已记录您的知情同意') }}
-        onWithdraw={() => {
+        onConfirmAnyway={() => { setConflictWarning(null); setConflictBidId(null); toast.info('已记录您的知情同意') }}
+        onWithdraw={async () => {
+          const bidId = conflictBidId
           setConflictWarning(null)
-          toast.success('投标已撤回')
-          // TODO: 调用撤回投标 API
-          loadData()
+          setConflictBidId(null)
+          await handleWithdrawBid(bidId)
         }}
-        onClose={() => setConflictWarning(null)}
+        onClose={() => { setConflictWarning(null); setConflictBidId(null) }}
       />
     </PageContainer>
   )
 }
 
-function MyBidsList({ bids }: { bids: BidItem[] }) {
+function MyBidsList({ bids, onWithdraw }: { bids: BidItem[]; onWithdraw: (bidId: string) => void | Promise<void> }) {
   if (bids.length === 0) {
     return (
       <div className="text-center py-16">
@@ -438,6 +455,18 @@ function MyBidsList({ bids }: { bids: BidItem[] }) {
               )}
               <span className="ml-auto">{new Date(bid.created_at).toLocaleDateString()}</span>
             </div>
+            {bid.status === 'pending' && (
+              <div className="mt-3 flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onWithdraw(bid.id)}
+                >
+                  <icons.X className="w-3.5 h-3.5 mr-1" />
+                  撤回投标
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}
