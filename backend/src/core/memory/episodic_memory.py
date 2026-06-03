@@ -244,12 +244,28 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         return episodes[:top_k]
 
     async def get(self, episode_id: str) -> dict[str, Any] | None:
-        """获取单个案例"""
+        """
+        按 ID 获取单个案例
+
+        底层向量库 (Qdrant) 不提供独立的精确 ID 查询接口，故复用
+        ``search`` 后在返回的元数据里精确匹配 ``episode_id``：
+
+        1. 以 ``episode_id`` 作为查询文本召回若干候选（放大 top_k）；
+        2. 在候选里挑出 ``episode_id`` 完全一致的那一条返回；
+        3. 找不到精确匹配时返回 ``None``，而不是返回最相似的错误案例。
+        """
         await self.ensure_initialized()
 
-        # TODO: 实现按 ID 查询
-        results = await self.search(query=episode_id, top_k=1)
-        return results[0] if results else None
+        if not episode_id:
+            return None
+
+        # 放大召回数量，提高精确 ID 命中概率（向量召回非确定性）
+        results = await self.search(query=episode_id, top_k=10)
+        for episode in results:
+            if episode.get("episode_id") == episode_id:
+                return episode
+
+        return None
 
     async def update_feedback(
         self, episode_id: str, user_rating: int, user_feedback: str = ""
@@ -267,11 +283,25 @@ class EnhancedEpisodicMemoryService(BaseMemoryService):
         """
         await self.ensure_initialized()
 
-        # TODO: 实现更新逻辑
-        self._log_info(
-            f"更新反馈: {episode_id}, " f"评分: {user_rating}, 反馈: {user_feedback[:50]}..."
-        )
-        return True
+        # 复用 update() 的「删除旧记录 + 重新插入」语义，
+        # 与 add_episode 共用同一向量库后端与序列化逻辑，
+        # 避免在此另起一套存储路径。
+        updates: dict[str, Any] = {
+            "user_rating": user_rating,
+            "user_feedback": user_feedback,
+            "is_successful": user_rating >= 4,
+        }
+        success = await self.update(episode_id, updates)
+
+        if success:
+            self._log_info(
+                f"更新反馈: {episode_id}, "
+                f"评分: {user_rating}, 反馈: {user_feedback[:50]}..."
+            )
+        else:
+            self._log_warning(f"更新反馈失败（案例不存在?）: {episode_id}")
+
+        return success
 
     async def update(self, episode_id: str, updates: dict[str, Any]) -> bool:
         """更新案例 — 删除旧记录后重新插入"""
