@@ -24,3 +24,19 @@ export {
   type MessageChannel,
   type PairingAuthorization,
 } from './capabilities'
+export {
+  imChannelsApi,
+  listChannels,
+  setupChannel,
+  bindAgent,
+  enableChannel,
+  disableChannel,
+  testConnection,
+  type IMChannel,
+  type IMChannelType,
+  type IMChannelStatus,
+  type IMChannelStats,
+  type SetupChannelRequest,
+  type BindAgentRequest,
+  type TestConnectionResult,
+} from './imChannels'
