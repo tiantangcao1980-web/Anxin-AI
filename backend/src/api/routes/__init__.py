@@ -66,11 +66,13 @@ from src.api.routes import (
     persona_market,
     persona_sales,
     personas,
+    plugins,
     privacy,
     rag_ingest,
     rag_kg,
     rag_query,
     rtc,
+    scheduled_tasks,
     security_challenge,
     sentiment,
     skill_governance,
@@ -156,6 +158,10 @@ api_router.include_router(im_channels.router, prefix="/im", tags=["IM渠道管�
 api_router.include_router(
     app_authorizations.router, prefix="/app-authorizations", tags=["应用授权"]
 )
+api_router.include_router(
+    scheduled_tasks.router, prefix="/scheduled-tasks", tags=["定时任务管理"]
+)
+api_router.include_router(plugins.router, prefix="/plugins", tags=["插件注册（D-2）"])
 api_router.include_router(skills.router, prefix="/skills", tags=["技能注册表"])
 api_router.include_router(skill_quota.router, prefix="/skill-sandbox/quota", tags=["Skill 沙箱配额"])
 api_router.include_router(enterprise.router, prefix="/enterprise", tags=["企业内网集群"])

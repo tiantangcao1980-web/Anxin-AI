@@ -91,7 +91,9 @@ from src.models.notification import (
     NotificationPreference,
 )
 from src.models.payment import PaymentOrder as PaymentOrderModel
+from src.models.plugin import Plugin  # D-2 插件注册
 from src.models.review import LawyerReview
+from src.models.scheduled_task import ScheduledTask  # D-1 定时任务管理
 from src.models.sentiment import (
     AlertLevel,
     AlertType,
@@ -256,6 +258,10 @@ __all__ = [
     "UserInvestigationPreference",
     # Harness incidents（vigorous-wiles）
     "Incident",
+    # 定时任务管理（D-1）
+    "ScheduledTask",
+    # 插件注册（D-2）
+    "Plugin",
     "UserTokenUsage",
     # 企业内网集群（festive-rosalind T4 — 组织/部门/成员）
     "Department",
