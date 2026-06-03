@@ -1,12 +1,31 @@
 /**
- * P21-C 小程序 personas mock 数据 + 假流式 helper
+ * P21-C 小程序 personas 数据层
  *
- * 与 frontend/src/lib/api/__mocks__/personas.mock.ts 对齐：
- *   - 10 个 user-facing persona（emoji + 名称 + 描述 + capabilities + skills + supported_apps）
- *   - 每 persona 3 个示例对话
- *   - chatWithPersona mock：根据 persona type 返回不同假回复
- *   - 假流式 helper（小程序无 SSE，逐字推送 chunk）
+ * 2026-06-03 接真实后端：list/详情/chat 全部走小程序 apiClient（既有 auth），
+ * 端点已核实存在：
+ *   - GET    /api/v1/personas              backend/src/api/routes/personas.py:71
+ *   - GET    /api/v1/personas/{id}         backend/src/api/routes/personas.py:81
+ *   - POST   /api/v1/personas/{id}/chat    backend/src/api/routes/personas.py:101
+ *   注册前缀 prefix="/personas"            backend/src/api/routes/__init__.py:163
+ *
+ * 本文件保留的 mock 部分（仅用于 UI 富化 / 离线兜底，**非可点击假功能**）：
+ *   - PERSONAS 种子：后端 list/detail 不返回 `domain` / `is_implemented` /
+ *     `sample_dialogs`（见 backend/src/agents/personas/base_persona.py:46 的
+ *     to_dict 仅含 persona_id/display_name/emoji/description/capabilities/
+ *     backed_by_skills/supported_apps/backed_by_agents/enabled），故用本地
+ *     种子按 persona_id 合并补全这几个纯展示字段。
+ *   - 当 list 请求失败（未登录 / 离线 / 隐私 local 模式禁网）时，回退到种子
+ *     渲染骨架，避免白屏；chat 失败由页面显示错误提示。
+ *   - fakeStream：小程序无 SSE，对**真实后端整段返回内容**做逐字打字机展示
+ *     （UX helper，内容来自后端，非伪造应答）。
  */
+
+import { personasApi } from '../../../utils/api/personas'
+import type {
+  Persona as ApiPersona,
+  PersonaDetail as ApiPersonaDetail,
+  ChatResponse as ApiChatResponse,
+} from '../../../types/persona'
 
 export type PersonaDomain = '综合协调' | '合规经营' | '增长获客' | '出海跨境'
 
@@ -326,18 +345,64 @@ export const PERSONAS: Persona[] = [
   },
 ]
 
-// ===== 公共 API（mock） =====
+// ===== 种子查找 + 富化 helper =====
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+const SEED_BY_ID = new Map(PERSONAS.map((p) => [p.persona_id, p]))
+
+/**
+ * 把后端返回的 persona 元信息与本地种子合并：
+ * 后端字段优先（display_name/emoji/description/capabilities/...），
+ * 仅用种子补全后端不返回的纯展示字段 domain/is_implemented/sample_dialogs。
+ */
+function enrich(api: ApiPersona | ApiPersonaDetail): Persona {
+  const seed = SEED_BY_ID.get(api.persona_id)
+  return {
+    persona_id: api.persona_id,
+    display_name: api.display_name || seed?.display_name || api.persona_id,
+    emoji: api.emoji || seed?.emoji || '🤖',
+    description: api.description || seed?.description || '',
+    // domain / is_implemented 后端不返回，用种子补；缺省给安全值
+    domain: seed?.domain ?? '综合协调',
+    is_implemented:
+      typeof api.enabled === 'boolean'
+        ? api.enabled
+        : (seed?.is_implemented ?? true),
+    capabilities: api.capabilities?.length ? api.capabilities : (seed?.capabilities ?? []),
+    backed_by_skills: api.backed_by_skills?.length
+      ? api.backed_by_skills
+      : (seed?.backed_by_skills ?? []),
+    backed_by_agents:
+      ('backed_by_agents' in api && api.backed_by_agents?.length
+        ? api.backed_by_agents
+        : (seed?.backed_by_agents ?? [])),
+    supported_apps: api.supported_apps?.length
+      ? api.supported_apps
+      : (seed?.supported_apps ?? []),
+    // sample_dialogs 后端无，仅来自种子（详情/欢迎语展示用）
+    sample_dialogs: seed?.sample_dialogs ?? [],
+  }
+}
+
+// ===== 公共 API（真实后端 + 种子兜底） =====
 
 export async function listPersonas(): Promise<Persona[]> {
-  await sleep(120)
-  return PERSONAS
+  try {
+    const items = await personasApi.list()
+    if (!items?.length) return PERSONAS
+    return items.map(enrich)
+  } catch {
+    // 未登录 / 离线 / 隐私 local 模式禁网 → 用种子渲染，避免白屏
+    return PERSONAS
+  }
 }
 
 export async function getPersona(personaId: string): Promise<Persona | undefined> {
-  await sleep(80)
-  return PERSONAS.find((p) => p.persona_id === personaId)
+  try {
+    const detail = await personasApi.get(personaId)
+    return enrich(detail)
+  } catch {
+    return SEED_BY_ID.get(personaId)
+  }
 }
 
 export interface ChatRequest {
@@ -353,28 +418,33 @@ export interface ChatResponse {
   emoji: string
 }
 
+/**
+ * 调用真实后端 persona chat（POST /personas/{id}/chat）。
+ * 后端只返回 { persona_id, content, metadata }，display_name/emoji/
+ * is_implemented 由本地种子补，供页面气泡头像 / 标签展示。
+ * 失败时抛出 ApiError，由页面捕获展示「智能体暂不可用」错误气泡——
+ * 不再返回任何伪造应答。
+ */
 export async function chatWithPersona(
   personaId: string,
   body: ChatRequest,
 ): Promise<ChatResponse> {
-  await sleep(280)
-  const found = PERSONAS.find((p) => p.persona_id === personaId)
-  if (!found) {
-    throw new Error(`mock: persona 不存在 ${personaId}`)
-  }
-  const head = found.is_implemented
-    ? `${found.emoji} ${found.display_name}：收到「${body.message.slice(0, 60)}」。`
-    : `${found.emoji} ${found.display_name}（规划中 · mock 占位）：「${body.message.slice(0, 60)}」`
-  const detail = found.is_implemented
-    ? `我可以帮你做：${found.capabilities.slice(0, 3).join(' / ')}……（共 ${found.capabilities.length} 项能力）`
-    : `本 persona 后端尚未实装，当前为前端 mock 应答；正式上线后可调用：${found.capabilities.slice(0, 2).join(' / ')}……`
-  const tail = `背后调用 ${found.backed_by_skills.length} 个技能 / ${found.backed_by_agents.length} 个 specialized agent。`
+  const resp: ApiChatResponse = await personasApi.chat(personaId, {
+    message: body.message,
+    history: body.history,
+  })
+  const seed = SEED_BY_ID.get(personaId)
+  const meta = (resp.metadata ?? {}) as Record<string, unknown>
   return {
-    persona_id: personaId,
-    content: [head, '', detail, '', tail].join('\n'),
-    is_implemented: found.is_implemented,
-    display_name: found.display_name,
-    emoji: found.emoji,
+    persona_id: resp.persona_id || personaId,
+    content: resp.content,
+    is_implemented: seed?.is_implemented ?? true,
+    display_name:
+      (typeof meta.display_name === 'string' && meta.display_name) ||
+      seed?.display_name ||
+      personaId,
+    emoji:
+      (typeof meta.emoji === 'string' && meta.emoji) || seed?.emoji || '🤖',
   }
 }
 
