@@ -173,6 +173,98 @@ async def test_get_result_endpoint(auth_client: AsyncClient, db_session, test_us
 
 
 @pytest.mark.asyncio
+async def test_events_poll_returns_array(
+    auth_client: AsyncClient, monkeypatch
+) -> None:
+    """轮询端点 happy path：返回 TaskEvent JSON 数组（含 timestamp / stream_id）。"""
+    from datetime import UTC, datetime
+
+    from src.api.routes import agent_tasks as routes_mod
+    from src.services.task_orchestrator.events import TaskEvent, TaskEventType
+
+    created = await _create_task_via_api(auth_client)
+    task_id = created["id"]
+
+    fake_events = [
+        TaskEvent(
+            task_id=task_id,
+            event_type=TaskEventType.QUEUED,
+            payload={"step": 1},
+            timestamp=datetime.now(UTC),
+            stream_id="1-0",
+        ),
+        TaskEvent(
+            task_id=task_id,
+            event_type=TaskEventType.PROGRESS,
+            payload={"pct": 50},
+            timestamp=datetime.now(UTC),
+            stream_id="2-0",
+        ),
+    ]
+
+    async def _fake_replay(tid, *, last_event_id="0-0"):
+        assert tid == task_id
+        assert last_event_id == "0-0"
+        return fake_events
+
+    monkeypatch.setattr(routes_mod, "replay_events", _fake_replay)
+
+    resp = await auth_client.get(f"/api/v1/agent-tasks/{task_id}/events/poll")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert isinstance(body, list)
+    assert len(body) == 2
+    assert body[0]["task_id"] == task_id
+    assert body[0]["event_type"] == TaskEventType.QUEUED.value
+    assert body[0]["stream_id"] == "1-0"
+    assert "timestamp" in body[0]
+
+
+@pytest.mark.asyncio
+async def test_events_poll_resume_after_ts(
+    auth_client: AsyncClient, monkeypatch
+) -> None:
+    """after_ts 作为续传游标透传到 replay_events 的 last_event_id。"""
+    from src.api.routes import agent_tasks as routes_mod
+
+    created = await _create_task_via_api(auth_client)
+    task_id = created["id"]
+
+    seen_cursor: dict[str, str] = {}
+
+    async def _fake_replay(tid, *, last_event_id="0-0"):
+        seen_cursor["v"] = last_event_id
+        return []
+
+    monkeypatch.setattr(routes_mod, "replay_events", _fake_replay)
+
+    resp = await auth_client.get(
+        f"/api/v1/agent-tasks/{task_id}/events/poll",
+        params={"after_ts": "5-0"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert seen_cursor["v"] == "5-0"
+
+
+@pytest.mark.asyncio
+async def test_events_poll_empty(auth_client: AsyncClient) -> None:
+    """无事件时返回空数组（autouse fixture 已把 replay_events 桩为 []）。"""
+    created = await _create_task_via_api(auth_client)
+    task_id = created["id"]
+    resp = await auth_client.get(f"/api/v1/agent-tasks/{task_id}/events/poll")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_events_poll_task_not_found(auth_client: AsyncClient) -> None:
+    resp = await auth_client.get(
+        "/api/v1/agent-tasks/00000000-0000-0000-0000-000000000000/events/poll"
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_unauthenticated_returns_401(client: AsyncClient) -> None:
     r = await client.post(
         "/api/v1/agent-tasks",

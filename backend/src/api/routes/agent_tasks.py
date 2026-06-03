@@ -10,6 +10,7 @@ agent_tasks 路由 —— P2 异步任务 MVP
     POST   /api/v1/agent-tasks/{id}/approve          审批通过
     POST   /api/v1/agent-tasks/{id}/reject           审批驳回
     GET    /api/v1/agent-tasks/{id}/events           SSE 事件流（断线重连用 Last-Event-ID）
+    GET    /api/v1/agent-tasks/{id}/events/poll      轮询事件流（RN 友好，query: after_ts=stream_id）
     GET    /api/v1/agent-tasks/{id}/result           结果详情
 
 权限：登录即可，跨用户读写返回 403（按 user_id 严格隔离）。
@@ -27,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.routes.schemas.agent_task import (
     AgentTaskApproveBody,
     AgentTaskCreate,
+    AgentTaskEventOut,
     AgentTaskListOut,
     AgentTaskOut,
     AgentTaskRejectBody,
@@ -262,6 +264,37 @@ async def stream_agent_task_events(
             "Connection": "keep-alive",
         },
     )
+
+
+@router.get("/{task_id}/events/poll", response_model=list[AgentTaskEventOut])
+async def poll_agent_task_events(
+    task_id: str,
+    after_ts: str | None = Query(
+        default=None,
+        description="续传游标：上次返回数组里最后一条事件的 stream_id（缺省从头回放）",
+    ),
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db),
+) -> list[AgentTaskEventOut]:
+    """轮询式事件拉取（RN 友好，替代 SSE）。
+
+    RN 无原生 EventSource，移动端用轮询此端点替代 ``/events`` SSE：
+    - 复用 ``replay_events`` 做非阻塞增量拉取，返回 JSON 数组（按时间顺序）；
+    - ``after_ts`` 是上一批最后一条事件的 ``stream_id``（Redis Streams entry id），
+      缺省时 ``"0-0"`` 表示从头回放；
+    - 鉴权与 ``/events`` 一致（登录 + owner 校验）。
+
+    不影响既有 SSE ``/events`` 端点（Web 端在用）。
+    """
+    service = _get_service(db)
+    task = await service.get_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    _ensure_owner(task, user)
+
+    cursor = after_ts or "0-0"
+    events = await replay_events(task_id, last_event_id=cursor)
+    return [AgentTaskEventOut.model_validate(ev.to_dict()) for ev in events]
 
 
 @router.get("/{task_id}/result", response_model=AgentTaskResultOut)

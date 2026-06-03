@@ -58,6 +58,8 @@ export interface TaskEvent {
   event_type: TaskEventType
   payload: Record<string, any>
   timestamp: string
+  /** Redis Streams entry id；轮询续传游标 */
+  stream_id?: string | null
 }
 
 export interface ListTasksParams {
@@ -127,8 +129,11 @@ export async function getTaskResult(id: string): Promise<Record<string, any> | n
 /**
  * 增量拉取任务事件流（轮询替代 SSE）。
  *
- * 后端 `GET /agent-tasks/{id}/events?after_ts=` 支持按时间戳分页，
- * 这里以 2s 轮询模拟订阅：仅把"新增"事件推给 `onEvent`。
+ * RN 无原生 EventSource，改打后端轮询端点
+ * `GET /agent-tasks/{id}/events/poll?after_ts=<stream_id>`：
+ * 后端复用 `replay_events` 做非阻塞增量回放，返回 JSON 数组（TaskEvent[]）。
+ * 这里以 2s 轮询模拟订阅：仅把"新增"事件推给 `onEvent`，
+ * 用每批最后一条事件的 `stream_id`（Redis Streams entry id）作续传游标。
  * 返回值：取消订阅函数。
  */
 export function subscribeTaskEvents(
@@ -146,13 +151,13 @@ export function subscribeTaskEvents(
     try {
       const client = getApiClient()
       const res = await client.get<TaskEvent[]>(
-        `/agent-tasks/${encodeURIComponent(id)}/events`,
+        `/agent-tasks/${encodeURIComponent(id)}/events/poll`,
         { params: afterTs ? { after_ts: afterTs } : {} },
       )
       const events = res.data ?? []
       for (const ev of events) {
         onEvent(ev)
-        afterTs = ev.timestamp
+        if (ev.stream_id) afterTs = ev.stream_id
       }
     } catch {
       // 静默重试

@@ -84,3 +84,17 @@ class AgentTaskResultOut(BaseModel):
     result: dict[str, Any] | None = None
     error: dict[str, Any] | None = None
     finished_at: datetime | None = None
+
+
+class AgentTaskEventOut(BaseModel):
+    """单条任务事件（轮询端点返回形状）。
+
+    与 ``TaskEvent.to_dict()`` 对齐：移动端 RN 无原生 EventSource，
+    用轮询端点替代 SSE，按返回数组里最后一条的 ``stream_id`` 续传游标。
+    """
+
+    task_id: str
+    event_type: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    timestamp: datetime
+    stream_id: str | None = None
