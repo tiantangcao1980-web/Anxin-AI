@@ -24,7 +24,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "Anxin AI"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
-    DEV_MODE: bool = False  # 开发模式：启用后允许无Token访问API
+    # 开发模式：放宽若干开发便利项（cookie secure=false、返回调试验证码等）。
+    # 注意：当前代码并不因 DEV_MODE 跳过认证 —— get_current_user 等依赖始终校验 token。
+    DEV_MODE: bool = False
     ENVIRONMENT: str = "development"  # development, staging, production
     ADMIN_INITIAL_PASSWORD: str | None = None  # 管理员初始密码（开发环境用）
 
@@ -493,7 +495,9 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT in {"production", "staging"}:
             problems: list[str] = []
             if self.DEV_MODE:
-                problems.append("DEV_MODE 必须为 false（当前为 true，会绕过认证）")
+                problems.append(
+                    "DEV_MODE 必须为 false（开发便利项放宽不应进入生产，纵深防御）"
+                )
             if not self.AUTH_REDIS_FAIL_CLOSED:
                 problems.append(
                     "AUTH_REDIS_FAIL_CLOSED 必须为 true（当前 false，"

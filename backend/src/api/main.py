@@ -37,15 +37,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(f"Sentry 初始化失败（不影响启动）: {e}")
 
     # ===== [S-02] 安全检查：生产环境禁止启用 DEV_MODE =====
-    # 原因：DEV_MODE 会跳过所有认证，生产环境如果误开等于无认证
-    # 修复方式：启动时检测配置组合，不合法则拒绝启动
+    # DEV_MODE 放宽若干开发便利项（cookie secure=false、返回调试验证码等）。
+    # 注意：当前代码并不因 DEV_MODE 跳过认证（get_current_user 等依赖始终校验 token）。
+    # 此守卫为纵深防御：防止未来新增的 dev-only 放宽被误带入生产。
     if settings.ENVIRONMENT == "production" and settings.DEV_MODE:
         raise RuntimeError(
             "❌ 安全检查失败：生产环境禁止启用 DEV_MODE！\n"
             "请在 .env 中设置 DEV_MODE=false 或移除该配置。"
         )
     if settings.DEV_MODE:
-        logger.warning("⚠️ DEV_MODE 已启用 - 认证将被跳过，仅限开发环境使用！")
+        logger.warning("⚠️ DEV_MODE 已启用（开发便利项放宽：cookie 非 secure、调试验证码）—— 仅限开发环境")
 
     # 初始化数据库
     try:
