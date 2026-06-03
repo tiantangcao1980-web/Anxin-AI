@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.app_authorization import (
     BaseOAuthProvider,
+    OAuthConfigError,
     OAuthFlowService,
     OAuthProviderError,
     OAuthProviderRegistry,
@@ -64,6 +65,12 @@ class _StubProvider(BaseOAuthProvider):
     revoke_calls: list[str] = []
     refresh_calls: list[str] = []
     refresh_should_fail: bool = False
+
+    def __init__(self, **kwargs):
+        # 默认视为"已配置"：注入非空凭据，避免触发 OAuthConfigError fail-fast。
+        kwargs.setdefault("client_id", "stub-client-id")
+        kwargs.setdefault("client_secret", "stub-client-secret")
+        super().__init__(**kwargs)
 
     async def authorize_url(self, state, redirect_uri, scopes=None):
         s = ",".join(scopes or self.default_scopes)
@@ -313,3 +320,88 @@ async def test_disconnect_revokes_remote_and_marks_revoked(
     revoked = await service.disconnect(auth.id)
     assert revoked.status == AppAuthorizationStatus.REVOKED
     assert _StubProvider.revoke_calls == ["access_for_dddd"]
+
+
+# ---------------------------------------------------------------------------
+# fail-fast 回归：未配置凭据的 provider 不得静默"假成功"（任务 F）
+# ---------------------------------------------------------------------------
+
+
+class _UnconfiguredProvider(BaseOAuthProvider):
+    """模拟一个已注册但缺 client_id/client_secret 的 provider（凭据未配置）。"""
+
+    provider_id = "unconfigured_office"
+    display_name = "Unconfigured Office"
+    category = "office"
+    default_scopes = ["read"]
+
+    # 不注入凭据：client_id / client_secret 保持 None
+    async def authorize_url(self, state, redirect_uri, scopes=None):
+        # 若未被 fail-fast 拦截，会生成带空 client_id= 的"假绿"死链接
+        return f"https://x.example/authorize?client_id={self.client_id or ''}&state={state}"
+
+    async def exchange_code(self, code, redirect_uri):  # pragma: no cover - 不应被调用
+        return OAuthTokenBundle(access_token="should-not-happen", token_type="Bearer")
+
+    async def refresh_token(self, refresh_token):  # pragma: no cover
+        raise NotImplementedError
+
+    async def revoke(self, access_token):  # pragma: no cover
+        return None
+
+    async def get_user_info(self, access_token):  # pragma: no cover
+        return {"id": "unconfigured-user"}
+
+
+@pytest.mark.asyncio
+async def test_start_unconfigured_provider_fails_fast(
+    db_session: AsyncSession,
+    token_store: TokenStore,
+    in_memory_state_cache,
+    test_user_for_oauth,
+):
+    """未配置 client_id/client_secret 时 start 必须 raise OAuthConfigError，
+    而不是返回带空 client_id 的死链接（杜绝"未配置却显示已发起授权"）。"""
+    reg = OAuthProviderRegistry.default()
+    reg.register(_UnconfiguredProvider)
+
+    service = OAuthFlowService(
+        db_session,
+        token_store=token_store,
+        state_cache=in_memory_state_cache,
+    )
+    with pytest.raises(OAuthConfigError) as exc:
+        await service.start(
+            provider_id="unconfigured_office",
+            user_id=str(test_user_for_oauth.id),
+        )
+    assert "client_id" in str(exc.value)
+    # 未配置时不应把 state 写入缓存（流程在生成 URL 前就被拦截）
+
+
+@pytest.mark.asyncio
+async def test_callback_unconfigured_provider_fails_fast(
+    db_session: AsyncSession,
+    token_store: TokenStore,
+    in_memory_state_cache,
+    test_user_for_oauth,
+):
+    """未配置凭据时 callback 也必须 fail-fast，避免用空凭据换 token 后语义模糊。"""
+    reg = OAuthProviderRegistry.default()
+    reg.register(_UnconfiguredProvider)
+
+    service = OAuthFlowService(
+        db_session,
+        token_store=token_store,
+        state_cache=in_memory_state_cache,
+    )
+    # 手动塞一个合法 state，绕过 state 校验，直击凭据校验
+    await in_memory_state_cache.put(
+        "unconfigured_office", "valid-state", str(test_user_for_oauth.id)
+    )
+    with pytest.raises(OAuthConfigError):
+        await service.callback(
+            provider_id="unconfigured_office",
+            state="valid-state",
+            code="any-code",
+        )

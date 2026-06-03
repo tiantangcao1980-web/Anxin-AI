@@ -53,6 +53,12 @@ class _StubAPIProvider(BaseOAuthProvider):
     icon_url = "https://example.com/icon.png"
     default_scopes = ["read"]
 
+    def __init__(self, **kwargs):
+        # 视为"已配置"：注入非空凭据，避免触发 OAuthConfigError fail-fast。
+        kwargs.setdefault("client_id", "stub-api-client-id")
+        kwargs.setdefault("client_secret", "stub-api-client-secret")
+        super().__init__(**kwargs)
+
     async def authorize_url(self, state, redirect_uri, scopes=None):
         return f"https://stub.example/auth?state={state}&redirect={redirect_uri}"
 

@@ -60,6 +60,14 @@ class OAuthProviderError(OAuthFlowError):
     """provider 调用失败（封装上游 4xx/5xx）。"""
 
 
+class OAuthConfigError(OAuthFlowError):
+    """provider 凭据（client_id / client_secret）未配置。
+
+    诚实化保障：未配置时不得静默生成带空 ``client_id=`` 的"假绿"授权 URL，
+    也不得用空凭据去换 token，而应明确报错告知"该应用尚未配置"。
+    """
+
+
 class OAuthNotFoundError(OAuthFlowError):
     """AppAuthorization 不存在。"""
 
@@ -197,6 +205,7 @@ class OAuthFlowService:
         返回 ``{"authorize_url": "...", "state": "..."}``。
         """
         provider = self._build_provider(provider_id)
+        self._require_configured(provider_id, provider)
         state = secrets.token_urlsafe(32)
         await self._state_cache.put(provider_id, state, user_id)
 
@@ -228,6 +237,7 @@ class OAuthFlowService:
             raise OAuthStateError(f"OAuth state 校验失败或已过期 (provider={provider_id})")
 
         provider = self._build_provider(provider_id)
+        self._require_configured(provider_id, provider)
         callback_url = redirect_uri or self._default_redirect_uri(provider_id)
 
         try:
@@ -333,6 +343,26 @@ class OAuthFlowService:
             return self.registry.build(provider_id)
         except KeyError as e:
             raise OAuthProviderError(str(e)) from e
+
+    @staticmethod
+    def _require_configured(provider_id: str, provider: BaseOAuthProvider) -> None:
+        """fail-fast：provider 未配置 client_id/client_secret 时明确报错。
+
+        防止"未配置却静默假成功"——避免生成带空 ``client_id=`` 的死链接，或用
+        空凭据去换 token（必失败但报错语义模糊）。
+        """
+        client_id = getattr(provider, "client_id", None)
+        client_secret = getattr(provider, "client_secret", None)
+        missing: list[str] = []
+        if not client_id:
+            missing.append("client_id")
+        if not client_secret:
+            missing.append("client_secret")
+        if missing:
+            raise OAuthConfigError(
+                f"应用 '{provider_id}' 尚未配置凭据（缺少 {', '.join(missing)}），"
+                "请在后台 / 环境变量中填入对应的 client_id / client_secret 后再发起授权。"
+            )
 
     def _default_redirect_uri(self, provider_id: str) -> str:
         from src.core.config import settings

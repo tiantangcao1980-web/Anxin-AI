@@ -23,6 +23,7 @@ from src.services.app_authorization.models import (
     AppToken,
 )
 from src.services.app_authorization.oauth_flow import (
+    OAuthConfigError,
     OAuthFlowError,
     OAuthFlowService,
     OAuthNotFoundError,
@@ -50,6 +51,7 @@ __all__ = [
     "OAuthFlowError",
     "OAuthStateError",
     "OAuthProviderError",
+    "OAuthConfigError",
     "OAuthNotFoundError",
     # token store
     "TokenStore",

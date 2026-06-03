@@ -33,6 +33,7 @@ from src.core.database import get_db
 from src.core.deps import get_current_user_required
 from src.models.user import User
 from src.services.app_authorization import (
+    OAuthConfigError,
     OAuthFlowError,
     OAuthFlowService,
     OAuthNotFoundError,
@@ -136,6 +137,8 @@ async def start_authorize(
             redirect_uri=body.redirect_uri,
             scopes=body.scopes,
         )
+    except OAuthConfigError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except OAuthProviderError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except OAuthFlowError as e:
@@ -182,6 +185,8 @@ async def oauth_callback(
         )
     except OAuthStateError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except OAuthConfigError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except OAuthProviderError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
     except OAuthFlowError as e:
