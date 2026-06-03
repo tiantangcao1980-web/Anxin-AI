@@ -176,3 +176,62 @@ jobs:
         run: uv run alembic downgrade base
       - name: Final upgrade to head
         run: uv run alembic upgrade head
+
+  # 5. Infra-gated 测试：支付/订阅/电签/IM webhook 套件（默认被 skipif 门控，
+  #    仅在提供 PostgreSQL + Redis 且 ANXIN_RUN_INFRA_TESTS=1 时运行）。
+  #    这把此前被无条件 skip 伪装成绿的核心营收测试在 CI 里真正跑起来。
+  infra-test:
+    name: Infra-gated tests (PG + Redis)
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: legal_agent_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      ANXIN_RUN_INFRA_TESTS: '1'
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/legal_agent_db
+      REDIS_URL: redis://localhost:6379/0
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v5
+      - name: Sync dev deps
+        run: uv sync --extra dev
+      - name: Wait for postgres
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            sleep 1
+          done
+      - name: Run infra-gated tests
+        run: |
+          uv run pytest \
+            tests/test_external_surface_guards.py \
+            tests/test_subscription_state_machine.py \
+            tests/test_im_websocket_auth.py \
+            --timeout=60 -q
