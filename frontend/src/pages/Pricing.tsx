@@ -53,7 +53,13 @@ const CLIENT_TABS: { key: ClientTab; label: string; description: string }[] = [
   { key: 'provider', label: '律师/律所', description: '获客与案件管理' },
 ]
 
-// 功能对比表 - 前端配置（后端暂不支持此结构化数据）
+// 功能对比表 — ⚠️ 参考值，以实际套餐为准。
+// 后端 GET /api/v1/billing/plans（billing.py list_plans）仅返回各套餐的价格、
+// 名称与自由格式的 features JSON（如 [{name:"AI咨询", quota:200}]），各套餐 key
+// 互不对齐，且不含"合同审查/找律师/合规自检/团队协作/API 接入/专属顾问"等
+// 结构化的跨套餐特性矩阵，无法驱动本对比表。故此处保留静态参考值，避免臆造后端数据。
+// TODO(backend): 新增 feature matrix 端点（如 GET /billing/feature-matrix），
+//   返回固定特性行 + 各 tier 取值，前端再改为动态渲染。
 const FEATURE_COMPARE: FeatureRow[] = [
  { label:'AI 对话次数', basic:'50 次/月', pro:'200 次/月', enterprise:'不限' },
  { label:'存储空间', basic:'5GB', pro:'20GB', enterprise:'100GB' },
@@ -315,7 +321,10 @@ export default function Pricing() {
 
  {/* 功能对比表 */}
  <div className="pt-4">
- <h2 className={`${heading.section} text-center mb-4`}>功能对比</h2>
+ <h2 className={`${heading.section} text-center mb-1`}>功能对比</h2>
+ <p className="text-xs text-muted-foreground text-center mb-4">
+ 以下为参考值，具体权益以实际套餐为准
+ </p>
  <div className={`${cardStyle.base} overflow-hidden`}>
  <Table>
  <TableHeader>
