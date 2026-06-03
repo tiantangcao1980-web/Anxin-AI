@@ -1630,12 +1630,6 @@ export default function Chat() {
  window.location.href ='/messages';
  return;
  }
- if (actionId ==='ws-voice-chat') {
- toast.info('语音对话功能正在开发中，敬请期待', {
- icon: <icons.Mic className="h-4 w-4" />,
- });
- return;
- }
 
  // 工作台入口统一复用现有 qa-* 工作流配置，避免输入语义与发送模式漂移。
  const workflowBridge = WORKSPACE_TO_WORKFLOW_ACTION[actionId];

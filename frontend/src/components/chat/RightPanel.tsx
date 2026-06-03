@@ -313,14 +313,17 @@ export const RightPanel = memo(function RightPanel(props: RightPanelProps) {
  <div className="grid grid-cols-2 gap-2">
  {([
  { icon: icons.MessageSquare, label:'消息中心', desc:'通知与审批', actionId:'ws-messages' },
- { icon: icons.Mic, label:'语音对话', desc:'AI 语音助手', actionId:'ws-voice-chat' },
+ { icon: icons.Mic, label:'语音对话', desc:'AI 语音助手', actionId:'ws-voice-chat', disabled: true },
  ] as const).map((item) => {
  const Icon = item.icon;
  return (
  <button
  key={item.actionId}
+ disabled={(item as any).disabled}
  onClick={() => props.onWorkspaceAction?.(item.actionId)}
- className="group flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface-1 p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:scale-[0.98]"
+ title={(item as any).disabled ? '功能开发中' : undefined}
+ aria-label={(item as any).disabled ? `${item.label} - 功能开发中` : item.label}
+ className={`group flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface-1 p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card active:scale-[0.98] ${(item as any).disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
  >
  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-primary/5 transition-colors">
  <Icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
