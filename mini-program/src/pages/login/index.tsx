@@ -13,6 +13,7 @@ import Taro from '@tarojs/taro'
 import { Screen } from '../../components/Layout'
 import { wechatMiniprogramLogin, passwordLogin } from '../../utils/api/auth'
 import { ApiError } from '../../utils/api/client'
+import { getStoredPrivacyMode } from '../../utils/privacy'
 import './index.scss'
 
 export default function LoginPage() {
@@ -22,7 +23,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [agreed, setAgreed] = useState(false)
 
+  // 隐私模式 fail-closed：local / top-secret 禁止登录所需的数据网络。
+  // 这里在 UI 层提前禁用按钮，避免用户点击后才在网络层报错。
+  const privacyMode = getStoredPrivacyMode()
+  const privacyBlocked = privacyMode !== 'standard'
+
   async function handleWechatLogin() {
+    if (privacyBlocked) {
+      Taro.showToast({ title: '隐私模式已禁用登录，请先切换为标准模式', icon: 'none' })
+      return
+    }
     if (!agreed) {
       Taro.showToast({ title: '请先勾选用户协议', icon: 'none' })
       return
@@ -50,6 +60,10 @@ export default function LoginPage() {
   }
 
   async function handleEmailLogin() {
+    if (privacyBlocked) {
+      Taro.showToast({ title: '隐私模式已禁用登录，请先切换为标准模式', icon: 'none' })
+      return
+    }
     if (!agreed) {
       Taro.showToast({ title: '请先勾选用户协议', icon: 'none' })
       return
@@ -85,11 +99,19 @@ export default function LoginPage() {
         </Text>
       </View>
 
+      {privacyBlocked && (
+        <View className='login-privacy-hint'>
+          <Text className='login-privacy-hint__text'>
+            当前为隐私模式（{privacyMode}），已禁用登录所需的网络访问。请在「我的」页切换为标准模式后再登录。
+          </Text>
+        </View>
+      )}
+
       <View className='login-actions'>
         {!showEmail ? (
           <>
             <View
-              className={`login-btn login-btn--primary ${loading ? 'login-btn--loading' : ''}`}
+              className={`login-btn login-btn--primary ${loading ? 'login-btn--loading' : ''} ${privacyBlocked ? 'login-btn--disabled' : ''}`}
               onClick={handleWechatLogin}
             >
               <Text className='login-btn__text'>
@@ -122,7 +144,7 @@ export default function LoginPage() {
               password
             />
             <View
-              className={`login-btn login-btn--primary ${loading ? 'login-btn--loading' : ''}`}
+              className={`login-btn login-btn--primary ${loading ? 'login-btn--loading' : ''} ${privacyBlocked ? 'login-btn--disabled' : ''}`}
               onClick={handleEmailLogin}
             >
               <Text className='login-btn__text'>

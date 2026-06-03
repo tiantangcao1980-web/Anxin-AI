@@ -36,6 +36,19 @@
   }
 }
 
+.login-privacy-hint {
+  margin: 0 48rpx 24rpx;
+  padding: 20rpx 24rpx;
+  border-radius: $radius-card;
+  background-color: $color-warning-soft;
+
+  &__text {
+    font-size: $font-caption;
+    color: $color-warning;
+    line-height: 1.5;
+  }
+}
+
 .login-actions {
   padding: 0 48rpx;
 }
@@ -58,6 +71,9 @@
   }
   &--loading {
     opacity: 0.7;
+  }
+  &--disabled {
+    opacity: 0.4;
   }
 
   &__text {

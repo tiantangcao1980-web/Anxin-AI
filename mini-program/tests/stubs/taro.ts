@@ -1,5 +1,5 @@
 // Taro 在 vitest 中的最小 stub —— 仅暴露被测代码用到的 API。
-// 当前覆盖：getStorageSync / setStorageSync / request / login。
+// 当前覆盖：getStorageSync / setStorageSync / removeStorageSync / request / login。
 // 真实运行时由微信小程序基础库提供，单测只验证生产代码的调用链与边界。
 
 const _storage = new Map<string, unknown>()
@@ -42,9 +42,14 @@ function setStorageSync(key: string, value: unknown): void {
   _storage.set(key, value)
 }
 
+function removeStorageSync(key: string): void {
+  _storage.delete(key)
+}
+
 export default {
   getStorageSync,
   setStorageSync,
+  removeStorageSync,
   request,
   login,
 }

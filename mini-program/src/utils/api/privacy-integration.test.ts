@@ -104,3 +104,30 @@ describe('auth.ts wechatMiniprogramLogin × privacy', () => {
     expect(isMiniProgramPrivacyNetworkBlockedError(caught)).toBe(true)
   })
 })
+
+describe('refresh.ts refreshAccessToken × privacy', () => {
+  it('local 模式：不发 Taro.request、抛 Privacy 错误、并清空 token（fail-closed）', async () => {
+    const { tokenStorage } = await import('../auth/token')
+    tokenStorage.setAccessToken('stale-access')
+    tokenStorage.setRefreshToken('stale-refresh')
+
+    setStoredPrivacyMode('local')
+    const reqSpy = vi.spyOn(Taro, 'request')
+
+    const { refreshAccessToken, __resetRefreshState } = await import('../auth/refresh')
+    __resetRefreshState()
+
+    let caught: unknown = null
+    try {
+      await refreshAccessToken()
+    } catch (e) {
+      caught = e
+    }
+
+    expect(reqSpy).not.toHaveBeenCalled()
+    expect(isMiniProgramPrivacyNetworkBlockedError(caught)).toBe(true)
+    // token 已被清空 → 调用方据此跳登录，不会无限重试
+    expect(tokenStorage.getAccessToken()).toBeFalsy()
+    expect(tokenStorage.getRefreshToken()).toBeFalsy()
+  })
+})

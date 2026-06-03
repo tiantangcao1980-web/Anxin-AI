@@ -14,10 +14,33 @@
 import Taro from '@tarojs/taro'
 import { tokenStorage } from '../auth/token'
 import { refreshAccessToken } from '../auth/refresh'
-import { assertMiniProgramDataNetworkAllowed, getStoredPrivacyMode } from '../privacy'
+import {
+  assertMiniProgramDataNetworkAllowed,
+  getStoredPrivacyMode,
+  isMiniProgramPrivacyNetworkBlockedError,
+} from '../privacy'
 import { resolveBaseUrl } from './baseUrl'
 
 const DEFAULT_TIMEOUT = 30_000
+
+/**
+ * 跳登录页（fail-closed 收尾）。
+ *
+ * 用于隐私敏感模式下 refresh 被守门拦截时：token 已被 refresh.ts 清空，
+ * 这里把用户带回登录页，避免停留在「半登录」状态。reLaunch 在某些时机/环境
+ * （如已在登录页、或测试 stub 未实现）会抛错，此处吞掉不影响主流程。
+ */
+function redirectToLogin(): void {
+  try {
+    const reLaunch = (Taro as { reLaunch?: (opts: { url: string }) => Promise<unknown> })
+      .reLaunch
+    if (typeof reLaunch === 'function') {
+      void reLaunch({ url: '/pages/login/index' })?.catch?.(() => {})
+    }
+  } catch {
+    // 导航失败不阻塞错误抛出
+  }
+}
 
 export class ApiError extends Error {
   status: number
@@ -147,6 +170,12 @@ async function rawRequest<T>(opts: RequestOptions): Promise<T> {
         retried.data,
       )
     } catch (e) {
+      // 隐私敏感模式下 refresh 被守门拦截：token 已在 refresh.ts 清空，
+      // 这里跳登录并原样抛出 Privacy 错误（不退化成 AUTH_EXPIRED、不再重试）。
+      if (isMiniProgramPrivacyNetworkBlockedError(e)) {
+        redirectToLogin()
+        throw e
+      }
       if (e instanceof ApiError) throw e
       throw new ApiError('登录已过期，请重新登录', 401, 'AUTH_EXPIRED')
     }
